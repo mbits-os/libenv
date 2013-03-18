@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
-#include "dbconn.h"
-#include "dbconn/driver.h"
+#include <dbconn.h>
+#include <dbconn/driver.h>
+#include <utils.h>
 
 #include <fstream>
 #include <iostream>
@@ -80,7 +81,6 @@ namespace db
 		void shutdown_driver();
 	}
 
-	template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 	static struct {
 		bool (*startup)();
 		void (*shutdown)();

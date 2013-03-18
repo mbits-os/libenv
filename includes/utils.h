@@ -22,9 +22,9 @@
  * SOFTWARE.
  */
 
-#include <dbconn.h>
-#include <model.h>
+#ifndef __UTILS_H__
+#define __UTILS_H__
 
-namespace data
-{
-};
+template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
+
+#endif //__UTILS_H__
