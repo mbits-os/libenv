@@ -27,6 +27,12 @@
 
 namespace db
 {
+	struct Statement
+	{
+		virtual ~Statement() {}
+		virtual bool bind(int arg, const char* value) = 0;
+		virtual bool execute() = 0;
+	};
 }
 
 #endif //__DBCONN_STATEMENT_H__

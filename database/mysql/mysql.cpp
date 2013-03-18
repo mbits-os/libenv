@@ -36,6 +36,75 @@ namespace db
 {
 	namespace mysql
 	{
+		class MySQLStatement: public Statement
+		{
+			MYSQL_STMT *m_stmt;
+			MYSQL_BIND *m_bind;
+			char **m_buffers;
+			size_t m_count;
+		public:
+			MySQLStatement(MYSQL_STMT *stmt)
+				: m_stmt(stmt)
+				, m_bind(nullptr)
+				, m_buffers(nullptr)
+				, m_count(0)
+			{
+			}
+			~MySQLStatement()
+			{
+				mysql_stmt_close(m_stmt);
+				m_stmt = NULL;
+
+				deleteBind();
+			}
+			void deleteBind()
+			{
+				delete [] m_bind;
+				m_bind = nullptr;
+				for (size_t i = 0 ; i < m_count; ++i)
+					delete [] m_buffers[i];
+				delete [] m_buffers;
+
+				m_buffers = nullptr;
+				m_count = 0;
+			}
+
+			bool allocBind(size_t count)
+			{
+				MYSQL_BIND *bind = new (std::nothrow) MYSQL_BIND[count];
+				char **buffers = new (std::nothrow) char*[count];
+
+				if (!bind || !buffers)
+				{
+					delete [] bind;
+					delete [] buffers;
+					return false;
+				}
+
+				deleteBind();
+
+				memset(bind, 0, sizeof(MYSQL_BIND) * count);
+				memset(buffers, 0, sizeof(char*) * count);
+				m_bind = bind;
+				m_buffers = buffers;
+				m_count = count;
+
+				return true;
+			}
+			bool prepare(const char* stmt);
+			bool bind(int arg, const char* value);
+			template <class T>
+			bool bindImpl(int arg, const T& value)
+			{
+				if (!bindImpl(arg, &value, sizeof(T)))
+					return false;
+				*((T*)m_buffers[arg]) = value;
+				return true;
+			}
+			bool bindImpl(int arg, const void* value, size_t len);
+			bool execute();
+		};
+
 		class MySQLConnection: public Connection
 		{
 			MYSQL m_mysql;
@@ -47,7 +116,7 @@ namespace db
 			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);
 			bool isStillAlive();
 			bool reconnect();
-			Statement* prepare(const char* sql) { return nullptr; }
+			Statement* prepare(const char* sql);
 			bool exec(const char* sql);
 			const char* errorMessage();
 		};
@@ -166,6 +235,19 @@ namespace db { namespace mysql {
 		return mysql_ping(&m_mysql) == 0;
 	}
 
+	Statement* MySQLConnection::prepare(const char* sql)
+	{
+		MYSQL_STMT * stmt = mysql_stmt_init(&m_mysql);
+		if (stmt == nullptr)
+			return nullptr;
+
+		std::auto_ptr<MySQLStatement> obj(new (std::nothrow) MySQLStatement(stmt));
+		if (!obj->prepare(sql))
+			return nullptr;
+
+		return obj.release();
+	}
+
 	bool MySQLConnection::exec(const char* sql)
 	{
 		return mysql_query(&m_mysql, sql) == 0;
@@ -174,5 +256,51 @@ namespace db { namespace mysql {
 	const char* MySQLConnection::errorMessage()
 	{
 		return mysql_error(&m_mysql);
+	}
+
+	bool MySQLStatement::prepare(const char* stmt)
+	{
+		if (!stmt) return false;
+		if (mysql_stmt_prepare(m_stmt, stmt, strlen(stmt)) != 0)
+			return false;
+
+		if (!allocBind(mysql_stmt_param_count(m_stmt)))
+			return false;
+
+		return true;
+	}
+
+	bool MySQLStatement::bind(int arg, const char* value)
+	{
+		if (!value)
+			return false;
+
+		if (!bindImpl(arg, value, strlen(value) + 1))
+			return false;
+
+		strcpy(m_buffers[arg], value);
+		m_bind[arg].buffer_type = MYSQL_TYPE_STRING;
+		return true;
+	}
+
+	bool MySQLStatement::bindImpl(int arg, const void* value, size_t len)
+	{
+		if ((size_t)arg >= m_count)
+			return false;
+
+		m_buffers[arg] = new (std::nothrow) char[len];
+		if (!m_buffers[arg])
+			return false;
+
+		m_bind[arg].buffer = m_buffers[arg];
+		m_bind[arg].buffer_length = len;
+		return true;
+	}
+
+	bool MySQLStatement::execute()
+	{
+		if (mysql_stmt_bind_param(m_stmt, m_bind) != 0)
+			return false;
+		return mysql_stmt_execute(m_stmt) != 0;
 	}
 }}
