@@ -22,159 +22,9 @@
  * SOFTWARE.
  */
 
-#include <dbconn.h>
-#include <dbconn_driver.h>
-
 #include <iostream>
 
-#ifdef _WIN32
-#include <WinSock2.h>
-#endif
-#include <mysql.h>
-
-namespace db
-{
-	namespace mysql
-	{
-		class MySQLBinding
-		{
-		protected:
-			MYSQL *m_mysql;
-			MYSQL_STMT* m_stmt;
-			MYSQL_BIND *m_bind;
-			char **m_buffers;
-			size_t m_count;
-			MySQLBinding(MYSQL *mysql, MYSQL_STMT* stmt)
-				: m_mysql(mysql)
-				, m_stmt(stmt)
-				, m_bind(nullptr)
-				, m_buffers(nullptr)
-				, m_count(0)
-			{
-			}
-			~MySQLBinding()
-			{
-				deleteBind();
-			}
-
-			void deleteBind()
-			{
-				delete [] m_bind;
-				m_bind = nullptr;
-				for (size_t i = 0 ; i < m_count; ++i)
-					delete [] m_buffers[i];
-				delete [] m_buffers;
-
-				m_buffers = nullptr;
-				m_count = 0;
-			}
-
-			bool allocBind(size_t count)
-			{
-				MYSQL_BIND *bind = new (std::nothrow) MYSQL_BIND[count];
-				char **buffers = new (std::nothrow) char*[count];
-
-				if (!bind || !buffers)
-				{
-					delete [] bind;
-					delete [] buffers;
-					return false;
-				}
-
-				deleteBind();
-
-				memset(bind, 0, sizeof(MYSQL_BIND) * count);
-				memset(buffers, 0, sizeof(char*) * count);
-				m_bind = bind;
-				m_buffers = buffers;
-				m_count = count;
-
-				return true;
-			}
-		};
-
-		class MySQLCursor: public Cursor, MySQLBinding
-		{
-			unsigned long *m_lengths;
-			my_bool	   *m_is_null;
-			my_bool	   *m_error;
-			bool allocBind(size_t count);
-			void deleteBind()
-			{
-				delete [] m_lengths;
-				delete [] m_is_null;
-				delete [] m_error;
-			}
-		public:
-			MySQLCursor(MYSQL *mysql, MYSQL_STMT *stmt)
-				: MySQLBinding(mysql, stmt)
-				, m_lengths(nullptr)
-				, m_is_null(nullptr)
-				, m_error(nullptr)
-			{
-			}
-			~MySQLCursor()
-			{
-				deleteBind();
-			}
-			bool prepare();
-			bool next();
-			long getLong(int column);
-		};
-
-		class MySQLStatement: public Statement, MySQLBinding
-		{
-		public:
-			MySQLStatement(MYSQL *mysql, MYSQL_STMT *stmt)
-				: MySQLBinding(mysql, stmt)
-			{
-			}
-			~MySQLStatement()
-			{
-				mysql_stmt_close(m_stmt);
-				m_stmt = NULL;
-
-			}
-			bool prepare(const char* stmt);
-			bool bind(int arg, const char* value);
-			template <class T>
-			bool bindImpl(int arg, const T& value)
-			{
-				if (!bindImpl(arg, &value, sizeof(T)))
-					return false;
-				*((T*)m_buffers[arg]) = value;
-				return true;
-			}
-			bool bindImpl(int arg, const void* value, size_t len);
-			bool execute();
-			CursorPtr query();
-		};
-
-		class MySQLConnection: public Connection
-		{
-			MYSQL m_mysql;
-			bool m_connected;
-			std::string m_path;
-		public:
-			MySQLConnection(const std::string& path);
-			~MySQLConnection();
-			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);
-			bool isStillAlive();
-			bool reconnect();
-			bool beginTransaction();
-			bool rollbackTransaction();
-			bool commitTransaction();
-			StatementPtr prepare(const char* sql);
-			bool exec(const char* sql);
-			const char* errorMessage();
-		};
-
-		class MySQLDriver: public Driver
-		{
-			ConnectionPtr open(const std::string& ini_path, const Props& props);
-		};
-	}
-}
+#include "mysql.hpp"
 
 namespace db { namespace mysql {
 	bool startup_driver()
@@ -377,14 +227,14 @@ namespace db { namespace mysql {
 		if (mysql_stmt_execute(m_stmt) != 0)
 			return false;
 
-		std::tr1::shared_ptr<MySQLCursor> cursor(new (std::nothrow) MySQLCursor(m_mysql, m_stmt));
+		std::auto_ptr<MySQLCursor> cursor(new (std::nothrow) MySQLCursor(m_mysql, m_stmt));
 		if (cursor.get() == nullptr)
 			return nullptr;
 
 		if (!cursor->prepare())
 			return nullptr;
 
-		return std::tr1::static_pointer_cast<Cursor>(cursor);
+		return cursor;
 	}
 
 	bool MySQLCursor::allocBind(size_t count)
@@ -423,6 +273,65 @@ namespace db { namespace mysql {
 		return true;
 	}
 
+	static size_t fieldSize(enum_field_types fld_type)
+	{
+		switch(fld_type)
+		{
+		case MYSQL_TYPE_TINY:     return sizeof(char);
+		case MYSQL_TYPE_SHORT:    return sizeof(short);
+		case MYSQL_TYPE_INT24:    return sizeof(long);
+		case MYSQL_TYPE_LONG:     return sizeof(long);
+		case MYSQL_TYPE_LONGLONG: return sizeof(long long);
+		case MYSQL_TYPE_FLOAT:    return sizeof(float);
+		case MYSQL_TYPE_DOUBLE:   return sizeof(double);
+		case MYSQL_TYPE_NULL:     return 0;
+
+		case MYSQL_TYPE_YEAR:     return sizeof(short);
+		case MYSQL_TYPE_TIMESTAMP:
+		case MYSQL_TYPE_DATE:
+		case MYSQL_TYPE_TIME:
+		case MYSQL_TYPE_DATETIME:
+			return sizeof(MYSQL_TIME);
+
+		case MYSQL_TYPE_NEWDECIMAL:
+		case MYSQL_TYPE_VARCHAR:
+		case MYSQL_TYPE_BIT:
+		case MYSQL_TYPE_TINY_BLOB:
+		case MYSQL_TYPE_MEDIUM_BLOB:
+		case MYSQL_TYPE_LONG_BLOB:
+		case MYSQL_TYPE_BLOB:
+		case MYSQL_TYPE_VAR_STRING:
+		case MYSQL_TYPE_STRING:
+			return 0; // char[] types
+		default:
+			break;
+		}
+		return (size_t)-1;
+	}
+
+	bool MySQLCursor::bindResult(const MYSQL_FIELD& field, MYSQL_BIND& bind, char*& buffer)
+	{
+		size_t size = fieldSize(field.type);
+		if (size == (size_t)-1)
+			return false;
+
+		bind.buffer_type = field.type;
+		bind.buffer_length = 0;
+		bind.buffer = buffer;  //?
+
+		if (size == 0)
+			return true;
+
+		delete [] buffer;
+		buffer = new (std::nothrow) char[size];
+		if (!buffer)
+			return false;
+
+		bind.buffer = buffer;  //?
+		bind.buffer_length = size;
+		return true;
+	}
+
 	bool MySQLCursor::prepare()
 	{
 		MYSQL_RES *meta = mysql_stmt_result_metadata(m_stmt);
@@ -432,8 +341,16 @@ namespace db { namespace mysql {
 		if (!allocBind(mysql_num_fields(meta)))
 			return false;
 
+		MYSQL_FIELD* fields = mysql_fetch_fields(meta);
+
+		for (size_t i = 0; i < m_count; ++i)
+			if (!bindResult(fields[i], m_bind[i], m_buffers[i]))
+				return false;
+
 		if (mysql_stmt_bind_result(m_stmt, m_bind) != 0)
 			return false;
+
+		return true;
 	}
 
 	bool MySQLCursor::next()
@@ -441,9 +358,20 @@ namespace db { namespace mysql {
 		return mysql_stmt_fetch(m_stmt) == 0;
 	}
 
+	template <typename T>
+	T getIntType(MYSQL_STMT* stmt, int column, enum_field_types type)
+	{
+		T ret = 0;
+		MYSQL_BIND bind = {};
+		bind.buffer_type = type;
+		bind.buffer = &ret;
+		if (mysql_stmt_fetch_column(stmt, &bind, column, 0) != 0)
+			return 0;
+		return ret;
+	}
+
 	long MySQLCursor::getLong(int column)
 	{
-		//mysql_stmt_fetch_column
-		return 0;
+		return getIntType<long>(m_stmt, column, MYSQL_TYPE_LONG);
 	}
 }}
