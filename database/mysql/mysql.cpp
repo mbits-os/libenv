@@ -116,6 +116,9 @@ namespace db
 			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);
 			bool isStillAlive();
 			bool reconnect();
+			bool beginTransaction();
+			bool rollbackTransaction();
+			bool commitTransaction();
 			Statement* prepare(const char* sql);
 			bool exec(const char* sql);
 			const char* errorMessage();
@@ -235,6 +238,21 @@ namespace db { namespace mysql {
 		return mysql_ping(&m_mysql) == 0;
 	}
 
+	bool MySQLConnection::beginTransaction()
+	{
+		return mysql_query(&m_mysql, "START TRANSACTION") == 0;
+	}
+
+	bool MySQLConnection::rollbackTransaction()
+	{
+		return mysql_rollback(&m_mysql) == 0;
+	}
+
+	bool MySQLConnection::commitTransaction()
+	{
+		return mysql_commit(&m_mysql) == 0;
+	}
+
 	Statement* MySQLConnection::prepare(const char* sql)
 	{
 		MYSQL_STMT * stmt = mysql_stmt_init(&m_mysql);
@@ -267,7 +285,7 @@ namespace db { namespace mysql {
 		if (!allocBind(mysql_stmt_param_count(m_stmt)))
 			return false;
 
-		return true;
+		return mysql_stmt_bind_param(m_stmt, m_bind) == 0;
 	}
 
 	bool MySQLStatement::bind(int arg, const char* value)
@@ -301,6 +319,6 @@ namespace db { namespace mysql {
 	{
 		if (mysql_stmt_bind_param(m_stmt, m_bind) != 0)
 			return false;
-		return mysql_stmt_execute(m_stmt) != 0;
+		return mysql_stmt_execute(m_stmt) == 0;
 	}
 }}

@@ -37,11 +37,49 @@ namespace db
 	{
 		virtual ~Connection() {}
 		virtual bool isStillAlive() = 0;
+		virtual bool beginTransaction() = 0;
+		virtual bool rollbackTransaction() = 0;
+		virtual bool commitTransaction() = 0;
 		virtual bool exec(const char* sql) = 0;
 		virtual Statement* prepare(const char* sql) = 0;
 		virtual const char* errorMessage() = 0;
 		virtual bool reconnect() = 0;
 		static ConnectionPtr open(const char* path);
+	};
+
+	struct Transaction
+	{
+		enum State
+		{
+			UNKNOWN,
+			BEGAN,
+			COMMITED
+		};
+
+		State m_state;
+		ConnectionPtr m_conn;
+		Transaction(ConnectionPtr conn): m_state(UNKNOWN), m_conn(conn) {}
+		~Transaction()
+		{
+			if (m_state == BEGAN)
+				m_conn->rollbackTransaction();
+		}
+		bool begin()
+		{
+			if (m_state != UNKNOWN)
+				return false;
+			if (!m_conn->beginTransaction())
+				return false;
+			m_state = BEGAN;
+			return true;
+		}
+		bool commit()
+		{
+			if (m_state != BEGAN)
+				return false;
+			m_state = COMMITED;
+			return m_conn->commitTransaction();
+		}
 	};
 }
 
