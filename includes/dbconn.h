@@ -29,16 +29,26 @@
 
 namespace db
 {
+	struct Cursor;
 	struct Statement;
 	struct Connection;
 	typedef std::tr1::shared_ptr<Connection> ConnectionPtr;
 	typedef std::tr1::shared_ptr<Statement> StatementPtr;
+	typedef std::tr1::shared_ptr<Cursor> CursorPtr;
+
+	struct Cursor
+	{
+		virtual ~Cursor() {}
+		virtual bool next() = 0;
+		virtual long getLong(int column) = 0;
+	};
 
 	struct Statement
 	{
 		virtual ~Statement() {}
 		virtual bool bind(int arg, const char* value) = 0;
 		virtual bool execute() = 0;
+		virtual CursorPtr query() = 0;
 	};
 
 	struct Connection
@@ -90,7 +100,7 @@ namespace db
 		}
 	};
 
-    struct environment
+	struct environment
 	{
 		bool failed;
 		environment();

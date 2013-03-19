@@ -36,27 +36,27 @@ namespace db
 {
 	namespace mysql
 	{
-		class MySQLStatement: public Statement
+		class MySQLBinding
 		{
-			MYSQL_STMT *m_stmt;
+		protected:
+			MYSQL *m_mysql;
+			MYSQL_STMT* m_stmt;
 			MYSQL_BIND *m_bind;
 			char **m_buffers;
 			size_t m_count;
-		public:
-			MySQLStatement(MYSQL_STMT *stmt)
-				: m_stmt(stmt)
+			MySQLBinding(MYSQL *mysql, MYSQL_STMT* stmt)
+				: m_mysql(mysql)
+				, m_stmt(stmt)
 				, m_bind(nullptr)
 				, m_buffers(nullptr)
 				, m_count(0)
 			{
 			}
-			~MySQLStatement()
+			~MySQLBinding()
 			{
-				mysql_stmt_close(m_stmt);
-				m_stmt = NULL;
-
 				deleteBind();
 			}
+
 			void deleteBind()
 			{
 				delete [] m_bind;
@@ -91,6 +91,50 @@ namespace db
 
 				return true;
 			}
+		};
+
+		class MySQLCursor: public Cursor, MySQLBinding
+		{
+			unsigned long *m_lengths;
+			my_bool	   *m_is_null;
+			my_bool	   *m_error;
+			bool allocBind(size_t count);
+			void deleteBind()
+			{
+				delete [] m_lengths;
+				delete [] m_is_null;
+				delete [] m_error;
+			}
+		public:
+			MySQLCursor(MYSQL *mysql, MYSQL_STMT *stmt)
+				: MySQLBinding(mysql, stmt)
+				, m_lengths(nullptr)
+				, m_is_null(nullptr)
+				, m_error(nullptr)
+			{
+			}
+			~MySQLCursor()
+			{
+				deleteBind();
+			}
+			bool prepare();
+			bool next();
+			long getLong(int column);
+		};
+
+		class MySQLStatement: public Statement, MySQLBinding
+		{
+		public:
+			MySQLStatement(MYSQL *mysql, MYSQL_STMT *stmt)
+				: MySQLBinding(mysql, stmt)
+			{
+			}
+			~MySQLStatement()
+			{
+				mysql_stmt_close(m_stmt);
+				m_stmt = NULL;
+
+			}
 			bool prepare(const char* stmt);
 			bool bind(int arg, const char* value);
 			template <class T>
@@ -103,6 +147,7 @@ namespace db
 			}
 			bool bindImpl(int arg, const void* value, size_t len);
 			bool execute();
+			CursorPtr query();
 		};
 
 		class MySQLConnection: public Connection
@@ -259,7 +304,7 @@ namespace db { namespace mysql {
 		if (stmtptr == nullptr)
 			return nullptr;
 
-		std::tr1::shared_ptr<MySQLStatement> stmt(new (std::nothrow) MySQLStatement(stmtptr));
+		std::tr1::shared_ptr<MySQLStatement> stmt(new (std::nothrow) MySQLStatement(&m_mysql, stmtptr));
 		if (stmt.get() == nullptr)
 			return nullptr;
 
@@ -323,5 +368,82 @@ namespace db { namespace mysql {
 		if (mysql_stmt_bind_param(m_stmt, m_bind) != 0)
 			return false;
 		return mysql_stmt_execute(m_stmt) == 0;
+	}
+
+	CursorPtr MySQLStatement::query()
+	{
+		if (mysql_stmt_bind_param(m_stmt, m_bind) != 0)
+			return false;
+		if (mysql_stmt_execute(m_stmt) != 0)
+			return false;
+
+		std::tr1::shared_ptr<MySQLCursor> cursor(new (std::nothrow) MySQLCursor(m_mysql, m_stmt));
+		if (cursor.get() == nullptr)
+			return nullptr;
+
+		if (!cursor->prepare())
+			return nullptr;
+
+		return std::tr1::static_pointer_cast<Cursor>(cursor);
+	}
+
+	bool MySQLCursor::allocBind(size_t count)
+	{
+		if (!MySQLBinding::allocBind(count))
+			return false;
+
+		unsigned long *lengths = new (std::nothrow) unsigned long[m_count];
+		my_bool *is_null = new (std::nothrow) my_bool[m_count];
+		my_bool *error = new (std::nothrow) my_bool[m_count];
+		if (!lengths || !is_null || !error)
+		{
+			delete [] lengths;
+			delete [] is_null;
+			delete [] error;
+			return false;
+		}
+
+		deleteBind();
+
+		m_lengths = lengths;
+		m_is_null = is_null;
+		m_error = error;
+
+		memset(lengths, 0, sizeof(lengths[0]) * count);
+		memset(is_null, 0, sizeof(is_null[0]) * count);
+		memset(error, 0, sizeof(error[0]) * count);
+
+		for (size_t i = 0; i < m_count; ++i)
+		{
+			m_bind[i].length = &m_lengths[i];
+			m_bind[i].is_null = &m_is_null[i];
+			m_bind[i].error = &m_error[i];
+		}
+
+		return true;
+	}
+
+	bool MySQLCursor::prepare()
+	{
+		MYSQL_RES *meta = mysql_stmt_result_metadata(m_stmt);
+		if (!meta)
+			return false;
+
+		if (!allocBind(mysql_num_fields(meta)))
+			return false;
+
+		if (mysql_stmt_bind_result(m_stmt, m_bind) != 0)
+			return false;
+	}
+
+	bool MySQLCursor::next()
+	{
+		return mysql_stmt_fetch(m_stmt) == 0;
+	}
+
+	long MySQLCursor::getLong(int column)
+	{
+		//mysql_stmt_fetch_column
+		return 0;
 	}
 }}
