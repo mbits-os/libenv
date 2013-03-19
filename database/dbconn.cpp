@@ -23,7 +23,7 @@
  */
 
 #include <dbconn.h>
-#include <dbconn/driver.h>
+#include <dbconn_driver.h>
 #include <utils.h>
 
 #include <fstream>

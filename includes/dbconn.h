@@ -25,13 +25,72 @@
 #ifndef __DBCONN_H__
 #define __DBCONN_H__
 
-#include <dbconn/cursor.h>
-#include <dbconn/statement.h>
-#include <dbconn/connection.h>
+#include <memory>
 
 namespace db
 {
-	struct environment
+	struct Statement;
+	struct Connection;
+	typedef std::tr1::shared_ptr<Connection> ConnectionPtr;
+	typedef std::tr1::shared_ptr<Statement> StatementPtr;
+
+	struct Statement
+	{
+		virtual ~Statement() {}
+		virtual bool bind(int arg, const char* value) = 0;
+		virtual bool execute() = 0;
+	};
+
+	struct Connection
+	{
+		virtual ~Connection() {}
+		virtual bool isStillAlive() = 0;
+		virtual bool beginTransaction() = 0;
+		virtual bool rollbackTransaction() = 0;
+		virtual bool commitTransaction() = 0;
+		virtual bool exec(const char* sql) = 0;
+		virtual StatementPtr prepare(const char* sql) = 0;
+		virtual const char* errorMessage() = 0;
+		virtual bool reconnect() = 0;
+		static ConnectionPtr open(const char* path);
+	};
+
+	struct Transaction
+	{
+		enum State
+		{
+			UNKNOWN,
+			BEGAN,
+			COMMITED
+		};
+
+		State m_state;
+		ConnectionPtr m_conn;
+		Transaction(ConnectionPtr conn): m_state(UNKNOWN), m_conn(conn) {}
+		~Transaction()
+		{
+			if (m_state == BEGAN)
+				m_conn->rollbackTransaction();
+		}
+		bool begin()
+		{
+			if (m_state != UNKNOWN)
+				return false;
+			if (!m_conn->beginTransaction())
+				return false;
+			m_state = BEGAN;
+			return true;
+		}
+		bool commit()
+		{
+			if (m_state != BEGAN)
+				return false;
+			m_state = COMMITED;
+			return m_conn->commitTransaction();
+		}
+	};
+
+    struct environment
 	{
 		bool failed;
 		environment();

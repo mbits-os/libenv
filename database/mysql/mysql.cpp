@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-#include "dbconn.h"
-#include "dbconn/driver.h"
+#include <dbconn.h>
+#include <dbconn_driver.h>
 
 #include <iostream>
 
@@ -119,7 +119,7 @@ namespace db
 			bool beginTransaction();
 			bool rollbackTransaction();
 			bool commitTransaction();
-			Statement* prepare(const char* sql);
+			StatementPtr prepare(const char* sql);
 			bool exec(const char* sql);
 			const char* errorMessage();
 		};
@@ -253,17 +253,20 @@ namespace db { namespace mysql {
 		return mysql_commit(&m_mysql) == 0;
 	}
 
-	Statement* MySQLConnection::prepare(const char* sql)
+	StatementPtr MySQLConnection::prepare(const char* sql)
 	{
-		MYSQL_STMT * stmt = mysql_stmt_init(&m_mysql);
-		if (stmt == nullptr)
+		MYSQL_STMT * stmtptr = mysql_stmt_init(&m_mysql);
+		if (stmtptr == nullptr)
 			return nullptr;
 
-		std::auto_ptr<MySQLStatement> obj(new (std::nothrow) MySQLStatement(stmt));
-		if (!obj->prepare(sql))
+		std::tr1::shared_ptr<MySQLStatement> stmt(new (std::nothrow) MySQLStatement(stmtptr));
+		if (stmt.get() == nullptr)
 			return nullptr;
 
-		return obj.release();
+		if (!stmt->prepare(sql))
+			return nullptr;
+
+		return std::tr1::static_pointer_cast<Statement>(stmt);
 	}
 
 	bool MySQLConnection::exec(const char* sql)
