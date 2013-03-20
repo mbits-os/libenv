@@ -191,10 +191,11 @@ namespace db { namespace mysql {
 		if (!value)
 			return false;
 
-		if (!bindImpl(arg, value, strlen(value) + 1))
+		size_t len = strlen(value);
+		if (!bindImpl(arg, value, len))
 			return false;
 
-		strcpy(m_buffers[arg], value);
+		strncpy(m_buffers[arg], value, len);
 		m_bind[arg].buffer_type = MYSQL_TYPE_STRING;
 		return true;
 	}
@@ -224,6 +225,11 @@ namespace db { namespace mysql {
 	{
 		if (mysql_stmt_bind_param(m_stmt, m_bind) != 0)
 			return false;
+
+		unsigned long type = CURSOR_TYPE_READ_ONLY;
+		if (mysql_stmt_attr_set(m_stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type) != 0)
+			return false;
+
 		if (mysql_stmt_execute(m_stmt) != 0)
 			return false;
 
@@ -355,7 +361,18 @@ namespace db { namespace mysql {
 
 	bool MySQLCursor::next()
 	{
-		return mysql_stmt_fetch(m_stmt) == 0;
+		int ret = mysql_stmt_fetch(m_stmt);
+		if (ret == 1)
+			fprintf(stderr, "msql error: %d: %s\n", mysql_stmt_errno(m_stmt),
+			mysql_stmt_error(m_stmt));
+		if (ret == MYSQL_DATA_TRUNCATED)
+			ret = 0; // getXxx will take care of truncations...
+		return ret == 0;
+	}
+
+	size_t MySQLCursor::columnCount()
+	{
+		return m_count;
 	}
 
 	template <typename T>
@@ -372,6 +389,69 @@ namespace db { namespace mysql {
 
 	long MySQLCursor::getLong(int column)
 	{
+		if (m_is_null[column])
+			return 0;
+
 		return getIntType<long>(m_stmt, column, MYSQL_TYPE_LONG);
 	}
+
+	long long MySQLCursor::getLongLong(int column)
+	{
+		if (m_is_null[column])
+			return 0;
+
+		return getIntType<long long>(m_stmt, column, MYSQL_TYPE_LONGLONG);
+	}
+
+	time_t MySQLCursor::getTimestamp(int column)
+	{
+		if (m_is_null[column])
+			return 0;
+
+		MYSQL_TIME time = {};
+		MYSQL_BIND bind = {};
+		bind.buffer_type = MYSQL_TYPE_TIMESTAMP;
+		bind.buffer = &time;
+		if (mysql_stmt_fetch_column(m_stmt, &bind, column, 0) != 0)
+			return 0;
+		//?
+		return 0;
+	}
+
+	const char* MySQLCursor::getText(int column)
+	{
+		if (m_is_null[column])
+			return nullptr;
+
+		if (m_error[column]) // the field would have been truncated
+		{
+			char* buffer = new (std::nothrow) char[m_lengths[column] + 1];
+			if (!buffer)
+				return nullptr;
+
+			delete [] m_buffers[column];
+			m_buffers[column] = buffer;
+
+			m_bind[column].buffer_type = MYSQL_TYPE_STRING;
+			m_bind[column].buffer = m_buffers[column];
+			m_bind[column].buffer_length = m_lengths[column];
+		}
+
+		MYSQL_BIND bind = {};
+		bind.buffer_type = MYSQL_TYPE_STRING;
+		bind.buffer = m_buffers[column];
+		bind.buffer_length = m_lengths[column];
+
+		if (mysql_stmt_fetch_column(m_stmt, &bind, column, 0) != 0)
+			return nullptr;
+
+		m_buffers[column][m_lengths[column]] = 0;
+		return m_buffers[column];
+	}
+
+	bool MySQLCursor::isNull(int column)
+	{
+		return m_is_null[column] != 0;
+	}
+
 }}

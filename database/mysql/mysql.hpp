@@ -121,7 +121,13 @@ namespace db
 			}
 			bool prepare();
 			bool next();
+			size_t columnCount();
+			int getInt(int column) { return getLong(column); }
 			long getLong(int column);
+			long long getLongLong(int column);
+			time_t getTimestamp(int column);
+			const char* getText(int column);
+			bool isNull(int column);
 		};
 
 		class MySQLStatement: public Statement, MySQLBinding

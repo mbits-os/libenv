@@ -40,7 +40,13 @@ namespace db
 	{
 		virtual ~Cursor() {}
 		virtual bool next() = 0;
+		virtual size_t columnCount() = 0;
+		virtual int getInt(int column) = 0;
 		virtual long getLong(int column) = 0;
+		virtual long long getLongLong(int column) = 0;
+		virtual time_t getTimestamp(int column) = 0;
+		virtual const char* getText(int column) = 0;
+		virtual bool isNull(int column) = 0;
 	};
 
 	struct Statement
@@ -71,7 +77,8 @@ namespace db
 		{
 			UNKNOWN,
 			BEGAN,
-			COMMITED
+			COMMITED,
+			REVERTED
 		};
 
 		State m_state;
@@ -97,6 +104,13 @@ namespace db
 				return false;
 			m_state = COMMITED;
 			return m_conn->commitTransaction();
+		}
+		bool rollback()
+		{
+			if (m_state != BEGAN)
+				return false;
+			m_state = REVERTED;
+			return m_conn->rollbackTransaction();
 		}
 	};
 
