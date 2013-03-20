@@ -118,15 +118,15 @@ namespace crypt
 	typedef SHA512Hash PasswordHash;
 	typedef MD5Hash SessionHash;
 
-	typedef PasswordHash::hash_t Password;
-	typedef SessionHash::hash_t Session;
+	typedef PasswordHash::hash_t password_t;
+	typedef SessionHash::hash_t session_t;
 
-	inline bool password(const char* message, Password& hash)
+	inline bool password(const char* message, password_t& hash)
 	{
 		return PasswordHash::crypt(message, hash);
 	}
 
-	inline bool session(const char* message, Session& hash)
+	inline bool session(const char* message, session_t& hash)
 	{
 		return SessionHash::crypt(message, hash);
 	}
