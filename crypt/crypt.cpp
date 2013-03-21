@@ -22,13 +22,9 @@
  * SOFTWARE.
  */
 
+#include "pch.h"
 #include <dbconn.h>
 #include <crypt.hpp>
-
-#include <openssl/crypto.h>
-#include <openssl/sha.h>
-#include <openssl/md5.h>
-#include <openssl/rand.h>
 
 namespace crypt
 {

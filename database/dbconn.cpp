@@ -22,12 +22,10 @@
  * SOFTWARE.
  */
 
+#include "pch.h"
 #include <dbconn.h>
 #include <dbconn_driver.h>
 #include <utils.h>
-
-#include <fstream>
-#include <iostream>
 
 namespace db
 {

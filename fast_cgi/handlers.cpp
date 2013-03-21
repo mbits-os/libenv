@@ -23,54 +23,22 @@
  */
 
 #include "pch.h"
-#include <dbconn.h>
-#include <model.h>
+#include "handlers.h"
 
-namespace data
+namespace app
 {
-	bool Users::getUser(db::ConnectionPtr ptr, const std::string& email, User& out)
+	HandlerPtr Handlers::_handler(Request& request)
 	{
-		db::StatementPtr select = ptr->prepare("SELECT _id, name, hash FROM user WHERE email=?");
-		if (!select.get())
-			return false;
+		fcgi::param_t REQUEST_URI = request.getParam("REQUEST_URI");
+		if (REQUEST_URI == NULL) return HandlerPtr();
+		fcgi::param_t query = strchr(REQUEST_URI, '?');
 
-		if (!select->bind(0, email.c_str())) return false;
-
-		db::CursorPtr c = select->query();
-		if (!c.get() || !c->next())
-			return false;
-
-		out.m_valid = true;
-		out.m_id = c->getLongLong(0);
-		out.m_name = c->getText(1);
-		out.m_mail = email;
-		out.m_hash = c->getText(2);
-
-		return out.isValid();
+		HandlerMap::iterator _it = m_handlers.find(query ? std::string(REQUEST_URI, query) : REQUEST_URI);
+		if (_it == m_handlers.end()) return HandlerPtr();
+#if DEBUG_CGI
+		return _it->second.ptr;
+#else
+		return _it->second;
+#endif
 	}
-
-	std::string Session::getCurrentLogin()
-	{
-		return std::string();
-	}
-
-	const User& Session::getUser()
-	{
-		if (!m_looked_user_up)
-		{
-			m_looked_user_up = true;
-			std::string login = getCurrentLogin();
-			bool validUser = false;
-			if (!login.empty())
-				validUser = Users::getUser(m_env->db(), login, m_user);
-			if (!validUser)
-				m_env->showLogin();
-		}
-		return m_user;
-	}
-
-	Session* Session::getSession()
-	{
-		return nullptr;
-	}
-};
+}

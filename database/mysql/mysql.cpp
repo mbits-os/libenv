@@ -22,8 +22,7 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
+#include "pch.h"
 #include "mysql.hpp"
 
 namespace db { namespace mysql {

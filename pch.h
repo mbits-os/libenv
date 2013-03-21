@@ -22,55 +22,45 @@
  * SOFTWARE.
  */
 
-#include "pch.h"
-#include <dbconn.h>
-#include <model.h>
+#ifndef __LIBENV_PCH_H__
+#define __LIBENV_PCH_H__
 
-namespace data
+#include "fcgio.h"
+#include <memory>
+#include <list>
+#include <map>
+#include <string>
+#include <algorithm>
+#include <iostream>
+#include <fstream>
+
+#include <openssl/crypto.h>
+#include <openssl/sha.h>
+#include <openssl/md5.h>
+#include <openssl/rand.h>
+
+#include <stdlib.h>
+#include <time.h>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+
+#if !defined(DEBUG_HANDLERS)
+#ifdef NDEBUG
+#define DEBUG_CGI 0
+#else
+#define DEBUG_CGI 1
+#endif
+#endif
+
+namespace std
 {
-	bool Users::getUser(db::ConnectionPtr ptr, const std::string& email, User& out)
+	inline std::ostream& operator << (std::ostream& o, const std::string& str)
 	{
-		db::StatementPtr select = ptr->prepare("SELECT _id, name, hash FROM user WHERE email=?");
-		if (!select.get())
-			return false;
-
-		if (!select->bind(0, email.c_str())) return false;
-
-		db::CursorPtr c = select->query();
-		if (!c.get() || !c->next())
-			return false;
-
-		out.m_valid = true;
-		out.m_id = c->getLongLong(0);
-		out.m_name = c->getText(1);
-		out.m_mail = email;
-		out.m_hash = c->getText(2);
-
-		return out.isValid();
+		return o << str.c_str();
 	}
+}
 
-	std::string Session::getCurrentLogin()
-	{
-		return std::string();
-	}
-
-	const User& Session::getUser()
-	{
-		if (!m_looked_user_up)
-		{
-			m_looked_user_up = true;
-			std::string login = getCurrentLogin();
-			bool validUser = false;
-			if (!login.empty())
-				validUser = Users::getUser(m_env->db(), login, m_user);
-			if (!validUser)
-				m_env->showLogin();
-		}
-		return m_user;
-	}
-
-	Session* Session::getSession()
-	{
-		return nullptr;
-	}
-};
+#endif //__LIBENV_PCH_H__
