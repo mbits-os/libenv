@@ -31,22 +31,34 @@ template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 
 namespace url
 {
-	bool isToken(const unsigned char* in, size_t in_len);
+	bool isToken(const char* in, size_t in_len);
 	inline static bool isToken(const std::string& s)
 	{
-		return isToken((const unsigned char*)s.c_str(), s.size());
+		return isToken(s.c_str(), s.size());
 	}
 
-	std::string encode(const unsigned char* in, size_t in_len);
+	std::string encode(const char* in, size_t in_len);
 	inline static std::string encode(const std::string& s)
 	{
-		return encode((const unsigned char*)s.c_str(), s.size());
+		return encode(s.c_str(), s.size());
 	}
 
-	std::string decode(const unsigned char* in, size_t in_len);
+	std::string decode(const char* in, size_t in_len);
 	inline static std::string decode(const std::string& s)
 	{
-		return decode((const unsigned char*)s.c_str(), s.size());
+		return decode(s.c_str(), s.size());
+	}
+
+	std::string quot_escape(const char* in, size_t in_len);
+	inline static std::string quot_escape(const std::string& s)
+	{
+		return quot_escape(s.c_str(), s.size());
+	}
+
+	std::string quot_parse(const char* in, size_t in_len, const char** closing_quot_p);
+	inline static std::string quot_parse(const std::string& s)
+	{
+		return quot_parse(s.c_str(), s.size(), nullptr);
 	}
 }
 

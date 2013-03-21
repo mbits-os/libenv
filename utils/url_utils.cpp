@@ -26,7 +26,7 @@
 
 namespace url
 {
-	inline bool isToken(unsigned char c)
+	inline bool isToken(char c)
 	{
 		// as per RFC2616
 		switch(c)
@@ -47,7 +47,7 @@ namespace url
 		return true;
 	}
 
-	bool isToken(const unsigned char* in, size_t in_len)
+	bool isToken(const char* in, size_t in_len)
 	{
 		for (size_t i = 0; i < in_len; ++i)
 		{
@@ -57,7 +57,7 @@ namespace url
 		return true;
 	}
 
-	std::string encode(const unsigned char* in, size_t in_len)
+	std::string encode(const char* in, size_t in_len)
 	{
 		static char hexes[] = "0123456789ABCDEF";
 		std::string out;
@@ -78,7 +78,7 @@ namespace url
 		return out;
 	}
 
-	static inline unsigned char hex(unsigned char c)
+	static inline char hex(char c)
 	{
 		switch(c)
 		{
@@ -92,7 +92,7 @@ namespace url
 		}
 		return 0;
 	}
-	std::string decode(const unsigned char* in, size_t in_len)
+	std::string decode(const char* in, size_t in_len)
 	{
 		std::string out;
 		out.reserve(in_len);
@@ -109,6 +109,70 @@ namespace url
 			}
 			out += in[i];
 		}
+		return out;
+	}
+
+	std::string quot_escape(const char* in, size_t in_len)
+	{
+		std::string out;
+		out.reserve(in_len * 3 / 2);
+
+		for (size_t i = 0; i < in_len; ++i)
+		{
+			switch (in[i])
+			{
+			case '\\': out += "\\\\"; break;
+			case '\a': out += "\\a"; break;
+			case '\b': out += "\\b"; break;
+			case '\r': out += "\\r"; break;
+			case '\n': out += "\\n"; break;
+			case '\t': out += "\\t"; break;
+			case '"':  out += "\\\""; break;
+			case '\'': out += "\\'"; break;
+			default:
+				out.push_back(in[i]);
+			}
+		}
+
+		return out;
+	}
+
+	std::string quot_parse(const char* in, size_t in_len, const char** closing_quot_p)
+	{
+		std::string out;
+		out.reserve(in_len);
+
+		for (size_t i = 0; i < in_len; ++i)
+		{
+			if (in[i] == '"')
+			{
+				if (closing_quot_p)
+					*closing_quot_p = in + i;
+				break;
+			}
+
+			if (in[i] == '\\')
+			{
+				++i;
+
+				if (i < in_len)
+					switch(in[i])
+					{
+					case '\\': out += "\\"; break;
+					case 'a':  out += "\a"; break;
+					case 'b':  out += "\b"; break;
+					case 'r':  out += "\r"; break;
+					case 'n':  out += "\n"; break;
+					case 't':  out += "\t"; break;
+					case '"':  out += "\""; break;
+					case '\'': out += "'"; break;
+					};
+
+				continue;
+			}
+			else out += in[i];
+		}
+
 		return out;
 	}
 }
