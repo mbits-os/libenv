@@ -120,7 +120,7 @@ namespace crypt
 
 	static char alphabet(size_t id)
 	{
-		static char alph[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-|";
+		static char alph[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 		return alph[id];
 	}
 
