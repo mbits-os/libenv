@@ -78,7 +78,7 @@ namespace FastCGI
 		return ret;
 	}
 
-	db::ConnectionPtr Application::dbConn(Response& response)
+	db::ConnectionPtr Application::dbConn(Request& request)
 	{
 		//restart if needed
 		if (!m_dbConn.get())
@@ -87,17 +87,21 @@ namespace FastCGI
 			m_dbConn->reconnect();
 
 		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
-			response.on500();
+			request.on500();
 
 		return m_dbConn;
 	}
 
 	Request::Request(Application& app)
-		: m_resp(*this, app)
-		, m_app(app)
-        , m_streambuf(app.m_request.in)
-		, m_cin(&m_streambuf)
-		, m_read_something(false)
+		: m_app(app)
+		, m_headersSent(false)
+        , m_streambufCin(app.m_request.in)
+        , m_streambufCout(app.m_request.out)
+        , m_cerr(app.m_request.err)
+		, m_cin(&m_streambufCin)
+		, m_cout(&m_streambufCout)
+		, cerr(&m_cerr)
+		, m_alreadyReadSomething(false)
 	{
 		unpackCookies();
 	}
@@ -134,7 +138,7 @@ namespace FastCGI
 				else
 					break;
 				if (name[0] != '$')
-					m_cookies[name] = value;
+					m_reqCookies[name] = value;
 			}
 			else
 			{
@@ -142,7 +146,7 @@ namespace FastCGI
 				while (!isspace((unsigned char)*c) &&
 					*c != ';' && *c != ',' && c < end) ++c;
 				if (name[0] != '$')
-					m_cookies[name] = std::string(value_start, c);
+					m_reqCookies[name] = std::string(value_start, c);
 			}
 			while (isspace((unsigned char)*c) && c < end) ++c;
 			if (c >= end || (*c != ';' && *c != ',')) break;
@@ -152,7 +156,7 @@ namespace FastCGI
 
 	void Request::readAll()
 	{
-		m_read_something = true;
+		m_alreadyReadSomething = true;
 		// ignore() doesn't set the eof bit in some versions of glibc++
 		// so use gcount() instead of eof()...
 		do m_cin.ignore(1024); while (m_cin.gcount() == 1024);
@@ -167,7 +171,7 @@ namespace FastCGI
 			long long ret = strtol(sizestr, &ptr, 10);
 			if (*ptr)
 			{
-				m_resp << "can't parse \"CONTENT_LENGTH=" << getParam("CONTENT_LENGTH") << "\"\n";
+				*this << "can't parse \"CONTENT_LENGTH=" << getParam("CONTENT_LENGTH") << "\"\n";
 				return -1;
 			}
 			return ret;
@@ -175,38 +179,23 @@ namespace FastCGI
 		return -1;
 	}
 
-	Response::Response(Request& req, Application& app)
-		: m_req(req)
-		, m_app(app)
-		, m_headers_sent(false)
-        , m_streambuf(app.m_request.out)
-        , m_cerr(app.m_request.err)
-		, m_cout(&m_streambuf)
-		, cerr(&m_cerr)
+	void Request::ensureInputWasRead()
 	{
-	}
-
-	Response::~Response()
-	{
-	}
-
-	void Response::ensureInputWasRead()
-	{
-		if (m_req.m_read_something)
+		if (m_alreadyReadSomething)
 			return;
-		m_req.readAll();
+		readAll();
 	}
 
-	void Response::buildCookieHeader()
+	void Request::buildCookieHeader()
 	{
 		std::string cookies;
 
 		std::string domAndPath = "; Version=1; Domain=";
-		domAndPath += m_req.getParam("SERVER_NAME");
+		domAndPath += getParam("SERVER_NAME");
 		domAndPath += "; Path=/; HttpOnly";
 
 		bool first = true;
-		Cookies::const_iterator _cookie = m_cookies.begin(), _cend = m_cookies.end();
+		ResponseCookies::const_iterator _cookie = m_respCookies.begin(), _cend = m_respCookies.end();
 		for (; _cookie != _cend; ++_cookie)
 		{
 			if (first) first = false;
@@ -231,12 +220,12 @@ namespace FastCGI
 			m_headers["set-cookie"] = "Set-Cookie: " + cookies;
 	}
 
-	void Response::printHeaders()
+	void Request::printHeaders()
 	{
-		if (m_headers_sent)
+		if (m_headersSent)
 			return;
 
-		m_headers_sent = true;
+		m_headersSent = true;
 		if (m_headers.find("content-type") == m_headers.end())
 			m_headers["content-type"] = "Content-Type: text/html; charset=utf-8";
 
@@ -250,9 +239,9 @@ namespace FastCGI
 		*this << "\r\n";
 	}
 
-	void Response::header(const std::string& name, const std::string& value)
+	void Request::setHeader(const std::string& name, const std::string& value)
 	{
-		if (m_headers_sent)
+		if (m_headersSent)
 		{
 #if DEBUG_CGI
 			*this << "<br/><b>Warning</b>: Cannot set header after sending data to the browser (" << name << ": " << value << ")<br/><br/>";
@@ -270,9 +259,9 @@ namespace FastCGI
 		m_headers[n] = v;
 	}
 
-	void Response::setcookie(const std::string& name, const std::string& value, time_t expire)
+	void Request::setCookie(const std::string& name, const std::string& value, time_t expire)
 	{
-		if (m_headers_sent)
+		if (m_headersSent)
 		{
 #if DEBUG_CGI
 			*this << "<br/><b>Warning</b>: Cannot set a cookie after sending data to the browser (" << name << ": " << value << ")<br/><br/>";
@@ -281,14 +270,14 @@ namespace FastCGI
 		}
 		std::string n(name);
 		std::transform(n.begin(), n.end(), n.begin(), ::tolower);
-		m_cookies[n] = Cookie(name, value, expire);
+		m_respCookies[n] = Cookie(name, value, expire);
 	}
 
-	std::string Response::server_uri(const std::string& resource, bool with_query)
+	std::string Request::serverUri(const std::string& resource, bool with_query)
 	{
-		fcgi::param_t port = m_req.getParam("SERVER_PORT");
-		fcgi::param_t server = m_req.getParam("SERVER_NAME");
-		fcgi::param_t query = with_query ? m_req.getParam("QUERY_STRING") : NULL;
+		fcgi::param_t port = getParam("SERVER_PORT");
+		fcgi::param_t server = getParam("SERVER_NAME");
+		fcgi::param_t query = with_query ? getParam("QUERY_STRING") : NULL;
 		std::string url;
 
 		if (server != NULL)
@@ -316,31 +305,31 @@ namespace FastCGI
 		return url;
 	}
 
-	void Response::redirect_url(const std::string& url)
+	void Request::redirectUrl(const std::string& url)
 	{
-		header("Location", url);
+		setHeader("Location", url);
 		*this
 			<< "<h1>Redirection</h1>\n"
 			<< "<p>The app needs to be <a href='" << url << "'>here</a>.</p>"; 
 		die();
 	}
 
-	void Response::on404()
+	void Request::on404()
 	{
-		header("Status", "404 Not Found");
+		setHeader("Status", "404 Not Found");
 		*this
-			<< "<tt>404: Oops! (URL: " << m_req.getParam("REQUEST_URI") << ")</tt>";
+			<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 #if DEBUG_CGI
 		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
 #endif
 		die();
 	}
 
-	void Response::on500()
+	void Request::on500()
 	{
-		header("Status", "500 Internal Error");
+		setHeader("Status", "500 Internal Error");
 		*this
-			<< "<tt>500: Oops! (URL: " << m_req.getParam("REQUEST_URI") << ")</tt>";
+			<< "<tt>500: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 #if DEBUG_CGI
 		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
 #endif

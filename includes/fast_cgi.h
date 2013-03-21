@@ -30,12 +30,10 @@
 namespace FastCGI
 {
 	class Request;
-	class Response;
 
 	class Application
 	{
 		friend class Request;
-		friend class Response;
 
 		long m_pid;
 		FCGX_Request m_request;
@@ -46,7 +44,7 @@ namespace FastCGI
 		int init();
 		int pid() const { return m_pid; }
 		bool accept();
-		db::ConnectionPtr dbConn(Response& response);
+		db::ConnectionPtr dbConn(Request& request);
 
 #if DEBUG_CGI
 		struct ReqInfo
@@ -68,7 +66,7 @@ namespace FastCGI
 
 	class FinishResponse {};
 
-	class Response
+	class Request
 	{
 		typedef std::map<std::string, std::string> Headers;
 
@@ -85,84 +83,66 @@ namespace FastCGI
 				, m_expire(expire)
 			{}
 		};
-		typedef std::map<std::string, Cookie> Cookies;
+		typedef std::map<std::string, Cookie> ResponseCookies;
+		typedef std::map<std::string, std::string> RequestCookies;
 
-		Request& m_req;
 		Application& m_app;
-		bool m_headers_sent;
-		fcgi_streambuf m_streambuf;
+		bool m_headersSent;
+		fcgi_streambuf m_streambufCin;
+		fcgi_streambuf m_streambufCout;
 		fcgi_streambuf m_cerr;
 		Headers m_headers;
-		Cookies m_cookies;
+		ResponseCookies m_respCookies;
+		RequestCookies m_reqCookies;
 		std::ostream m_cout;
+		std::istream m_cin;
+		mutable bool m_alreadyReadSomething;
 
+		void unpackCookies();
+		void readAll();
 		void ensureInputWasRead();
 		void buildCookieHeader();
 		void printHeaders();
+
 	public:
 		std::ostream cerr;
 
-		Response(Request& req, Application& app);
-		~Response();
+		explicit Request(Application& app);
+		~Request();
+   		const char * const* envp() const { return m_app.m_request.envp; }
 		Application& app() { return m_app; }
-		Request& req() { return m_req; }
 
-		void header(const std::string& name, const std::string& value);
-		void setcookie(const std::string& name, const std::string& value, time_t expire = 0);
+		void setHeader(const std::string& name, const std::string& value);
+		void setCookie(const std::string& name, const std::string& value, time_t expire = 0);
+		long long calcStreamSize();
+		param_t getParam(const char* name) const { return FCGX_GetParam(name, m_app.m_request.envp); }
+		param_t getCookie(const char* name) const {
+			RequestCookies::const_iterator _it = m_reqCookies.find(name);
+			if (_it == m_reqCookies.end())
+				return nullptr;
+			return _it->second.c_str();
+		}
 
 		void die() { throw FinishResponse(); }
 
-		std::string server_uri(const std::string& resource, bool with_query = true);
-		void redirect_url(const std::string& url);
-		void redirect(const std::string& resource, bool with_query = true)
+		std::string serverUri(const std::string& resource, bool withQuery = true);
+		void redirectUrl(const std::string& url);
+		void redirect(const std::string& resource, bool withQuery = true)
 		{
-			redirect_url(server_uri(resource, with_query));
+			redirectUrl(serverUri(resource, withQuery));
 		}
 
 		void on404();
 		void on500();
 
 		template <typename T>
-		Response& operator << (const T& obj)
+		Request& operator << (const T& obj)
 		{
 			ensureInputWasRead();
 			printHeaders();
 			m_cout << obj;
 			return *this;
 		}
-	};
-
-	class Request
-	{
-		friend class Response;
-
-		typedef std::map<std::string, std::string> Cookies;
-
-		Response m_resp;
-		Application& m_app;
-		fcgi_streambuf m_streambuf;
-		Cookies m_cookies;
-
-		std::istream m_cin;
-		mutable bool m_read_something;
-
-		void unpackCookies();
-		void readAll();
-	public:
-		Request(Application& app);
-		~Request();
-   		const char * const* envp() const { return m_app.m_request.envp; }
-		Application& app() { return m_app; }
-		long long calcStreamSize();
-		param_t getParam(const char* name) const { return FCGX_GetParam(name, m_app.m_request.envp); }
-		param_t getCookie(const char* name) const {
-			Cookies::const_iterator _it = m_cookies.find(name);
-			if (_it == m_cookies.end())
-				return nullptr;
-			return _it->second.c_str();
-		}
-
-		Response& resp() { return m_resp; }
 
 		template <typename T>
 		const Request& operator >> (T& obj) const
@@ -174,7 +154,7 @@ namespace FastCGI
 
 		std::streamsize read(void* ptr, std::streamsize length)
 		{
-			m_read_something = true;
+			m_alreadyReadSomething = true;
 			m_cin.read((char*)ptr, length);
 			return m_cin.gcount();
 		}
@@ -182,14 +162,14 @@ namespace FastCGI
 		template<std::streamsize length>
 		std::streamsize read(char* (&ptr)[length])
 		{
-			m_read_something = true;
+			m_alreadyReadSomething = true;
 			m_cin.read(ptr, length);
 			return m_cin.gcount();
 		}
 
 #if DEBUG_CGI
 		const std::map<std::string, std::string>& cookieDebugData() const {
-			return m_cookies;
+			return m_reqCookies;
 		}
 #endif
 	};

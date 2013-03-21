@@ -30,7 +30,6 @@
 namespace app
 {
 	using FastCGI::Request;
-	using FastCGI::Response;
 
 	class Handler
 	{
@@ -40,7 +39,7 @@ namespace app
 #if DEBUG_CGI
 		virtual std::string name() const = 0;
 #endif
-		virtual void visit(Request& request, Response& response) = 0;
+		virtual void visit(Request& request) = 0;
 	};
 	typedef std::tr1::shared_ptr<Handler> HandlerPtr;
 
@@ -61,7 +60,7 @@ namespace app
 		}
 #endif
 
-		void visit(Request&, Response& response) { response.redirect_url(m_url); }
+		void visit(Request& request) { request.redirectUrl(m_url); }
 	};
 
 	class RedirectHandler: public Handler
@@ -80,7 +79,7 @@ namespace app
 		}
 #endif
 
-		void visit(Request& request, Response& response) { response.redirect(m_service_url); }
+		void visit(Request& request) { request.redirect(m_service_url); }
 	};
 
 #if DEBUG_CGI
