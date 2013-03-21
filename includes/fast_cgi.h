@@ -31,13 +31,21 @@ namespace FastCGI
 {
 	class Request;
 
+	class Session
+	{
+	};
+	typedef std::tr1::shared_ptr<Session> SessionPtr;
+
 	class Application
 	{
 		friend class Request;
 
+		typedef std::map<std::string, SessionPtr> Sessions;
+
 		long m_pid;
 		FCGX_Request m_request;
 		db::ConnectionPtr m_dbConn;
+		Sessions m_sessions;
 	public:
 		Application();
 		~Application();
@@ -45,6 +53,7 @@ namespace FastCGI
 		int pid() const { return m_pid; }
 		bool accept();
 		db::ConnectionPtr dbConn(Request& request);
+		SessionPtr getSession(Request& request, const std::string& sessionId);
 
 #if DEBUG_CGI
 		struct ReqInfo
@@ -134,6 +143,8 @@ namespace FastCGI
 
 		void on404();
 		void on500();
+
+		SessionPtr getSession(bool require = true);
 
 		template <typename T>
 		Request& operator << (const T& obj)

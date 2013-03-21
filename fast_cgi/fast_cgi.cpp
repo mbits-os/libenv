@@ -80,6 +80,8 @@ namespace FastCGI
 
 	db::ConnectionPtr Application::dbConn(Request& request)
 	{
+		// synchronized {
+
 		//restart if needed
 		if (!m_dbConn.get())
 			m_dbConn = db::Connection::open(INI);
@@ -90,6 +92,28 @@ namespace FastCGI
 			request.on500();
 
 		return m_dbConn;
+
+		// synchronized }
+	}
+
+	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
+	{
+		// TODO: limits needed, or DoS eminent
+
+		// synchronized {
+		SessionPtr out;
+		Sessions::iterator _it = m_sessions.find(sessionId);
+		if (_it == m_sessions.end() || !_it->second.get())
+		{
+			db::ConnectionPtr db = dbConn(request);
+			// check if DB has the session
+			// add to the list
+			// set out
+		}
+		else out = _it->second;
+
+		return out;
+		// synchronized }
 	}
 
 	Request::Request(Application& app)
@@ -273,11 +297,11 @@ namespace FastCGI
 		m_respCookies[n] = Cookie(name, value, expire);
 	}
 
-	std::string Request::serverUri(const std::string& resource, bool with_query)
+	std::string Request::serverUri(const std::string& resource, bool withQuery)
 	{
 		fcgi::param_t port = getParam("SERVER_PORT");
 		fcgi::param_t server = getParam("SERVER_NAME");
-		fcgi::param_t query = with_query ? getParam("QUERY_STRING") : NULL;
+		fcgi::param_t query = withQuery ? getParam("QUERY_STRING") : NULL;
 		std::string url;
 
 		if (server != NULL)
@@ -334,6 +358,23 @@ namespace FastCGI
 		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
 #endif
 		die();
+	}
+
+	SessionPtr Request::getSession(bool require)
+	{
+		SessionPtr out;
+		param_t sessionId = getCookie("reader.login");
+		if (sessionId && *sessionId)
+			out = m_app.getSession(*this, sessionId);
+		if (require && out.get() == nullptr)
+		{
+			std::string cont = serverUri(getParam("REQUEST_URI"), false);
+			redirect("/auth/login?continue=" + url::encode(cont));
+		}
+
+		//if require and session two weeks old: /auth/login?continue=<this-url>&user=<email>
+
+		return out;
 	}
 
 }
