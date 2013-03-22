@@ -26,6 +26,7 @@
 #define __DBCONN_H__
 
 #include <memory>
+#include <utils.h>
 
 namespace db
 {
@@ -44,7 +45,7 @@ namespace db
 		virtual int getInt(int column) = 0;
 		virtual long getLong(int column) = 0;
 		virtual long long getLongLong(int column) = 0;
-		virtual time_t getTimestamp(int column) = 0;
+		virtual tyme::time_t getTimestamp(int column) = 0;
 		virtual const char* getText(int column) = 0;
 		virtual bool isNull(int column) = 0;
 	};
@@ -52,7 +53,12 @@ namespace db
 	struct Statement
 	{
 		virtual ~Statement() {}
+		virtual bool bind(int arg, int value) = 0;
+		virtual bool bind(int arg, short value) = 0;
+		virtual bool bind(int arg, long value) = 0;
+		virtual bool bind(int arg, long long value) = 0;
 		virtual bool bind(int arg, const char* value) = 0;
+		virtual bool bindTime(int arg, tyme::time_t value) = 0;
 		virtual bool execute() = 0;
 		virtual CursorPtr query() = 0;
 	};

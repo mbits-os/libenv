@@ -24,6 +24,7 @@
 
 #include "pch.h"
 #include "mysql.hpp"
+#include <utils.h>
 
 namespace db { namespace mysql {
 	bool startup_driver()
@@ -193,6 +194,30 @@ namespace db { namespace mysql {
 		return rc == 0;
 	}
 
+	bool MySQLStatement::bind(int arg, short value)
+	{
+		if (!bindImpl(arg, value))
+			return false;
+		m_bind[arg].buffer_type = MYSQL_TYPE_SHORT;
+		return true;
+	}
+
+	bool MySQLStatement::bind(int arg, long value)
+	{
+		if (!bindImpl(arg, value))
+			return false;
+		m_bind[arg].buffer_type = MYSQL_TYPE_LONG;
+		return true;
+	}
+
+	bool MySQLStatement::bind(int arg, long long value)
+	{
+		if (!bindImpl(arg, value))
+			return false;
+		m_bind[arg].buffer_type = MYSQL_TYPE_LONGLONG;
+		return true;
+	}
+
 	bool MySQLStatement::bind(int arg, const char* value)
 	{
 		if (!value)
@@ -207,11 +232,29 @@ namespace db { namespace mysql {
 		return true;
 	}
 
+	bool MySQLStatement::bindTime(int arg, tyme::time_t value)
+	{
+		tyme::tm_t tm = tyme::gmtime(value);
+		MYSQL_TIME time = {};
+		time.year   = tm.tm_year + 1900;
+		time.month  = tm.tm_mon + 1;
+		time.day    = tm.tm_mday;
+		time.hour   = tm.tm_hour;
+		time.minute = tm.tm_min;
+		time.second = tm.tm_sec;
+		time.time_type = MYSQL_TIMESTAMP_DATETIME;
+		if (!bindImpl(arg, time))
+			return false;
+		m_bind[arg].buffer_type = MYSQL_TYPE_TIMESTAMP;
+		return true;
+	}
+
 	bool MySQLStatement::bindImpl(int arg, const void* value, size_t len)
 	{
 		if ((size_t)arg >= m_count)
 			return false;
 
+		delete [] m_buffers[arg];
 		m_buffers[arg] = new (std::nothrow) char[len];
 		if (!m_buffers[arg])
 			return false;
@@ -410,7 +453,7 @@ namespace db { namespace mysql {
 		return getIntType<long long>(m_stmt, column, MYSQL_TYPE_LONGLONG);
 	}
 
-	time_t MySQLCursor::getTimestamp(int column)
+	tyme::time_t MySQLCursor::getTimestamp(int column)
 	{
 		if (m_is_null[column])
 			return 0;
@@ -421,8 +464,15 @@ namespace db { namespace mysql {
 		bind.buffer = &time;
 		if (mysql_stmt_fetch_column(m_stmt, &bind, column, 0) != 0)
 			return 0;
-		//?
-		return 0;
+
+		tyme::tm_t tm = {};
+		tm.tm_year = time.year - 1900;
+		tm.tm_mon  = time.month - 1;
+		tm.tm_mday = time.day;
+		tm.tm_hour = time.hour;
+		tm.tm_min  = time.minute;
+		tm.tm_sec  = time.second;
+		return tyme::mktime(tm);
 	}
 
 	const char* MySQLCursor::getText(int column)

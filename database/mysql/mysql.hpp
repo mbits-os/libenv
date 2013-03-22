@@ -125,7 +125,7 @@ namespace db
 			int getInt(int column) { return getLong(column); }
 			long getLong(int column);
 			long long getLongLong(int column);
-			time_t getTimestamp(int column);
+			tyme::time_t getTimestamp(int column);
 			const char* getText(int column);
 			bool isNull(int column);
 		};
@@ -144,7 +144,12 @@ namespace db
 
 			}
 			bool prepare(const char* stmt);
+			bool bind(int arg, int value) { return bind(arg, (long)value); }
+			bool bind(int arg, short value);
+			bool bind(int arg, long value);
+			bool bind(int arg, long long value);
 			bool bind(int arg, const char* value);
+			bool bindTime(int arg, tyme::time_t value);
 			template <class T>
 			bool bindImpl(int arg, const T& value)
 			{
