@@ -38,22 +38,27 @@ namespace FastCGI
 		long long m_id;
 		std::string m_name;
 		std::string m_email;
+		std::string m_hash;
 		time_t m_setOn;
 		Session()
 		{
 		}
-		Session(long long id, const std::string& name, const std::string& email, time_t setOn)
+		Session(long long id, const std::string& name, const std::string& email, const std::string& hash, time_t setOn)
 			: m_id(id)
 			, m_name(name)
 			, m_email(email)
+			, m_hash(hash)
 			, m_setOn(setOn)
 		{
 		}
 	public:
 		static SessionPtr fromDB(db::ConnectionPtr db, const char* sessionId);
+		static SessionPtr startSession(db::ConnectionPtr db, const char* email);
+		static void endSession(db::ConnectionPtr db, const char* sessionId);
 		long long getId() const { return m_id; }
-		const std::string& getName() const { m_name; }
-		const std::string& getEmail() const { m_email; }
+		const std::string& getName() const { return m_name; }
+		const std::string& getEmail() const { return m_email; }
+		const std::string& getSessionId() const { return m_hash; }
 		time_t getSetGMTTime() const { return m_setOn; }
 	};
 
@@ -78,6 +83,8 @@ namespace FastCGI
 		bool accept();
 		db::ConnectionPtr dbConn(Request& request);
 		SessionPtr getSession(Request& request, const std::string& sessionId);
+		SessionPtr startSession(Request& request, const char* email);
+		void endSession(Request& request, const std::string& sessionId);
 
 #if DEBUG_CGI
 		struct ReqInfo

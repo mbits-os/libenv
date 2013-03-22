@@ -24,6 +24,7 @@
 
 #include "pch.h"
 #include "fast_cgi.h"
+#include "crypt.hpp"
 #include <utils.h>
 
 #ifdef _WIN32
@@ -73,10 +74,70 @@ namespace FastCGI
 					c->getLongLong(0),
 					c->getText(1),
 					c->getText(2),
+					sessionId,
 					c->getTimestamp(3)));
 			}
 		}
 		return SessionPtr();
+	}
+
+	SessionPtr Session::startSession(db::ConnectionPtr db, const char* email)
+	{
+		time_t now;
+		char seed[20];
+		crypt::session_t sessionId;
+		crypt::newSalt(seed);
+		crypt::session(seed, sessionId);
+		time(&now);
+
+		db::StatementPtr query = db->prepare(
+			"SELECT _id, name "
+			"FROM user "
+			"WHERE email=?"
+			);
+
+		if (query.get() && query->bind(0, sessionId))
+		{
+			db::CursorPtr c = query->query();
+			if (c.get() && c->next())
+			{
+				long long _id = c->getLongLong(0);
+				std::string name = c->getText(1);
+				c = db::CursorPtr();
+				query = db->prepare(
+					"INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, ?, ?)"
+					);
+				if (query.get() &&
+					query->bind(0, sessionId) &&
+					query->bind(0, seed)
+#if 0
+					&&
+					query->bind(0, _id) &&
+					query->bind(0, now)
+#endif
+					)
+				{
+					if (query->execute())
+					{
+						return SessionPtr(new (std::nothrow) Session(
+							_id,
+							name,
+							email,
+							sessionId,
+							now
+							));
+					}
+				}
+			}
+		}
+		return SessionPtr();
+	}
+
+	void Session::endSession(db::ConnectionPtr db, const char* sessionId)
+	{
+		db::StatementPtr query = db->prepare("DELETE FROM session WHERE hash=?");
+		if (query.get() && query->bind(0, sessionId))
+			query->execute();
 	}
 
 	Application::Application()
@@ -152,8 +213,6 @@ namespace FastCGI
 
 	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
 	{
-		// TODO: limits needed, or DoS eminent
-
 		// synchronized {
 		cleanSessionCache();
 
@@ -165,14 +224,46 @@ namespace FastCGI
 			if (db.get())
 				out = Session::fromDB(db, sessionId.c_str());
 
+			// TODO: limits needed, or DoS eminent
 			time_t t;
 			if (out.get())
 				m_sessions.insert(std::make_pair(sessionId, std::make_pair(time(&t), out)));
 		}
-		else out = _it->second.second;
+		else
+		{
+			out = _it->second.second;
+			time(&_it->second.first); // ping the session
+		}
 
 		return out;
 		// synchronized }
+	}
+
+	SessionPtr Application::startSession(Request& request, const char* email)
+	{
+		// synchronized {
+		cleanSessionCache();
+
+		SessionPtr out;
+		db::ConnectionPtr db = dbConn(request);
+		if (db.get())
+			out = Session::startSession(db, email);
+		// TODO: limits needed, or DoS eminent
+		if (out.get())
+			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getSetGMTTime(), out)));
+
+		return out;
+		// synchronized }
+	}
+
+	void Application::endSession(Request& request, const std::string& sessionId)
+	{
+		db::ConnectionPtr db = dbConn(request);
+		if (db.get())
+			Session::endSession(db, sessionId.c_str());
+		Sessions::iterator _it = m_sessions.find(sessionId);
+		if (_it != m_sessions.end())
+			m_sessions.erase(_it);
 	}
 
 	Request::Request(Application& app)

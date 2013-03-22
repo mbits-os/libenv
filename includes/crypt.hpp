@@ -121,14 +121,14 @@ namespace crypt
 	typedef PasswordHash::hash_t password_t;
 	typedef SessionHash::hash_t session_t;
 
-	inline bool password(const char* message, password_t& hash)
+	inline bool password(const char* passphrase, password_t& hash)
 	{
-		return PasswordHash::crypt(message, hash);
+		return PasswordHash::crypt(passphrase, hash);
 	}
 
-	inline bool session(const char* message, session_t& hash)
+	inline bool session(const char* seedMessage, session_t& sessionId)
 	{
-		return SessionHash::crypt(message, hash);
+		return SessionHash::crypt(seedMessage, sessionId);
 	}
 
 	bool verify(const char* message, const char* hash);
