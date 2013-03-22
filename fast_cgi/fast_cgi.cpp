@@ -40,6 +40,45 @@
 
 namespace FastCGI
 {
+	SessionPtr Session::fromDB(db::ConnectionPtr db, const char* sessionId)
+	{
+		/*
+		I want:
+
+		query = schema
+			.select("user._id AS _id", "user.name AS name", "user.email AS email", "session.set_on AS set_on")
+			.leftJoin("session", "user")
+			.where("session.has=?");
+
+		query.bind(0, sessionId).run(db);
+		if (c.next())
+		{
+			c[0].as<long long>();
+			c["_id"].as<long long>();
+		}
+		*/
+		db::StatementPtr query = db->prepare(
+			"SELECT user._id AS _id, user.name AS name, user.email AS email, session.set_on AS set_on "
+			"FROM session "
+			"LEFT JOIN user ON (user._id = session.user_id) "
+			"WHERE session.hash=?"
+			);
+
+		if (query.get() && query->bind(0, sessionId))
+		{
+			db::CursorPtr c = query->query();
+			if (c.get() && c->next())
+			{
+				return SessionPtr(new (std::nothrow) Session(
+					c->getLongLong(0),
+					c->getText(1),
+					c->getText(2),
+					c->getTimestamp(3)));
+			}
+		}
+		return SessionPtr();
+	}
+
 	Application::Application()
 	{
 		m_pid = _getpid();
@@ -96,21 +135,41 @@ namespace FastCGI
 		// synchronized }
 	}
 
+	void Application::cleanSessionCache()
+	{
+		time_t treshold;
+		time(&treshold);
+		treshold -= 30 * 60;
+
+		Sessions copy;
+		std::for_each(m_sessions.begin(), m_sessions.end(), [&copy](const Sessions::value_type& pair)
+		{
+			copy.insert(pair);
+		});
+
+		m_sessions = copy;
+	}
+
 	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
 	{
 		// TODO: limits needed, or DoS eminent
 
 		// synchronized {
+		cleanSessionCache();
+
 		SessionPtr out;
 		Sessions::iterator _it = m_sessions.find(sessionId);
-		if (_it == m_sessions.end() || !_it->second.get())
+		if (_it == m_sessions.end() || !_it->second.second.get())
 		{
 			db::ConnectionPtr db = dbConn(request);
-			// check if DB has the session
-			// add to the list
-			// set out
+			if (db.get())
+				out = Session::fromDB(db, sessionId.c_str());
+
+			time_t t;
+			if (out.get())
+				m_sessions.insert(std::make_pair(sessionId, std::make_pair(time(&t), out)));
 		}
-		else out = _it->second;
+		else out = _it->second.second;
 
 		return out;
 		// synchronized }
@@ -119,9 +178,9 @@ namespace FastCGI
 	Request::Request(Application& app)
 		: m_app(app)
 		, m_headersSent(false)
-        , m_streambufCin(app.m_request.in)
-        , m_streambufCout(app.m_request.out)
-        , m_cerr(app.m_request.err)
+		, m_streambufCin(app.m_request.in)
+		, m_streambufCout(app.m_request.out)
+		, m_cerr(app.m_request.err)
 		, m_cin(&m_streambufCin)
 		, m_cout(&m_streambufCout)
 		, cerr(&m_cerr)

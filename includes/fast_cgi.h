@@ -30,22 +30,46 @@
 namespace FastCGI
 {
 	class Request;
+	class Session;
+	typedef std::tr1::shared_ptr<Session> SessionPtr;
 
 	class Session
 	{
+		long long m_id;
+		std::string m_name;
+		std::string m_email;
+		time_t m_setOn;
+		Session()
+		{
+		}
+		Session(long long id, const std::string& name, const std::string& email, time_t setOn)
+			: m_id(id)
+			, m_name(name)
+			, m_email(email)
+			, m_setOn(setOn)
+		{
+		}
+	public:
+		static SessionPtr fromDB(db::ConnectionPtr db, const char* sessionId);
+		long long getId() const { return m_id; }
+		const std::string& getName() const { m_name; }
+		const std::string& getEmail() const { m_email; }
+		time_t getSetGMTTime() const { return m_setOn; }
 	};
-	typedef std::tr1::shared_ptr<Session> SessionPtr;
 
 	class Application
 	{
 		friend class Request;
 
-		typedef std::map<std::string, SessionPtr> Sessions;
+		typedef std::pair<time_t, SessionPtr> SessionCacheItem;
+		typedef std::map<std::string, SessionCacheItem> Sessions;
 
 		long m_pid;
 		FCGX_Request m_request;
 		db::ConnectionPtr m_dbConn;
 		Sessions m_sessions;
+
+		void cleanSessionCache();
 	public:
 		Application();
 		~Application();
