@@ -62,4 +62,42 @@ namespace url
 	}
 }
 
+namespace tyme
+{
+#ifdef _WIN32
+	typedef long long time_t;
+#else
+#error tyme::time_t is not defined
+#endif
+
+	struct tm_t
+	{
+		int tm_sec;     /* seconds after the minute - [0,59] */
+		int tm_min;     /* minutes after the hour - [0,59] */
+		int tm_hour;    /* hours since midnight - [0,23] */
+		int tm_mday;    /* day of the month - [1,31] */
+		int tm_mon;     /* months since January - [0,11] */
+		int tm_year;    /* years since 1900 */
+		int tm_wday;    /* days since Sunday - [0,6] */
+		int tm_yday;    /* days since January 1 - [0,365] */
+		int tm_isdst;   /* daylight savings time flag */
+	};
+
+	// returns "now" in GMT
+	time_t now();
+
+	// makes t into GMT time
+	time_t mktime(const tm_t& t);
+
+	// expands time to GMT tm_t
+	tm_t gmtime(time_t);
+
+	size_t strftime(char * buffer, size_t size, const char * format, const tm_t& tm);
+	template<size_t size>
+	static inline size_t strftime(char (&buffer)[size], const char * format, const tm_t& tm)
+	{
+		return strftime(buffer, size, format, tm);
+	}
+};
+
 #endif //__UTILS_H__

@@ -39,11 +39,11 @@ namespace FastCGI
 		std::string m_name;
 		std::string m_email;
 		std::string m_hash;
-		time_t m_setOn;
+		tyme::time_t m_setOn;
 		Session()
 		{
 		}
-		Session(long long id, const std::string& name, const std::string& email, const std::string& hash, time_t setOn)
+		Session(long long id, const std::string& name, const std::string& email, const std::string& hash, tyme::time_t setOn)
 			: m_id(id)
 			, m_name(name)
 			, m_email(email)
@@ -59,14 +59,14 @@ namespace FastCGI
 		const std::string& getName() const { return m_name; }
 		const std::string& getEmail() const { return m_email; }
 		const std::string& getSessionId() const { return m_hash; }
-		time_t getSetGMTTime() const { return m_setOn; }
+		tyme::time_t getStartTime() const { return m_setOn; }
 	};
 
 	class Application
 	{
 		friend class Request;
 
-		typedef std::pair<time_t, SessionPtr> SessionCacheItem;
+		typedef std::pair<tyme::time_t, SessionPtr> SessionCacheItem;
 		typedef std::map<std::string, SessionCacheItem> Sessions;
 
 		long m_pid;
@@ -93,7 +93,7 @@ namespace FastCGI
 			std::string server;
 			std::string remote_addr;
 			std::string remote_port;
-			time_t now;
+			tyme::time_t now;
 		};
 		typedef std::list<ReqInfo> ReqList;
 		const ReqList& requs() const { return m_requs; }
@@ -114,10 +114,10 @@ namespace FastCGI
 		{
 			std::string m_name;
 			std::string m_value;
-			time_t m_expire;
+			tyme::time_t m_expire;
 
 			Cookie(): m_expire(0) {}
-			Cookie(const std::string& name, const std::string& value, time_t expire)
+			Cookie(const std::string& name, const std::string& value, tyme::time_t expire)
 				: m_name(name)
 				, m_value(value)
 				, m_expire(expire)
@@ -153,7 +153,7 @@ namespace FastCGI
 		Application& app() { return m_app; }
 
 		void setHeader(const std::string& name, const std::string& value);
-		void setCookie(const std::string& name, const std::string& value, time_t expire = 0);
+		void setCookie(const std::string& name, const std::string& value, tyme::time_t expire = 0);
 		long long calcStreamSize();
 		param_t getParam(const char* name) const { return FCGX_GetParam(name, m_app.m_request.envp); }
 		param_t getCookie(const char* name) const {

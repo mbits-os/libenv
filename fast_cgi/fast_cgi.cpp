@@ -83,12 +83,11 @@ namespace FastCGI
 
 	SessionPtr Session::startSession(db::ConnectionPtr db, const char* email)
 	{
-		time_t now;
+		tyme::time_t now = tyme::now();
 		char seed[20];
 		crypt::session_t sessionId;
 		crypt::newSalt(seed);
 		crypt::session(seed, sessionId);
-		time(&now);
 
 		db::StatementPtr query = db->prepare(
 			"SELECT _id, name "
@@ -109,12 +108,9 @@ namespace FastCGI
 					);
 				if (query.get() &&
 					query->bind(0, sessionId) &&
-					query->bind(0, seed)
-#if 0
-					&&
+					query->bind(0, seed) &&
 					query->bind(0, _id) &&
 					query->bind(0, now)
-#endif
 					)
 				{
 					if (query->execute())
@@ -171,7 +167,7 @@ namespace FastCGI
 			info.server      = FCGX_GetParam("SERVER_NAME", m_request.envp);
 			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", m_request.envp);
 			info.remote_port = FCGX_GetParam("REMOTE_PORT", m_request.envp);
-			time(&info.now);
+			info.now = tyme::now();
 			m_requs.push_back(info);
 		}
 #endif
@@ -198,9 +194,7 @@ namespace FastCGI
 
 	void Application::cleanSessionCache()
 	{
-		time_t treshold;
-		time(&treshold);
-		treshold -= 30 * 60;
+		tyme::time_t treshold = tyme::now() - 30 * 60;
 
 		Sessions copy;
 		std::for_each(m_sessions.begin(), m_sessions.end(), [&copy](const Sessions::value_type& pair)
@@ -225,14 +219,13 @@ namespace FastCGI
 				out = Session::fromDB(db, sessionId.c_str());
 
 			// TODO: limits needed, or DoS eminent
-			time_t t;
 			if (out.get())
-				m_sessions.insert(std::make_pair(sessionId, std::make_pair(time(&t), out)));
+				m_sessions.insert(std::make_pair(sessionId, std::make_pair(tyme::now(), out)));
 		}
 		else
 		{
 			out = _it->second.second;
-			time(&_it->second.first); // ping the session
+			_it->second.first = tyme::now(); // ping the session
 		}
 
 		return out;
@@ -250,7 +243,7 @@ namespace FastCGI
 			out = Session::startSession(db, email);
 		// TODO: limits needed, or DoS eminent
 		if (out.get())
-			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getSetGMTTime(), out)));
+			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));
 
 		return out;
 		// synchronized }
@@ -384,8 +377,8 @@ namespace FastCGI
 			if (_cookie->second.m_expire != 0)
 			{
 				char buffer[256];
-				tm time = *gmtime(&_cookie->second.m_expire);
-				strftime(buffer, sizeof(buffer), "%a, %d-%b-%Y %H:%M:%S GMT", &time );
+				tyme::tm_t tm = tyme::gmtime(_cookie->second.m_expire);
+				tyme::strftime(buffer, "%a, %d-%b-%Y %H:%M:%S GMT", tm );
 				cookies += "; Expires=";
 				cookies += buffer;
 			}
@@ -433,7 +426,7 @@ namespace FastCGI
 		m_headers[n] = v;
 	}
 
-	void Request::setCookie(const std::string& name, const std::string& value, time_t expire)
+	void Request::setCookie(const std::string& name, const std::string& value, tyme::time_t expire)
 	{
 		if (m_headersSent)
 		{
