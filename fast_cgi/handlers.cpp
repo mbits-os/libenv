@@ -101,11 +101,9 @@ namespace app
 			"  <head>\r\n"
 			"    <title>" << getTitle(tr) << "</title>\r\n"
 			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
-			"    <link rel=\"bookshelf-api\" href=\"/api/\" />\r\n"
-			"    <link rel=\"bookshelf-public\" href=\"/public/\" />\r\n"
-			"    <style type=\"text/css\">@import url(\"/css/style.css\");</style>\r\n"
-			"    <style type=\"text/css\">@import url(\"/css/topbar.css\");</style>\r\n"
-			"    <style type=\"text/css\">@import url(\"/css/topbar_icons.css\");</style>\r\n"
+			//"    <style type=\"text/css\">@import url(\"/css/style.css\");</style>\r\n"
+			//"    <style type=\"text/css\">@import url(\"/css/topbar.css\");</style>\r\n"
+			//"    <style type=\"text/css\">@import url(\"/css/topbar_icons.css\");</style>\r\n"
 			"  </head>\r\n"
 			"  <body>\r\n";
 
