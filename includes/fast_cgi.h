@@ -26,6 +26,7 @@
 #define __SERVER_FAST_CFGI_H__
 
 #include <dbconn.h>
+#include <locale.hpp>
 
 namespace FastCGI
 {
@@ -40,6 +41,7 @@ namespace FastCGI
 		std::string m_email;
 		std::string m_hash;
 		tyme::time_t m_setOn;
+		lng::TranslationPtr m_tr;
 		Session()
 		{
 		}
@@ -60,6 +62,8 @@ namespace FastCGI
 		const std::string& getEmail() const { return m_email; }
 		const std::string& getSessionId() const { return m_hash; }
 		tyme::time_t getStartTime() const { return m_setOn; }
+		lng::TranslationPtr getTranslation() { return m_tr; }
+		void setTranslation(lng::TranslationPtr tr) { m_tr = tr; }
 	};
 
 	class Application
@@ -73,18 +77,20 @@ namespace FastCGI
 		FCGX_Request m_request;
 		db::ConnectionPtr m_dbConn;
 		Sessions m_sessions;
+		lng::Locale m_locale;
 
 		void cleanSessionCache();
 	public:
 		Application();
 		~Application();
-		int init();
+		int init(const char* localeRoot);
 		int pid() const { return m_pid; }
 		bool accept();
 		db::ConnectionPtr dbConn(Request& request);
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
+		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
 
 #if DEBUG_CGI
 		struct ReqInfo
@@ -176,6 +182,7 @@ namespace FastCGI
 		void on500();
 
 		SessionPtr getSession(bool require = true);
+		lng::TranslationPtr httpAcceptLanguage();
 
 		template <typename T>
 		Request& operator << (const T& obj)

@@ -145,13 +145,14 @@ namespace FastCGI
 	{
 	}
 
-	int Application::init()
+	int Application::init(const char* localeRoot)
 	{
 		int ret = FCGX_Init();
 		if (ret != 0)
 			return ret;
 
 		FCGX_InitRequest(&m_request, 0, 0);
+		m_locale.init(localeRoot);
 
 		return 0;
 	}
@@ -520,4 +521,10 @@ namespace FastCGI
 		return out;
 	}
 
+	lng::TranslationPtr Request::httpAcceptLanguage()
+	{
+		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
+		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
+		return m_app.httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
+	}
 }

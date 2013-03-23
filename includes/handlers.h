@@ -43,6 +43,39 @@ namespace app
 	};
 	typedef std::tr1::shared_ptr<Handler> HandlerPtr;
 
+	class PageTranslation
+	{
+		lng::TranslationPtr m_translation;
+		std::string m_badString;
+	public:
+		bool init(FastCGI::SessionPtr session, Request& request);
+		const char* operator()(lng::LNG stringId);
+	};
+
+	class PageHandler: public Handler
+	{
+	protected:
+		virtual bool restrictedPage() { return true; }
+		virtual const char* getPageTitle(PageTranslation& tr) { return nullptr; }
+		std::string getTitle(PageTranslation& tr)
+		{
+			std::string title = tr(lng::LNG_GLOBAL_SITENAME);
+    		const char* page = getPageTitle(tr);
+    		if (!page) return title;
+			title += " &raquo; ";
+			title += page;
+			return title;
+		} 
+		//rendering the page
+		virtual void prerender(FastCGI::SessionPtr session, Request& request, PageTranslation& tr) {}
+		virtual void header(FastCGI::SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void render(FastCGI::SessionPtr session, Request& request, PageTranslation& tr) = 0;
+		virtual void footer(FastCGI::SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void postrender(FastCGI::SessionPtr session, Request& request, PageTranslation& tr) {}
+	public:
+		void visit(Request& request);
+	};
+
 	class RedirectUrlHandler: public Handler
 	{
 	protected:

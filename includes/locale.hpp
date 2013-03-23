@@ -25,9 +25,12 @@
 #ifndef __LOCALE_H__
 #define __LOCALE_H__
 
+#include "site_strings.h"
+
 namespace lng
 {
 	struct LangFile;
+	class Translation;
 	class Locale;
 
 	enum ERR
@@ -58,12 +61,26 @@ namespace lng
 		char* m_strings;
 	};
 
-	class Locale
+	class Translation
 	{
+		LangFile m_file;
 	public:
-		static bool init(const char* fileRoot);
+		bool open(const char* path) { return m_file.open(path) == ERR_OK; }
+		const char* tr(LNG stringId) { return m_file.getString(stringId); }
 	};
 
+	typedef std::tr1::shared_ptr<Translation> TranslationPtr;
+	typedef std::tr1::weak_ptr<Translation> TranslationWeakPtr;
+
+	class Locale
+	{
+		typedef std::map<std::string, TranslationWeakPtr> Translations;
+		std::string m_fileRoot;
+		Translations m_translations;
+	public:
+		void init(const char* fileRoot);
+		TranslationPtr httpAcceptLanguage(const char* header);
+	};
 }
 
 #endif // __LOCALE_H__

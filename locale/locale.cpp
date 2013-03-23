@@ -24,11 +24,60 @@
 
 #include "pch.h"
 #include <locale.hpp>
+#include <utils.h>
+
+#ifdef _WIN32
+#define SEP '\\'
+#else
+#define SEP '/'
+#endif
 
 namespace lng
 {
-	bool Locale::init(const char*)
+	void Locale::init(const char* fileRoot)
 	{
-		return true;
+		m_fileRoot = fileRoot;
+		if (!m_fileRoot.empty() && m_fileRoot[m_fileRoot.length() - 1] != SEP)
+			m_fileRoot.push_back(SEP);
+	}
+
+	TranslationPtr Locale::httpAcceptLanguage(const char* header)
+	{
+		TranslationPtr candidate(new (std::nothrow) Translation());
+		if (!candidate.get())
+			return candidate; //OOM, 500 the page
+
+		std::list<std::string> langs = url::priorityList(header);
+		auto _lang = langs.begin(), _end = langs.end();
+		for (; _lang != _end; ++_lang)
+		{
+			std::string& lang = *_lang;
+			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
+
+			Translations::iterator _it = m_translations.find(lang);
+			if (_it != m_translations.end() && !_it->second.expired())
+				return _it->second.lock();
+
+			std::string path = m_fileRoot + lang + SEP + "site_strings.lng";
+			if (candidate->open(path.c_str()))
+			{
+				m_translations[lang] = candidate;
+				return candidate;
+			};
+		}
+
+		//falback to en
+		Translations::iterator _it = m_translations.find("en");
+		if (_it != m_translations.end() && !_it->second.expired())
+			return _it->second.lock();
+
+		std::string path = m_fileRoot + "en" + SEP + "site_strings.lng";
+		if (candidate->open(path.c_str()))
+		{
+			m_translations["en"] = candidate;
+			return candidate;
+		};
+
+		return TranslationPtr();
 	}
 }
