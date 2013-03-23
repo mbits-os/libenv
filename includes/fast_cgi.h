@@ -240,6 +240,9 @@ namespace FastCGI
 		const std::map<std::string, std::string>& cookieDebugData() const {
 			return m_reqCookies;
 		}
+		const std::map<std::string, std::string>& varDebugData() const {
+			return m_reqVars;
+		}
 #endif
 	};
 }
