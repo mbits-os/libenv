@@ -26,6 +26,7 @@
 #define __UTILS_H__
 
 #include <string>
+#include <list>
 
 template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 
@@ -60,6 +61,10 @@ namespace url
 	{
 		return quot_parse(s.c_str(), s.size(), nullptr);
 	}
+
+	// "text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/webp, image/jpeg, image/gif, image/x-xbitmap, */*;q=0.1"
+	// "text/html", "application/xhtml+xml", "image/png", "image/webp", "image/jpeg", "image/gif", "image/x-xbitmap", "application/xml", "*/*"
+	std::list<std::string> priorityList(const char* header);
 }
 
 namespace tyme

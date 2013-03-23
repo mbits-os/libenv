@@ -24,6 +24,8 @@
 
 #include "pch.h"
 #include <utils.h>
+#include <vector>
+#include <iterator>
 
 namespace url
 {
@@ -174,6 +176,107 @@ namespace url
 			else out += in[i];
 		}
 
+		return out;
+	}
+
+	struct ListItem
+	{
+		std::string m_value;
+		size_t m_pos;
+		size_t m_q;
+
+		// SORT q DESC, pos ASC
+		bool operator < (const ListItem& right) const
+		{
+			if (m_q != right.m_q) return m_q > right.m_q;
+			return m_pos < right.m_pos;
+		}
+
+#define WS do { while (isspace(*c) && c < end) c++; } while(0)
+#define LOOK_FOR(ch) do { while (!isspace(*c) && *c != ',' && *c != (ch) && c < end) c++; } while(0)
+
+		const char* read(size_t pos, const char* c, const char* end)
+		{
+			m_pos = pos;
+			m_q = 1000;
+
+			WS;
+			const char* token = c;
+			LOOK_FOR(';');
+			m_value.assign(token, c);
+			WS;
+			while (*c == ';')
+			{
+				c++;
+				WS;
+				token = c;
+				LOOK_FOR('=');
+				if (c - token == 1 && *token == 'q')
+				{
+					WS;
+					if (*c == '=')
+					{
+						c++;
+						WS;
+						token = c;
+						LOOK_FOR(';');
+						m_q = quality(token, c);
+						WS;
+					}
+				}
+				else LOOK_FOR(';');
+			}
+			return ++c;
+		}
+		static size_t quality(const char* c, const char* end)
+		{
+			size_t q = 0;
+			size_t pow = 1000;
+			bool seen_dot = false;
+			while (c != end)
+			{
+				switch(*c)
+				{
+				case '0': case '1': case '2': case '3': case '4':
+				case '5': case '6': case '7': case '8': case '9':
+					q *= 10;
+					q += *c - '0';
+					if (seen_dot)
+					{
+						pow /= 10;
+						if (pow == 1)
+							return q;
+					}
+					break;
+				case '.':
+					seen_dot = true;
+					break;
+				default:
+					return q * pow;
+				};
+				++c;
+			}
+			return q * pow;
+		}
+	};
+
+	std::list<std::string> priorityList(const char* header)
+	{
+		std::vector<ListItem> items;
+
+		const char* c = header;
+		const char* end = c + strlen(c);
+		size_t pos = 0;
+		while (c < end)
+		{
+			ListItem it;
+			c = it.read(pos++, c, end);
+			items.push_back(it);
+		}
+
+		std::stable_sort(items.begin(), items.end());
+		std::list<std::string> out;
+		std::transform(items.begin(), items.end(), std::back_inserter(out), [](const ListItem& item) { return item.m_value; });
 		return out;
 	}
 }
