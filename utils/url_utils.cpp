@@ -103,11 +103,12 @@ namespace url
 		for (size_t i = 0; i < in_len; ++i)
 		{
 			// go inside only, if there is enough space
-			if (in[i] == '%' && (i < in_len - 3) &&
+			if (in[i] == '%' && (i < in_len - 2) &&
 				isxdigit(in[i+1]) && isxdigit(in[i+2]))
 			{
 				unsigned char c = (hex(in[i+1]) << 4) | hex(in[i+2]);
 				out += c;
+				i += 2;
 				continue;
 			}
 			out += in[i];
