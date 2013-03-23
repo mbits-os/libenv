@@ -112,6 +112,12 @@ namespace FastCGI
 
 	class FinishResponse {};
 
+	struct RequestState
+	{
+		virtual ~RequestState() {}
+	};
+	typedef std::tr1::shared_ptr<RequestState> RequestStatePtr;
+
 	class Request
 	{
 		typedef std::map<std::string, std::string> Headers;
@@ -143,6 +149,7 @@ namespace FastCGI
 		std::ostream m_cout;
 		std::istream m_cin;
 		mutable bool m_alreadyReadSomething;
+		RequestStatePtr m_requestState;
 
 		void unpackCookies();
 		void readAll();
@@ -183,6 +190,9 @@ namespace FastCGI
 
 		SessionPtr getSession(bool require = true);
 		lng::TranslationPtr httpAcceptLanguage();
+
+		RequestStatePtr getRequestState() { return m_requestState; }
+		void setRequestState(RequestStatePtr state) { m_requestState = state; }
 
 		template <typename T>
 		Request& operator << (const T& obj)
