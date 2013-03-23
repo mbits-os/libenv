@@ -39,6 +39,8 @@
 #error There is no path to conn.ini defined...
 #endif
 
+#define MAX_FORM_BUFFER 10240
+
 namespace FastCGI
 {
 	SessionPtr Session::fromDB(db::ConnectionPtr db, const char* sessionId)
@@ -272,12 +274,18 @@ namespace FastCGI
 		, m_alreadyReadSomething(false)
 	{
 		unpackCookies();
+		unpackVariables();
 	}
 
 	Request::~Request()
 	{
 		readAll();
 	}
+
+#define WS() do { while (isspace((unsigned char)*c) && c < end) ++c; } while(0)
+#define LOOK_FOR(ch) do { while (!isspace((unsigned char)*c) && *c != (ch) && c < end) ++c; } while(0)
+#define LOOK_FOR2(ch1, ch2) do { while (!isspace((unsigned char)*c) && *c != (ch1) && *c != (ch2) && c < end) ++c; } while(0)
+#define IS(ch) (c < end && *c == (ch))
 
 	void Request::unpackCookies()
 	{
@@ -289,15 +297,15 @@ namespace FastCGI
 		param_t c = HTTP_COOKIE;
 		while (c < end)
 		{
-			while (isspace((unsigned char)*c) && c < end) ++c;
+			WS();
 			param_t name_start = c;
-			while (!isspace((unsigned char)*c) && *c != '=' && c < end) ++c;
+			LOOK_FOR('=');
 			std::string name(name_start, c);
-			while (isspace((unsigned char)*c) && c < end) ++c;
-			if (c >= end || *c != '=') break;
+			WS();
+			if (!IS('=')) break;
 			++c;
-			while (isspace((unsigned char)*c) && c < end) ++c;
-			if (*c == '"')
+			WS();
+			if (IS('"'))
 			{
 				const char* quot_end = nullptr;
 				std::string value = url::quot_parse(c + 1, end - c - 1, &quot_end);
@@ -311,15 +319,77 @@ namespace FastCGI
 			else
 			{
 				param_t value_start = c;
-				while (!isspace((unsigned char)*c) &&
-					*c != ';' && *c != ',' && c < end) ++c;
+				LOOK_FOR2(';', ',');
 				if (name[0] != '$')
 					m_reqCookies[name] = std::string(value_start, c);
 			}
-			while (isspace((unsigned char)*c) && c < end) ++c;
+			WS();
 			if (c >= end || (*c != ';' && *c != ',')) break;
 			++c;
 		};
+	}
+
+	void Request::unpackVariables(const char* data, size_t len)
+	{
+		const char* c = data;
+		const char* end = c + len;
+		while (c < end)
+		{
+			WS();
+			const char* name_start = c;
+			LOOK_FOR2('=', '&');
+			std::string name = url::decode(name_start, c - name_start);
+			WS();
+
+			if (IS('='))
+			{
+				++c;
+				WS();
+				const char* value_start = c;
+				LOOK_FOR('&');
+				m_reqVars[name] = url::decode(value_start, c - value_start);
+				WS();
+			}
+			else
+				m_reqVars[name].erase();
+
+			if (!IS('&')) break;
+
+			++c;
+		}
+	}
+
+	void Request::unpackVariables()
+	{
+		param_t CONTENT_TYPE = getParam("CONTENT_TYPE");
+		if (CONTENT_TYPE && !strcmp(CONTENT_TYPE, "application/x-www-form-urlencoded"))
+		{
+			long long length = calcStreamSize();
+			if (length != -1)
+			{
+				if (length > MAX_FORM_BUFFER)
+					length = MAX_FORM_BUFFER;
+
+				char * buffer = (char*)malloc((size_t)length);
+				if (buffer)
+				{
+					if (read(buffer, length) == length)
+						unpackVariables(buffer, (size_t)length);
+					free(buffer);
+				}
+			}
+		}
+		else if (CONTENT_TYPE && !strcmp(CONTENT_TYPE, "multipart/form-data"))
+		{
+			// TODO: add support?
+			readAll();
+		}
+
+		param_t QUERY_STRING = getParam("QUERY_STRING");
+		if (QUERY_STRING && *QUERY_STRING)
+		{
+			unpackVariables(QUERY_STRING, strlen(QUERY_STRING));
+		}
 	}
 
 	void Request::readAll()

@@ -137,6 +137,7 @@ namespace FastCGI
 		};
 		typedef std::map<std::string, Cookie> ResponseCookies;
 		typedef std::map<std::string, std::string> RequestCookies;
+		typedef std::map<std::string, std::string> RequestVariables;
 
 		Application& m_app;
 		bool m_headersSent;
@@ -146,12 +147,15 @@ namespace FastCGI
 		Headers m_headers;
 		ResponseCookies m_respCookies;
 		RequestCookies m_reqCookies;
+		RequestVariables m_reqVars;
 		std::ostream m_cout;
 		std::istream m_cin;
 		mutable bool m_alreadyReadSomething;
 		RequestStatePtr m_requestState;
 
 		void unpackCookies();
+		void unpackVariables(const char* data, size_t len);
+		void unpackVariables();
 		void readAll();
 		void ensureInputWasRead();
 		void buildCookieHeader();
@@ -172,6 +176,12 @@ namespace FastCGI
 		param_t getCookie(const char* name) const {
 			RequestCookies::const_iterator _it = m_reqCookies.find(name);
 			if (_it == m_reqCookies.end())
+				return nullptr;
+			return _it->second.c_str();
+		}
+		param_t getVariable(const char* name) const {
+			RequestVariables::const_iterator _it = m_reqVars.find(name);
+			if (_it == m_reqVars.end())
 				return nullptr;
 			return _it->second.c_str();
 		}
