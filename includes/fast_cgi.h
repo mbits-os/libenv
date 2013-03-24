@@ -94,6 +94,7 @@ namespace FastCGI
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
 		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
+		std::string getLocalizedFilename(const char* header, const char* filename) { return m_locale.getFilename(header, filename); }
 		std::ofstream& log() { return m_log; }
 
 #if DEBUG_CGI
@@ -242,6 +243,7 @@ namespace FastCGI
 		void endSession(const std::string& sessionId);
 
 		lng::TranslationPtr httpAcceptLanguage();
+		void sendMail(const char* mailFile, const char* email);
 
 		RequestStatePtr getRequestState() { return m_requestState; }
 		void setRequestState(RequestStatePtr state) { m_requestState = state; }

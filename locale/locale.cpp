@@ -25,6 +25,7 @@
 #include "pch.h"
 #include <locale.hpp>
 #include <utils.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #define SEP '\\'
@@ -79,5 +80,25 @@ namespace lng
 		};
 
 		return TranslationPtr();
+	}
+
+	std::string Locale::getFilename(const char* header, const char* filename)
+	{
+		struct _stat st;
+		std::list<std::string> langs = url::priorityList(header);
+		auto _lang = langs.begin(), _end = langs.end();
+		for (; _lang != _end; ++_lang)
+		{
+			std::string& lang = *_lang;
+			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
+			std::string path = m_fileRoot + lang + SEP + filename;
+			if (!_stat(path.c_str(), &st))
+				return path;
+		}
+		std::string path = m_fileRoot + "en" + SEP + filename;
+		if (!_stat(path.c_str(), &st))
+			return path;
+
+		return std::string();
 	}
 }

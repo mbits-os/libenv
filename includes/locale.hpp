@@ -80,6 +80,7 @@ namespace lng
 	public:
 		void init(const char* fileRoot);
 		TranslationPtr httpAcceptLanguage(const char* header);
+		std::string getFilename(const char* header, const char* filename);
 	};
 }
 
