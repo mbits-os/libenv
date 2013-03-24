@@ -65,7 +65,7 @@ namespace FastCGI { namespace app {
 			"\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r\n"
 			"<html>\r\n"
 			"  <head>\r\n"
-			"    <title>" << getTitle(tr) << "</title>\r\n"
+			"    <title>" << getTitle(request, tr) << "</title>\r\n"
 			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
 			//"    <style type=\"text/css\">@import url(\"/css/style.css\");</style>\r\n"
 			//"    <style type=\"text/css\">@import url(\"/css/topbar.css\");</style>\r\n"
