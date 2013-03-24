@@ -118,6 +118,15 @@ namespace FastCGI
 	};
 	typedef std::tr1::shared_ptr<RequestState> RequestStatePtr;
 
+	class PageTranslation
+	{
+		lng::TranslationPtr m_translation;
+		std::string m_badString;
+	public:
+		bool init(SessionPtr session, Request& request);
+		const char* operator()(lng::LNG stringId);
+	};
+
 	class Content
 	{
 	public:

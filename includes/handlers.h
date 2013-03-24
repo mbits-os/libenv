@@ -41,15 +41,6 @@ namespace FastCGI { namespace app
 	};
 	typedef std::tr1::shared_ptr<Handler> HandlerPtr;
 
-	class PageTranslation
-	{
-		lng::TranslationPtr m_translation;
-		std::string m_badString;
-	public:
-		bool init(SessionPtr session, Request& request);
-		const char* operator()(lng::LNG stringId);
-	};
-
 	class PageHandler: public Handler
 	{
 	protected:

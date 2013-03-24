@@ -42,40 +42,6 @@ namespace FastCGI { namespace app {
 #endif
 	}
 
-	bool PageTranslation::init(SessionPtr session, Request& request)
-	{
-		if (session.get() != nullptr)
-		{
-			m_translation = session->getTranslation();
-			if (m_translation.get() != nullptr)
-				return true;
-		}
-
-		m_translation = request.httpAcceptLanguage();
-		if (session.get() != nullptr)
-			session->setTranslation(m_translation);
-
-		return m_translation.get() != nullptr;
-	}
-
-	static const char* error(std::string& s, lng::LNG stringId)
-	{
-		char buffer[100];
-		printf(":%d:", stringId);
-		s = buffer;
-		return s.c_str();
-	}
-
-	const char* PageTranslation::operator()(lng::LNG stringId)
-	{
-		if (m_translation.get() == nullptr)
-			return error(m_badString, stringId);
-		const char* str = m_translation->tr(stringId);
-		if (!str)
-			return error(m_badString, stringId);
-		return str;
-	}
-
 	void PageHandler::visit(Request& request)
 	{
 		SessionPtr session = request.getSession(restrictedPage());
