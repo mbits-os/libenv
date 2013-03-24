@@ -293,6 +293,11 @@ namespace db { namespace mysql {
 		return cursor;
 	}
 
+	const char* MySQLStatement::errorMessage()
+	{
+		return mysql_stmt_error(m_stmt);
+	}
+
 	bool MySQLCursor::allocBind(size_t count)
 	{
 		if (!MySQLBinding::allocBind(count))

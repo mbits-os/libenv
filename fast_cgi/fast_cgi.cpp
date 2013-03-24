@@ -29,10 +29,12 @@
 
 #ifdef _WIN32
 #define INI "..\\conn.ini"
+#define LOGFILE "..\\error-%u.log"
 #endif
 
 #ifdef POSIX
 #define INI "../conn.ini"
+#define LOGFILE "../error-%u.log"
 #endif
 
 #ifndef INI
@@ -91,13 +93,16 @@ namespace FastCGI
 		crypt::newSalt(seed);
 		crypt::session(seed, sessionId);
 
-		db::StatementPtr query = db->prepare(
+		const char* SQL_USER_BY_EMAIL =
 			"SELECT _id, name "
 			"FROM user "
 			"WHERE email=?"
-			);
+			;
+		const char* SQL_NEW_SESSION = "INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, (SELECT _id FROM user WHERE email=?), ?)";
 
-		if (query.get() && query->bind(0, sessionId))
+		db::StatementPtr query = db->prepare(SQL_USER_BY_EMAIL);
+
+		if (query.get() && query->bind(0, email))
 		{
 			db::CursorPtr c = query->query();
 			if (c.get() && c->next())
@@ -106,13 +111,13 @@ namespace FastCGI
 				std::string name = c->getText(1);
 				c = db::CursorPtr();
 				query = db->prepare(
-					"INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, ?, ?)"
+					SQL_NEW_SESSION
 					);
 				if (query.get() &&
 					query->bind(0, sessionId) &&
 					query->bind(0, seed) &&
-					query->bind(0, _id) &&
-					query->bind(0, now)
+					query->bind(0, email) &&
+					query->bindTime(0, now)
 					)
 				{
 					if (query->execute())
@@ -125,8 +130,26 @@ namespace FastCGI
 							now
 							));
 					}
+					else
+					{
+						const char* error = query->errorMessage();
+						if (!error) error = "";
+						FLOG << "DB error: " << SQL_NEW_SESSION << " " << error << "\n";
+					}
+				}
+				else
+				{
+					const char* error = db->errorMessage();
+					if (!error) error = "";
+					FLOG << "DB error: " << SQL_NEW_SESSION << " " << error << "\n";
 				}
 			}
+		}
+		else
+		{
+			const char* error = query.get() ? query->errorMessage() : db->errorMessage();
+			if (!error) error = "";
+			FLOG << "DB error: " << SQL_USER_BY_EMAIL << " " << error << "\n";
 		}
 		return SessionPtr();
 	}
@@ -138,9 +161,11 @@ namespace FastCGI
 			query->execute();
 	}
 
+	namespace { Application* g_app = nullptr; }
 	Application::Application()
 	{
 		m_pid = _getpid();
+		g_app = this;
 	}
 
 	Application::~Application()
@@ -156,7 +181,10 @@ namespace FastCGI
 		FCGX_InitRequest(&m_request, 0, 0);
 		m_locale.init(localeRoot);
 
-		return 0;
+		char filename[200];
+		sprintf(filename, LOGFILE, m_pid);
+		m_log.open(filename);
+		return m_log.is_open() ? 0 : 1;
 	}
 
 	bool Application::accept()
@@ -260,6 +288,19 @@ namespace FastCGI
 		Sessions::iterator _it = m_sessions.find(sessionId);
 		if (_it != m_sessions.end())
 			m_sessions.erase(_it);
+	}
+
+	ApplicationLog::ApplicationLog(const char* file, int line)
+		: m_log(g_app->log())
+	{
+		// lock
+		m_log << file << ":" << line << " ";
+	}
+
+	ApplicationLog::~ApplicationLog()
+	{
+		m_log << std::endl;
+		// unlock
 	}
 
 	bool PageTranslation::init(SessionPtr session, Request& request)
@@ -623,6 +664,25 @@ namespace FastCGI
 		//if require and session two weeks old: /auth/login?continue=<this-url>&user=<email>
 
 		return out;
+	}
+
+	SessionPtr Request::startSession(bool long_session, const char* email)
+	{
+		SessionPtr session = m_app.startSession(*this, email);
+		if (session.get())
+		{
+			if (long_session)
+				setCookie("reader.login", session->getSessionId(), tyme::now() + 30 * 24 * 60 * 60);
+			else
+				setCookie("reader.login", session->getSessionId());
+		}
+		return session;
+	}
+
+	void Request::endSession(const std::string& sessionId)
+	{
+		m_app.endSession(*this, sessionId);
+		setCookie("reader.login", "", tyme::now());
 	}
 
 	lng::TranslationPtr Request::httpAcceptLanguage()

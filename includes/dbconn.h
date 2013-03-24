@@ -61,6 +61,7 @@ namespace db
 		virtual bool bindTime(int arg, tyme::time_t value) = 0;
 		virtual bool execute() = 0;
 		virtual CursorPtr query() = 0;
+		virtual const char* errorMessage() = 0;
 	};
 
 	struct Connection

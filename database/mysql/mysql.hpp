@@ -161,6 +161,7 @@ namespace db
 			bool bindImpl(int arg, const void* value, size_t len);
 			bool execute();
 			CursorPtr query();
+			const char* errorMessage();
 		};
 
 		class MySQLConnection: public Connection

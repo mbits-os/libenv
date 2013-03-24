@@ -27,6 +27,7 @@
 
 #include <dbconn.h>
 #include <locale.hpp>
+#include <fstream>
 
 namespace FastCGI
 {
@@ -79,6 +80,8 @@ namespace FastCGI
 		Sessions m_sessions;
 		lng::Locale m_locale;
 
+		std::ofstream m_log;
+
 		void cleanSessionCache();
 	public:
 		Application();
@@ -91,6 +94,7 @@ namespace FastCGI
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
 		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
+		std::ofstream& log() { return m_log; }
 
 #if DEBUG_CGI
 		struct ReqInfo
@@ -107,6 +111,21 @@ namespace FastCGI
 		ReqList m_requs;
 #endif
 	};
+
+	class ApplicationLog
+	{
+		std::ostream& m_log;
+	public:
+		ApplicationLog(const char* file, int line);
+		~ApplicationLog();
+		template <typename T>
+		ApplicationLog& operator << (const T& t)
+		{
+			m_log << t;
+			return *this;
+		}
+	};
+#define FLOG FastCGI::ApplicationLog(__FILE__, __LINE__)
 
 	typedef const char* param_t;
 
@@ -132,6 +151,7 @@ namespace FastCGI
 	public:
 		virtual ~Content() {}
 		virtual void render(SessionPtr session, Request& request, PageTranslation& tr) = 0;
+		virtual const char* getPageTitle(PageTranslation& tr) { return nullptr; }
 	};
 	typedef std::tr1::shared_ptr<Content> ContentPtr;
 
@@ -186,6 +206,7 @@ namespace FastCGI
 		~Request();
    		const char * const* envp() const { return m_app.m_request.envp; }
 		Application& app() { return m_app; }
+		db::ConnectionPtr dbConn() { return m_app.dbConn(*this); }
 
 		void setHeader(const std::string& name, const std::string& value);
 		void setCookie(const std::string& name, const std::string& value, tyme::time_t expire = 0);
@@ -217,6 +238,9 @@ namespace FastCGI
 		void on500();
 
 		SessionPtr getSession(bool require = true);
+		SessionPtr startSession(bool long_session, const char* email);
+		void endSession(const std::string& sessionId);
+
 		lng::TranslationPtr httpAcceptLanguage();
 
 		RequestStatePtr getRequestState() { return m_requestState; }
@@ -224,6 +248,8 @@ namespace FastCGI
 
 		ContentPtr getContent() { return m_content; }
 		void setContent(ContentPtr content) { m_content = content; }
+		template <typename T>
+		void setContent(std::tr1::shared_ptr<T> content) { m_content = std::tr1::static_pointer_cast<Content>(content); }
 
 		template <typename T>
 		Request& operator << (const T& obj)

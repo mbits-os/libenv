@@ -45,11 +45,17 @@ namespace FastCGI { namespace app
 	{
 	protected:
 		virtual bool restrictedPage() { return true; }
-		virtual const char* getPageTitle(PageTranslation& tr) { return nullptr; }
-		std::string getTitle(PageTranslation& tr)
+		virtual const char* getPageTitle(Request& request, PageTranslation& tr)
+		{
+			ContentPtr content = request.getContent();
+			if (content.get())
+				return content->getPageTitle(tr);
+			return nullptr;
+		}
+		std::string getTitle(Request& request, PageTranslation& tr)
 		{
 			std::string title = tr(lng::LNG_GLOBAL_SITENAME);
-    		const char* page = getPageTitle(tr);
+    		const char* page = getPageTitle(request, tr);
     		if (!page) return title;
 			title += " &raquo; ";
 			title += page;
