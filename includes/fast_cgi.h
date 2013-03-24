@@ -118,6 +118,14 @@ namespace FastCGI
 	};
 	typedef std::tr1::shared_ptr<RequestState> RequestStatePtr;
 
+	class Content
+	{
+	public:
+		virtual ~Content() {}
+		virtual void render(SessionPtr session, Request& request, PageTranslation& tr) = 0;
+	};
+	typedef std::tr1::shared_ptr<Content> ContentPtr;
+
 	class Request
 	{
 		typedef std::map<std::string, std::string> Headers;
@@ -152,6 +160,7 @@ namespace FastCGI
 		std::istream m_cin;
 		mutable bool m_alreadyReadSomething;
 		RequestStatePtr m_requestState;
+		ContentPtr m_content;
 
 		void unpackCookies();
 		void unpackVariables(const char* data, size_t len);
@@ -203,6 +212,9 @@ namespace FastCGI
 
 		RequestStatePtr getRequestState() { return m_requestState; }
 		void setRequestState(RequestStatePtr state) { m_requestState = state; }
+
+		ContentPtr getContent() { return m_content; }
+		void setContent(ContentPtr content) { m_content = content; }
 
 		template <typename T>
 		Request& operator << (const T& obj)

@@ -67,7 +67,12 @@ namespace FastCGI { namespace app
 		//rendering the page
 		virtual void prerender(SessionPtr session, Request& request, PageTranslation& tr) {}
 		virtual void header(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void render(SessionPtr session, Request& request, PageTranslation& tr) = 0;
+		virtual void render(SessionPtr session, Request& request, PageTranslation& tr)
+		{
+			ContentPtr content = request.getContent();
+			if (content.get())
+				content->render(session, request, tr);
+		}
 		virtual void footer(SessionPtr session, Request& request, PageTranslation& tr);
 		virtual void postrender(SessionPtr session, Request& request, PageTranslation& tr) {}
 	public:
