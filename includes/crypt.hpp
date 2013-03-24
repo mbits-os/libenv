@@ -76,7 +76,10 @@ namespace crypt
 				return false;
 
 			hash_t new_hash;
-			pack(digest, (salt_t&)salt, new_hash);
+			salt_t out;
+			memcpy(out, salt, SALT_SIZE);
+			out[SALT_LENGTH] = 0;
+			pack(digest, out, new_hash);
 
 			return strcmp(new_hash, hash) == 0;
 		}
