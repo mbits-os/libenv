@@ -98,7 +98,7 @@ namespace FastCGI
 			"FROM user "
 			"WHERE email=?"
 			;
-		const char* SQL_NEW_SESSION = "INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, (SELECT _id FROM user WHERE email=?), ?)";
+		const char* SQL_NEW_SESSION = "INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, ?, ?)";
 
 		db::StatementPtr query = db->prepare(SQL_USER_BY_EMAIL);
 
@@ -115,9 +115,9 @@ namespace FastCGI
 					);
 				if (query.get() &&
 					query->bind(0, sessionId) &&
-					query->bind(0, seed) &&
-					query->bind(0, email) &&
-					query->bindTime(0, now)
+					query->bind(1, seed) &&
+					query->bind(2, _id) &&
+					query->bindTime(3, now)
 					)
 				{
 					if (query->execute())
