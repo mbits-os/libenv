@@ -50,6 +50,12 @@ namespace url
 		return decode(s.c_str(), s.size());
 	}
 
+	std::string htmlQuotes(const char* in, size_t in_len);
+	inline static std::string htmlQuotes(const std::string& s)
+	{
+		return htmlQuotes(s.c_str(), s.size());
+	}
+
 	std::string quot_escape(const char* in, size_t in_len);
 	inline static std::string quot_escape(const std::string& s)
 	{

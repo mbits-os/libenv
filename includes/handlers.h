@@ -27,10 +27,8 @@
 
 #include "fast_cgi.h"
 
-namespace app
+namespace FastCGI { namespace app
 {
-	using FastCGI::Request;
-
 	class Handler
 	{
 	public:
@@ -48,7 +46,7 @@ namespace app
 		lng::TranslationPtr m_translation;
 		std::string m_badString;
 	public:
-		bool init(FastCGI::SessionPtr session, Request& request);
+		bool init(SessionPtr session, Request& request);
 		const char* operator()(lng::LNG stringId);
 	};
 
@@ -67,11 +65,11 @@ namespace app
 			return title;
 		} 
 		//rendering the page
-		virtual void prerender(FastCGI::SessionPtr session, Request& request, PageTranslation& tr) {}
-		virtual void header(FastCGI::SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void render(FastCGI::SessionPtr session, Request& request, PageTranslation& tr) = 0;
-		virtual void footer(FastCGI::SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void postrender(FastCGI::SessionPtr session, Request& request, PageTranslation& tr) {}
+		virtual void prerender(SessionPtr session, Request& request, PageTranslation& tr) {}
+		virtual void header(SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void render(SessionPtr session, Request& request, PageTranslation& tr) = 0;
+		virtual void footer(SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void postrender(SessionPtr session, Request& request, PageTranslation& tr) {}
 	public:
 		void visit(Request& request);
 	};
@@ -228,7 +226,7 @@ namespace app
 				);
 		}
 	};
-}
+}} //FastCGI::app
 
 #if DEBUG_CGI
 #define REGISTRAR_ARGS , __FILE__, __LINE__
@@ -239,7 +237,7 @@ namespace app
 #define REGISTRAR_NAME_2(name, line) name ## _ ## line
 #define REGISTRAR_NAME_1(name, line) REGISTRAR_NAME_2(name, line)
 #define REGISTRAR_NAME(name) REGISTRAR_NAME_1(name, __LINE__)
-#define REGISTER_HANDLER(resource, type) static app::HandlerRegistrar<type> REGISTRAR_NAME(handler) (resource REGISTRAR_ARGS)
-#define REGISTER_REDIRECT(resource, uri) static app::RedirectRegistrar REGISTRAR_NAME(redirect) (resource, uri REGISTRAR_ARGS)
+#define REGISTER_HANDLER(resource, type) static FastCGI::app::HandlerRegistrar<type> REGISTRAR_NAME(handler) (resource REGISTRAR_ARGS)
+#define REGISTER_REDIRECT(resource, uri) static FastCGI::app::RedirectRegistrar REGISTRAR_NAME(redirect) (resource, uri REGISTRAR_ARGS)
 
 #endif

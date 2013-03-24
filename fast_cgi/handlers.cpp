@@ -25,8 +25,8 @@
 #include "pch.h"
 #include "handlers.h"
 
-namespace app
-{
+namespace FastCGI { namespace app {
+
 	HandlerPtr Handlers::_handler(Request& request)
 	{
 		fcgi::param_t REQUEST_URI = request.getParam("REQUEST_URI");
@@ -42,7 +42,7 @@ namespace app
 #endif
 	}
 
-	bool PageTranslation::init(FastCGI::SessionPtr session, Request& request)
+	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
 		if (session.get() != nullptr)
 		{
@@ -78,7 +78,7 @@ namespace app
 
 	void PageHandler::visit(Request& request)
 	{
-		FastCGI::SessionPtr session = request.getSession(restrictedPage());
+		SessionPtr session = request.getSession(restrictedPage());
 		PageTranslation tr;
 		if (!tr.init(session, request))
 			request.on500();
@@ -92,7 +92,7 @@ namespace app
 
 	const char* getDTD() { return ""; }
 
-	void PageHandler::header(FastCGI::SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::header(SessionPtr session, Request& request, PageTranslation& tr)
 	{
         request << "<!DOCTYPE html "
 			"PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" "
@@ -128,7 +128,7 @@ namespace app
 			"            <div id=\"content\">\r\n";
 	}
 
-	void PageHandler::footer(FastCGI::SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::footer(SessionPtr session, Request& request, PageTranslation& tr)
 	{
 		request << "\r\n"
 			"			</div><!-- #content -->\r\n"
@@ -142,4 +142,5 @@ namespace app
 			"  </body>\r\n"
 			"</html>\r\n";
 	}
-}
+
+}} // FastCGI::app

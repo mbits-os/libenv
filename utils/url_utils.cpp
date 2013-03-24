@@ -116,6 +116,27 @@ namespace url
 		return out;
 	}
 
+	std::string htmlQuotes(const char* in, size_t in_len)
+	{
+		std::string out;
+		out.reserve(in_len * 3 / 2);
+
+		for (size_t i = 0; i < in_len; ++i)
+		{
+			switch (in[i])
+			{
+			case '&':  out += "&amp;"; break;
+			case '"':  out += "&quot;"; break;
+			case '\'': out += "&#039;"; break;
+			case '<':  out += "&lt;"; break;
+			case '>':  out += "&gt;"; break;
+			default:
+				out.push_back(in[i]);
+			}
+		}
+		return out;
+	}
+
 	std::string quot_escape(const char* in, size_t in_len)
 	{
 		std::string out;
