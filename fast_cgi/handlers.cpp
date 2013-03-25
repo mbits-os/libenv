@@ -60,21 +60,43 @@ namespace FastCGI { namespace app {
 
 	void PageHandler::header(SessionPtr session, Request& request, PageTranslation& tr)
 	{
-        request << "<!DOCTYPE html "
+		TopMenu::TopBar menu("topbar", "home", "menu");
+		buildTopMenu(menu, session, request, tr);
+
+		request << "<!DOCTYPE html "
 			"PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" "
 			"\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r\n"
 			"<html>\r\n"
-			"  <head>\r\n"
-			"    <title>" << getTitle(request, tr) << "</title>\r\n"
-			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
-			//"    <style type=\"text/css\">@import url(\"/css/style.css\");</style>\r\n"
-			//"    <style type=\"text/css\">@import url(\"/css/topbar.css\");</style>\r\n"
-			//"    <style type=\"text/css\">@import url(\"/css/topbar_icons.css\");</style>\r\n"
+			"  <head>\r\n";
+		headElement(session, request, tr);
+		menu.echoCSS(request, true);
+		request <<
 			"  </head>\r\n"
 			"  <body>\r\n";
+		menu.echoMarkup(request);
+		bodyStart(session, request, tr);
+	}
 
+	void PageHandler::buildTopMenu(TopMenu::TopBar& menu, SessionPtr session, Request& request, PageTranslation& tr)
+	{
+		menu.left().home("home", 0, tr(lng::LNG_GLOBAL_PRODUCT), tr(lng::LNG_GLOBAL_DESCRIPTION));
+	}
+
+	void PageHandler::headElement(SessionPtr session, Request& request, PageTranslation& tr)
+	{
+        request <<
+			"    <title>" << getTitle(request, tr) << "</title>\r\n"
+			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
+			"    <style type=\"text/css\">@import url(\"/css/site.css\");</style>\r\n"
+			"    <style type=\"text/css\">@import url(\"/css/topbar.css\");</style>\r\n"
+			//"    <style type=\"text/css\">@import url(\"/css/topbar_icons.css\");</style>\r\n"
+			;
+	}
+
+	void PageHandler::bodyStart(SessionPtr session, Request& request, PageTranslation& tr)
+	{
 		request <<
-			"  <div id=\"wrapper\" class=\"hfeed\">\r\n"
+			/*"  <div id=\"wrapper\" class=\"hfeed\">\r\n"
 			"    <div id=\"header\">\r\n"
 			"        <div id=\"masthead\">\r\n"
 			"            <div id=\"branding\">\r\n"
@@ -88,7 +110,7 @@ namespace FastCGI { namespace app {
 			"                </div><!-- #access -->\r\n"
 			"        </div><!-- #masthead -->\r\n"
 			"    </div><!-- #header -->\r\n"
-			"\r\n"
+			"\r\n"*/
 			"    <div id=\"main\">\r\n"
 			"        <div id=\"container\">\r\n"
 			"            <div id=\"content\">\r\n";
@@ -96,17 +118,20 @@ namespace FastCGI { namespace app {
 
 	void PageHandler::footer(SessionPtr session, Request& request, PageTranslation& tr)
 	{
-		request << "\r\n"
-			"			</div><!-- #content -->\r\n"
-			"			</div><!-- #container -->\r\n"
-			"		</div><!-- #main -->\r\n"
-			"\r\n"
-			//"		<div id=\"footer\">\r\n"
-			//"			" << tr(lng::LNG_POWERED_BY) << "\r\n"
-			//"		</div>\r\n"
-			"    </div>\r\n"
+		bodyEnd(session, request, tr);
+		request <<
 			"  </body>\r\n"
 			"</html>\r\n";
+	}
+
+	void PageHandler::bodyEnd(SessionPtr session, Request& request, PageTranslation& tr)
+	{
+		request << "\r\n"
+			"            </div><!-- #content -->\r\n"
+			"        </div><!-- #container -->\r\n"
+			"    </div><!-- #main -->\r\n"
+			"\r\n"
+			"    </div>\r\n";
 	}
 
 }} // FastCGI::app

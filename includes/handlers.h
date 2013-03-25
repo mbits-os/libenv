@@ -26,6 +26,7 @@
 #define __SERVER_HANDLER_H__
 
 #include "fast_cgi.h"
+#include "top_menu.hpp"
 
 namespace FastCGI { namespace app
 {
@@ -64,6 +65,9 @@ namespace FastCGI { namespace app
 		//rendering the page
 		virtual void prerender(SessionPtr session, Request& request, PageTranslation& tr) {}
 		virtual void header(SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void headElement(SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void buildTopMenu(TopMenu::TopBar& menu, SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void bodyStart(SessionPtr session, Request& request, PageTranslation& tr);
 		virtual void render(SessionPtr session, Request& request, PageTranslation& tr)
 		{
 			ContentPtr content = request.getContent();
@@ -71,6 +75,7 @@ namespace FastCGI { namespace app
 				content->render(session, request, tr);
 		}
 		virtual void footer(SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void bodyEnd(SessionPtr session, Request& request, PageTranslation& tr);
 		virtual void postrender(SessionPtr session, Request& request, PageTranslation& tr) {}
 	public:
 		void visit(Request& request);
