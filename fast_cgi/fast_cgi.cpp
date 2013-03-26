@@ -89,9 +89,9 @@ namespace FastCGI
 	{
 		tyme::time_t now = tyme::now();
 		char seed[20];
-		crypt::session_t sessionId;
-		crypt::newSalt(seed);
-		crypt::session(seed, sessionId);
+		Crypt::session_t sessionId;
+		Crypt::newSalt(seed);
+		Crypt::session(seed, sessionId);
 
 		const char* SQL_USER_BY_EMAIL =
 			"SELECT _id, name "

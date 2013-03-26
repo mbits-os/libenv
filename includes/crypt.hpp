@@ -27,7 +27,7 @@
 
 #include <string.h>
 
-namespace crypt
+namespace Crypt
 {
 	void newSalt(char* salt, size_t len);
 

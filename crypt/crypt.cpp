@@ -26,7 +26,7 @@
 #include <dbconn.h>
 #include <crypt.hpp>
 
-namespace crypt
+namespace Crypt
 {
 	namespace algorithm
 	{
