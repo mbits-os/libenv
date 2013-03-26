@@ -32,7 +32,7 @@
 namespace db
 {
 	struct Connection;
-	typedef std::tr1::shared_ptr<Connection> ConnectionPtr;
+	typedef std::shared_ptr<Connection> ConnectionPtr;
 
 	struct Driver
 	{
@@ -50,7 +50,7 @@ namespace db
 		virtual ConnectionPtr open(const std::string& ini_path, const Props& props) = 0;
 	};
 
-	typedef std::tr1::shared_ptr<Driver> DriverPtr;
+	typedef std::shared_ptr<Driver> DriverPtr;
 	typedef std::map<std::string, DriverPtr> DriverMap;
 	class Drivers
 	{

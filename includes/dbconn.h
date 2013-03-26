@@ -33,9 +33,9 @@ namespace db
 	struct Cursor;
 	struct Statement;
 	struct Connection;
-	typedef std::tr1::shared_ptr<Connection> ConnectionPtr;
-	typedef std::tr1::shared_ptr<Statement> StatementPtr;
-	typedef std::tr1::shared_ptr<Cursor> CursorPtr;
+	typedef std::shared_ptr<Connection> ConnectionPtr;
+	typedef std::shared_ptr<Statement> StatementPtr;
+	typedef std::shared_ptr<Cursor> CursorPtr;
 
 	struct Cursor
 	{

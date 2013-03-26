@@ -69,8 +69,8 @@ namespace lng
 		const char* tr(LNG stringId) { return m_file.getString(stringId); }
 	};
 
-	typedef std::tr1::shared_ptr<Translation> TranslationPtr;
-	typedef std::tr1::weak_ptr<Translation> TranslationWeakPtr;
+	typedef std::shared_ptr<Translation> TranslationPtr;
+	typedef std::weak_ptr<Translation> TranslationWeakPtr;
 
 	class Locale
 	{

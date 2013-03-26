@@ -38,14 +38,14 @@ namespace FastCGI {
 	class Section;
 	class Form;
 
-	typedef std::tr1::shared_ptr<Control>  ControlPtr;
-	typedef std::tr1::shared_ptr<Section>  SectionPtr;
-	typedef std::tr1::shared_ptr<Input>    InputPtr;
-	typedef std::tr1::shared_ptr<Text>     TextPtr;
-	typedef std::tr1::shared_ptr<Checkbox> CheckboxPtr;
-	typedef std::tr1::shared_ptr<Submit>   SubmitPtr;
-	typedef std::tr1::shared_ptr<Reset>    ResetPtr;
-	typedef std::tr1::shared_ptr<Form>     FormPtr;
+	typedef std::shared_ptr<Control>  ControlPtr;
+	typedef std::shared_ptr<Section>  SectionPtr;
+	typedef std::shared_ptr<Input>    InputPtr;
+	typedef std::shared_ptr<Text>     TextPtr;
+	typedef std::shared_ptr<Checkbox> CheckboxPtr;
+	typedef std::shared_ptr<Submit>   SubmitPtr;
+	typedef std::shared_ptr<Reset>    ResetPtr;
+	typedef std::shared_ptr<Form>     FormPtr;
 
 	typedef std::list<Section> Sections;
 	typedef std::list<ControlPtr> Controls;
@@ -212,11 +212,11 @@ namespace FastCGI {
 		void render(Request& request, size_t pageId);
 
 		template <typename Class>
-		std::tr1::shared_ptr<Class> control(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
+		std::shared_ptr<Class> control(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			std::tr1::shared_ptr<Class> obj(new (std::nothrow) Class(name, label, hint));
+			std::shared_ptr<Class> obj(new (std::nothrow) Class(name, label, hint));
 			if (obj.get())
-				m_controls.push_back(std::tr1::static_pointer_cast<Control>(obj));
+				m_controls.push_back(std::static_pointer_cast<Control>(obj));
 			return obj;
 		}
 
@@ -224,7 +224,7 @@ namespace FastCGI {
 		{
 			TextPtr obj(new (std::nothrow) Text(name, label, pass, hint));
 			if (obj.get())
-				m_controls.push_back(std::tr1::static_pointer_cast<Control>(obj));
+				m_controls.push_back(std::static_pointer_cast<Control>(obj));
 			return obj;
 		}
 
@@ -267,7 +267,7 @@ namespace FastCGI {
 			SubmitPtr ptr(new (std::nothrow) Submit(name, label, hint));
 
 			if (ptr.get())
-				m_buttons.push_back(std::tr1::static_pointer_cast<Control>(ptr));
+				m_buttons.push_back(std::static_pointer_cast<Control>(ptr));
 
 			return ptr;
 		}
@@ -277,7 +277,7 @@ namespace FastCGI {
 			ResetPtr ptr(new (std::nothrow) Reset(name, label, hint));
 
 			if (ptr.get())
-				m_buttons.push_back(std::tr1::static_pointer_cast<Control>(ptr));
+				m_buttons.push_back(std::static_pointer_cast<Control>(ptr));
 
 			return ptr;
 		}

@@ -40,7 +40,7 @@ namespace FastCGI { namespace app
 #endif
 		virtual void visit(Request& request) = 0;
 	};
-	typedef std::tr1::shared_ptr<Handler> HandlerPtr;
+	typedef std::shared_ptr<Handler> HandlerPtr;
 
 	class PageHandler: public Handler
 	{

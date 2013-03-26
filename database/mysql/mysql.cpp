@@ -66,7 +66,7 @@ namespace db { namespace mysql {
 
 		//std::cerr << "user: " << user << "\npassword: " << password << "\naddress: " << server << std::endl;
 
-		std::tr1::shared_ptr<MySQLConnection> conn(new (std::nothrow) MySQLConnection(ini_path));
+		std::shared_ptr<MySQLConnection> conn(new (std::nothrow) MySQLConnection(ini_path));
 		if (conn.get() == nullptr)
 			return nullptr;
 
@@ -76,7 +76,7 @@ namespace db { namespace mysql {
 			return nullptr;
 		}
 
-		return std::tr1::static_pointer_cast<Connection>(conn);
+		return std::static_pointer_cast<Connection>(conn);
 	}
 
 	MySQLConnection::MySQLConnection(const std::string& path)
@@ -154,14 +154,14 @@ namespace db { namespace mysql {
 		if (stmtptr == nullptr)
 			return nullptr;
 
-		std::tr1::shared_ptr<MySQLStatement> stmt(new (std::nothrow) MySQLStatement(&m_mysql, stmtptr));
+		std::shared_ptr<MySQLStatement> stmt(new (std::nothrow) MySQLStatement(&m_mysql, stmtptr));
 		if (stmt.get() == nullptr)
 			return nullptr;
 
 		if (!stmt->prepare(sql))
 			return nullptr;
 
-		return std::tr1::static_pointer_cast<Statement>(stmt);
+		return std::static_pointer_cast<Statement>(stmt);
 	}
 
 	bool MySQLConnection::exec(const char* sql)
@@ -283,7 +283,7 @@ namespace db { namespace mysql {
 		if (mysql_stmt_execute(m_stmt) != 0)
 			return false;
 
-		std::auto_ptr<MySQLCursor> cursor(new (std::nothrow) MySQLCursor(m_mysql, m_stmt));
+		std::shared_ptr<MySQLCursor> cursor(new (std::nothrow) MySQLCursor(m_mysql, m_stmt));
 		if (cursor.get() == nullptr)
 			return nullptr;
 
