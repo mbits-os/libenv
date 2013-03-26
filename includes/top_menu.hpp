@@ -48,6 +48,7 @@ namespace FastCGI { namespace TopMenu {
 		std::string m_label;
 		std::string m_tip;
 		std::string m_url;
+		std::string m_icon;
 	public:
 		MenuItem(const std::string& id, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
 			: m_id(id)
@@ -60,12 +61,13 @@ namespace FastCGI { namespace TopMenu {
 		virtual ~MenuItem() {}
 
 		const std::string& getId() { return m_id; }
+		void setIcon(const std::string& icon) { m_icon = icon; }
 
 		virtual void echoMarkup(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
 		{
-			request << "			" << pre << "<li id='" << topbarId << "-" << menuId << "-" << m_id << "'>\n";
+			request << "        " << pre << "<li id='" << topbarId << "-" << menuId << "-" << m_id << "'>\r\n";
 			echoMarkupContent(request, topbarId, menuId, pre);
-			request << "			" << pre << "</li>\n";
+			request << "        " << pre << "</li>\r\n";
 		}
 
 		virtual void echoMarkupContent(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
@@ -93,21 +95,21 @@ namespace FastCGI { namespace TopMenu {
 			if (!m_tip.empty())
 				title = " title=\"" + m_tip + "\"";
 
-			request << "				" << pre << "<" << contentTag << link << title << " class=\"bar-item\">" << image << label << "</" << contentTag << ">\n";
+			request << "          " << pre << "<" << contentTag << link << title << " class=\"bar-item\">" << image << label << "</" << contentTag << ">\r\n";
 		}
 
 		virtual std::string getCSSRules()
 		{
 			std::string style;
-			/*if (!m_icon.empty())
+			if (!m_icon.empty())
 			{
-				style = "	background: url(\"" + url::htmlQuotes(m_icon) + "\") no-repeat;\n";
+				style = "      background: url(\"" + url::htmlQuotes(m_icon) + "\") no-repeat;\r\n";
 			}
-			else */ if (m_iconPosition != -1)
+			else if (m_iconPosition != -1)
 			{
 				char buffer[100];
 				itoa(m_iconPosition * 24, buffer, 10);
-				style = std::string("	background-position: 0px -") + buffer + "px;\n";
+				style = std::string("      background-position: 0px -") + buffer + "px;\r\n";
 			}
 			return style;
 		}
@@ -117,7 +119,7 @@ namespace FastCGI { namespace TopMenu {
 			std::string style = getCSSRules();
 
 			if (!style.empty())
-				request << "#" << topbarId << "-" << menuId << "-" << m_id << " > .bar-item .bar-icon {\r\n" << style << "}\r\n\r\n";
+				request << "    #" << topbarId << "-" << menuId << "-" << getId() << " > .bar-item .bar-icon {\r\n" << style << "    }\r\n\r\n";
 		}
 	};
 
@@ -132,7 +134,7 @@ namespace FastCGI { namespace TopMenu {
 
 		void echoMarkup(Request& request, const std::string&, const std::string&, const std::string& pre)
 		{
-			request << "			"<< pre << "<li><hr/></li>\r\n";
+			request << "          "<< pre << "<li><hr/></li>\r\n";
 		}
 	};
 
@@ -159,8 +161,90 @@ namespace FastCGI { namespace TopMenu {
 			if (!m_tip.empty())
 				title = " title=\"" + m_tip + "\"";
 
-			request << "				" << pre << "<div class=\"bar-item\"><a href=\"/\"" << title << ">" << image
+			request << "          " << pre << "<div class=\"bar-item\"><a href=\"/\"" << title << ">" << image
 				<< "<b>" << m_product << "</b></a> <i>" << m_description<< "</i></div>\r\n";
+		}
+	};
+
+	class PopupItem: public MenuItem
+	{
+		std::string m_subId;
+		std::list<MenuItemPtr> m_children;
+	public:
+		
+		PopupItem(const std::string& id, const std::string& subId, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
+			: MenuItem(id, iconPosition, label, tip)
+			, m_subId(subId)
+		{
+		}
+
+		MenuItemPtr getItem(const std::string& id)
+		{
+			auto it = std::find_if(m_children.begin(), m_children.end(), [&](MenuItemPtr item) -> bool {
+				return item->getId() == id;
+			});
+			if (it == m_children.end())
+				return MenuItemPtr();
+			return *it;
+		}
+
+		PopupItem& add(MenuItemPtr item)
+		{
+			m_children.push_back(item);
+			return *this;
+		}
+
+		void echoMarkupContent(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
+		{
+			MenuItem::echoMarkupContent(request, topbarId, menuId, pre);
+			echoSubItems(request, topbarId, menuId, pre);
+		}
+
+		virtual void echoSubItems(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
+		{
+			request <<
+				"				" << pre << "<div class=\"tb-sub-wrapper\">\r\n"
+				"					" << pre << "<ul id=\"$menuId-item-menu\" class=\"tb-submenu\">\r\n";
+			std::string _pre = pre + "  ";
+			std::for_each(m_children.begin(), m_children.end(), [&](MenuItemPtr ptr)
+			{
+				ptr->echoMarkup(request, topbarId, getId(), _pre);
+			});
+			request <<
+				"					" << pre << "</ul>\r\n"
+				"				" << pre << "</div>\r\n";
+		}
+
+		void echoCSS(Request& request, const std::string& topbarId, const std::string& menuId)
+		{
+			MenuItem::echoCSS(request, topbarId, menuId);
+			std::for_each(m_children.begin(), m_children.end(), [&](MenuItemPtr ptr)
+			{
+				ptr->echoCSS(request, topbarId, getId());
+			});
+		}
+	};
+
+	class UserMenu: public PopupItem
+	{
+	public:
+		UserMenu(const std::string& id, const std::string& subId, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
+			: PopupItem(id, subId, iconPosition, label, tip)
+		{
+		}
+	
+		void echoMarkupContent(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
+		{
+			std::string link = " href=\"" + url::htmlQuotes(m_url) + "\"";
+			std::string title;
+			if (!m_tip.empty())
+				title = " title=\"" + m_tip + "\"";
+
+			std::string image = "";
+			if (m_iconPosition != -1)
+				image = "<span class=\"bar-icon\"></span>";
+			request << "          " << pre << "<a" << link << title << " class=\"bar-item\">" << image << "<span class=\"bar-chevron\"></span></a>\r\n";
+			echoSubItems(request, topbarId, menuId, pre);
 		}
 	};
 
@@ -177,16 +261,14 @@ namespace FastCGI { namespace TopMenu {
 		{
 		}
 
-		template<class Item>
-		Menu& add(std::shared_ptr<Item> child)
+		Menu& add(MenuItemPtr child)
 		{
 			if (child.get())
-				m_items.push_back(std::static_pointer_cast<MenuItem>(child));
+				m_items.push_back(child);
 			return *this;
 		}
 
-		template<class Item>
-		Menu& add(Item* child)
+		Menu& add(MenuItem* child)
 		{
 			MenuItemPtr item(child);
 			if (item.get())
@@ -204,6 +286,11 @@ namespace FastCGI { namespace TopMenu {
 			return add(new (std::nothrow) HomeLink(id, iconPosition, product, description, tip));
 		}
 
+		Menu& item(const std::string& id, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
+		{
+			return add(new (std::nothrow) MenuItem(id, iconPosition, label, tip));
+		}
+
 		MenuItemPtr getItem(const std::string& id)
 		{
 			auto it = std::find_if(m_items.begin(), m_items.end(), [&id](MenuItemPtr ptr) -> bool
@@ -215,12 +302,12 @@ namespace FastCGI { namespace TopMenu {
 
 		virtual void echoMarkup(Request& request, const std::string& menuPre, const std::string& topbarId, const std::string& klass)
 		{
-			request << "\r\n\t\t\t\t<ul id=\"" << menuPre << "-" << m_id << "\" class=\"" << klass << "\">\r\n";
+			request << "        <ul id=\"" << menuPre << "-" << m_id << "\" class=\"" << klass << "\">\r\n";
 			std::for_each(m_items.begin(), m_items.end(), [&](MenuItemPtr ptr)
 			{
 				ptr->echoMarkup(request, topbarId, m_id, std::string());
 			});
-			request << "\t\t\t\t</ul>\r\n";
+			request << "        </ul>\r\n";
 		}
 
 		virtual void echoCSS(Request& request, const std::string& topbarId)
@@ -252,22 +339,22 @@ namespace FastCGI { namespace TopMenu {
 		virtual void echoMarkup(Request& request)
 		{
 			request <<
-				"\t\t\t\t<div id=\"" << m_id  << "\">\r\n"
-				"\t\t\t\t<div class=\"navigation_links\">\r\n";
+				"    <div id=\"" << m_id  << "\">\r\n"
+				"      <div class=\"navigation_links\">\r\n";
 			m_leftMenu.echoMarkup(request, "links", m_id, "left-top-links top-links");
 			m_rightMenu.echoMarkup(request, "links", m_id, "right-top-links top-links");
 			request <<
-				"\t\t\t\t</div>\r\n"
-				"\t\t\t\t</div>\r\n"
-				"\t\t\t\t<div class=\"" << m_id << "-standin\"></div>\r\n";
+				"      </div>\r\n"
+				"    </div>\r\n"
+				"    <div class=\"" << m_id << "-standin\"></div>\r\n";
 		}
 
 		virtual void echoCSS(Request& request, bool inHTML)
 		{
-			if (inHTML) request << "\t<style type=\"text/css\">\n";
+			if (inHTML) request << "    <style type=\"text/css\">\r\n\r\n";
 			m_leftMenu.echoCSS(request, m_id);
 			m_rightMenu.echoCSS(request, m_id);
-			if (inHTML) request << "\t</style>\n";
+			if (inHTML) request << "    </style>\r\n";
 		}
 	};
 
