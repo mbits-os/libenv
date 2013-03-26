@@ -50,10 +50,10 @@ namespace FastCGI { namespace app {
 			request.on500();
 
 		prerender(session, request, tr);
-        header(session, request, tr);
-        render(session, request, tr);
-        footer(session, request, tr);
-        postrender(session, request, tr);
+		header(session, request, tr);
+		render(session, request, tr);
+		footer(session, request, tr);
+		postrender(session, request, tr);
 	}
 
 	const char* getDTD() { return ""; }
@@ -84,7 +84,7 @@ namespace FastCGI { namespace app {
 
 	void PageHandler::headElement(SessionPtr session, Request& request, PageTranslation& tr)
 	{
-        request <<
+		request <<
 			"    <title>" << getTitle(request, tr) << "</title>\r\n"
 			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
 			"    <style type=\"text/css\">@import url(\"/css/site.css\");</style>\r\n"

@@ -157,7 +157,7 @@ namespace FastCGI {
 
 	void Section::render(Request& request, size_t pageId)
 	{
-        if (!m_name.empty())
+		if (!m_name.empty())
 			request << "<tr><td colspan='2' class='header'><h3 name='page" << pageId << "' id='page" << pageId <<"'>" << m_name << "</h3></td></tr>\r\n";
 		std::for_each(m_controls.begin(), m_controls.end(), [&request](ControlPtr& ctrl)
 		{
@@ -200,7 +200,7 @@ namespace FastCGI {
 		});
 
 		if (!m_buttons.empty())
-        {
+		{
 			request << "\r\n"
 				"<tr><td colspan='2' class='buttons'>\r\n";
 

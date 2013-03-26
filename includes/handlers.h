@@ -56,8 +56,8 @@ namespace FastCGI { namespace app
 		std::string getTitle(Request& request, PageTranslation& tr)
 		{
 			std::string title = tr(lng::LNG_GLOBAL_SITENAME);
-    		const char* page = getPageTitle(request, tr);
-    		if (!page) return title;
+			const char* page = getPageTitle(request, tr);
+			if (!page) return title;
 			title += " &raquo; ";
 			title += page;
 			return title;
@@ -181,7 +181,7 @@ namespace FastCGI { namespace app
 				);
 		}
 
-      	static void redirect(const std::string& resource, const std::string& uri
+		static void redirect(const std::string& resource, const std::string& uri
 #if DEBUG_CGI
 			, const char* file, size_t line
 #endif
