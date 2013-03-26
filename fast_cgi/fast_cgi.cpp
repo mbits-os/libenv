@@ -183,7 +183,7 @@ namespace FastCGI
 
 		char filename[200];
 		sprintf(filename, LOGFILE, m_pid);
-		m_log.open(filename);
+		m_log.open(filename, std::ios_base::out | std::ios_base::binary);
 		return m_log.is_open() ? 0 : 1;
 	}
 
@@ -544,9 +544,9 @@ namespace FastCGI
 
 		buildCookieHeader();
 
-		std::for_each(m_headers.begin(), m_headers.end(), [&](const Headers::value_type& header)
+		std::for_each(m_headers.begin(), m_headers.end(), [this](const Headers::value_type& header)
 		{
-			*this << header.second;
+			*this << header.second << "\r\n";
 		});
 
 		*this << "\r\n";
