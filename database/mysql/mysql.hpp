@@ -30,8 +30,12 @@
 
 #ifdef _WIN32
 #include <WinSock2.h>
-#endif
 #include <mysql.h>
+#else
+#include <mysql/mysql.h>
+#endif
+
+#include <string.h>
 
 namespace db
 {

@@ -25,7 +25,12 @@
 #include "pch.h"
 #include <locale.hpp>
 #include <utils.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+
+#ifndef _WIN32
+#define _stat stat
+#endif
 
 #ifdef _WIN32
 #define SEP '\\'

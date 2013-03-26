@@ -44,6 +44,7 @@
 #include <process.h>
 #else
 #include <unistd.h>
+#define _getpid getpid
 #endif
 
 #if !defined(DEBUG_CGI)

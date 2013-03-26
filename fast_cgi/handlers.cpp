@@ -24,6 +24,7 @@
 
 #include "pch.h"
 #include "handlers.h"
+#include <string.h>
 
 namespace FastCGI { namespace app {
 

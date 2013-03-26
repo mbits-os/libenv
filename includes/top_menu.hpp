@@ -27,6 +27,16 @@
 
 #include <fast_cgi.h>
 #include <algorithm>
+#include <stdlib.h>
+#include <stdio.h>
+
+#ifdef USE_POSIX
+static inline int itoa(int value, char* str, int radix)
+{
+	const char* frmt = radix == 16 ? "%x" : "%d";
+	return sprintf(str, frmt, value);
+}
+#endif
 
 namespace FastCGI { namespace TopMenu {
 
@@ -111,7 +121,7 @@ namespace FastCGI { namespace TopMenu {
 		}
 	};
 
-	typedef std::tr1::shared_ptr<MenuItem> MenuItemPtr;
+	typedef std::shared_ptr<MenuItem> MenuItemPtr;
 
 	class SeparatorItem: public MenuItem
 	{
@@ -168,10 +178,10 @@ namespace FastCGI { namespace TopMenu {
 		}
 
 		template<class Item>
-		Menu& add(std::tr1::shared_ptr<Item> child)
+		Menu& add(std::shared_ptr<Item> child)
 		{
 			if (child.get())
-				m_items.push_back(std::tr1::static_pointer_cast<MenuItem>(child));
+				m_items.push_back(std::static_pointer_cast<MenuItem>(child));
 			return *this;
 		}
 

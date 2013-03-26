@@ -25,6 +25,8 @@
 #ifndef __LIBENV_CRYPT_HPP__
 #define __LIBENV_CRYPT_HPP__
 
+#include <string.h>
+
 namespace crypt
 {
 	void newSalt(char* salt, size_t len);

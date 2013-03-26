@@ -33,7 +33,7 @@ namespace FastCGI
 {
 	class Request;
 	class Session;
-	typedef std::tr1::shared_ptr<Session> SessionPtr;
+	typedef std::shared_ptr<Session> SessionPtr;
 
 	class Session
 	{
@@ -136,7 +136,7 @@ namespace FastCGI
 	{
 		virtual ~RequestState() {}
 	};
-	typedef std::tr1::shared_ptr<RequestState> RequestStatePtr;
+	typedef std::shared_ptr<RequestState> RequestStatePtr;
 
 	class PageTranslation
 	{
@@ -154,7 +154,7 @@ namespace FastCGI
 		virtual void render(SessionPtr session, Request& request, PageTranslation& tr) = 0;
 		virtual const char* getPageTitle(PageTranslation& tr) { return nullptr; }
 	};
-	typedef std::tr1::shared_ptr<Content> ContentPtr;
+	typedef std::shared_ptr<Content> ContentPtr;
 
 	class Request
 	{
@@ -251,7 +251,7 @@ namespace FastCGI
 		ContentPtr getContent() { return m_content; }
 		void setContent(ContentPtr content) { m_content = content; }
 		template <typename T>
-		void setContent(std::tr1::shared_ptr<T> content) { m_content = std::tr1::static_pointer_cast<Content>(content); }
+		void setContent(std::shared_ptr<T> content) { m_content = std::static_pointer_cast<Content>(content); }
 
 		template <typename T>
 		Request& operator << (const T& obj)
@@ -265,7 +265,7 @@ namespace FastCGI
 		template <typename T>
 		const Request& operator >> (T& obj) const
 		{
-			m_read_something = true;
+			m_alreadyReadSomething = true;
 			m_cin >> obj;
 			return *this;
 		}

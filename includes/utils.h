@@ -75,10 +75,10 @@ namespace url
 
 namespace tyme
 {
-#ifdef _WIN32
+#ifdef WIN32
 	typedef long long time_t;
 #else
-#error tyme::time_t is not defined
+	typedef long time_t;
 #endif
 
 	struct tm_t

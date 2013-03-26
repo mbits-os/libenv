@@ -32,7 +32,7 @@
 #define LOGFILE "..\\error-%u.log"
 #endif
 
-#ifdef POSIX
+#ifdef USE_POSIX
 #define INI "../conn.ini"
 #define LOGFILE "../error-%u.log"
 #endif
@@ -546,7 +546,7 @@ namespace FastCGI
 
 		std::for_each(m_headers.begin(), m_headers.end(), [&](const Headers::value_type& header)
 		{
-			*this << header;
+			*this << header.second;
 		});
 
 		*this << "\r\n";

@@ -26,6 +26,7 @@
 #include <utils.h>
 #include <vector>
 #include <iterator>
+#include <string.h>
 
 namespace url
 {

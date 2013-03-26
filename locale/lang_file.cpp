@@ -24,7 +24,12 @@
 
 #include "pch.h"
 #include <locale.hpp>
+#include <sys/types.h>
 #include <sys/stat.h>
+
+#ifndef _WIN32
+#define _stat stat
+#endif
 
 #define LANGTEXT_TAG 0x474E414Cu
 
