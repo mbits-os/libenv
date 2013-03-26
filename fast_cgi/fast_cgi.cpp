@@ -508,27 +508,27 @@ namespace FastCGI
 		domAndPath += "; Path=/; HttpOnly";
 
 		bool first = true;
-		ResponseCookies::const_iterator _cookie = m_respCookies.begin(), _cend = m_respCookies.end();
-		for (; _cookie != _cend; ++_cookie)
+		std::for_each(m_respCookies.begin(), m_respCookies.end(), [&first, &domAndPath, &cookies](const ResponseCookies::value_type& cookie)
 		{
 			if (first) first = false;
 			else cookies += ", ";
-			cookies += url::encode(_cookie->second.m_name) + "=";
-			if (url::isToken(_cookie->second.m_value))
-				cookies += _cookie->second.m_value;
+			cookies += url::encode(cookie.second.m_name) + "=";
+			if (url::isToken(cookie.second.m_value))
+				cookies += cookie.second.m_value;
 			else
-				cookies += "\"" + url::quot_escape(_cookie->second.m_value) + "\"";
+				cookies += "\"" + url::quot_escape(cookie.second.m_value) + "\"";
 			cookies += domAndPath;
 
-			if (_cookie->second.m_expire != 0)
+			if (cookie.second.m_expire != 0)
 			{
 				char buffer[256];
-				tyme::tm_t tm = tyme::gmtime(_cookie->second.m_expire);
+				tyme::tm_t tm = tyme::gmtime(cookie.second.m_expire);
 				tyme::strftime(buffer, "%a, %d-%b-%Y %H:%M:%S GMT", tm );
 				cookies += "; Expires=";
 				cookies += buffer;
 			}
-		}
+		});
+
 		if (!cookies.empty())
 			m_headers["set-cookie"] = "Set-Cookie: " + cookies;
 	}
@@ -544,11 +544,11 @@ namespace FastCGI
 
 		buildCookieHeader();
 
-		Headers::const_iterator _cur = m_headers.begin(), _end = m_headers.end();
-		for (; _cur != _end; ++_cur)
+		std::for_each(m_headers.begin(), m_headers.end(), [&](const Headers::value_type& header)
 		{
-			*this << _cur->second << "\r\n";
-		}
+			*this << header;
+		});
+
 		*this << "\r\n";
 	}
 
