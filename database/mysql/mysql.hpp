@@ -140,7 +140,7 @@ namespace db
 			~MySQLStatement()
 			{
 				mysql_stmt_close(m_stmt);
-				m_stmt = NULL;
+				m_stmt = nullptr;
 
 			}
 			bool prepare(const char* stmt);

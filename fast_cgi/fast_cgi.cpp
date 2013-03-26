@@ -590,18 +590,18 @@ namespace FastCGI
 	{
 		fcgi::param_t port = getParam("SERVER_PORT");
 		fcgi::param_t server = getParam("SERVER_NAME");
-		fcgi::param_t query = withQuery ? getParam("QUERY_STRING") : NULL;
+		fcgi::param_t query = withQuery ? getParam("QUERY_STRING") : nullptr;
 		std::string url;
 
-		if (server != NULL)
+		if (server != nullptr)
 		{
 			const char* proto = "http";
-			if (port != NULL && strcmp(port, "443") == 0)
+			if (port != nullptr && strcmp(port, "443") == 0)
 				proto = "https";
 			url = proto;
 			url += "://";
 			url += server;
-			if (port != NULL && strcmp(port, "443") != 0 && strcmp(port, "80") != 0)
+			if (port != nullptr && strcmp(port, "443") != 0 && strcmp(port, "80") != 0)
 			{
 				url += ":";
 				url += port;
@@ -610,7 +610,7 @@ namespace FastCGI
 
 		url += resource;
 
-		if (query != NULL && *query != 0)
+		if (query != nullptr && *query != 0)
 		{
 			url += "?";
 			url += query;

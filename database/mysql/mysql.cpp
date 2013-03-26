@@ -30,7 +30,7 @@ namespace db { namespace mysql {
 	bool startup_driver()
 	{
 		REGISTER_DRIVER("mysql", db::mysql::MySQLDriver);
-		return mysql_library_init(0, NULL, NULL) == 0;
+		return mysql_library_init(0, nullptr, nullptr) == 0;
 	}
 
 	void shutdown_driver()
@@ -110,7 +110,7 @@ namespace db { namespace mysql {
 		my_bool reconnect = 0;
 		mysql_options(&m_mysql, MYSQL_OPT_RECONNECT, &reconnect);
 
-		m_connected = mysql_real_connect(&m_mysql, srvr.c_str(), user.c_str(), password.c_str(), database.c_str(), port, NULL, 0) != NULL;
+		m_connected = mysql_real_connect(&m_mysql, srvr.c_str(), user.c_str(), password.c_str(), database.c_str(), port, nullptr, 0) != nullptr;
 
 		return m_connected;
 	}
