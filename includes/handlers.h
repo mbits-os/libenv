@@ -28,6 +28,9 @@
 #include "fast_cgi.h"
 #include "top_menu.hpp"
 
+#define STATIC_RESOURCES "http://static.reedr.net"
+//#define STATIC_RESOURCES "http://static.dnhotch.net"
+
 namespace FastCGI { namespace app
 {
 	class Handler

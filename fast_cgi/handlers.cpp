@@ -97,9 +97,9 @@ namespace FastCGI { namespace app {
 		request <<
 			"    <title>" << getTitle(request, tr) << "</title>\r\n"
 			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
-			"    <style type=\"text/css\">@import url(\"/css/site.css\");</style>\r\n"
-			"    <style type=\"text/css\">@import url(\"/css/topbar.css\");</style>\r\n"
-			//"    <style type=\"text/css\">@import url(\"/css/topbar_icons.css\");</style>\r\n"
+			"    <style type=\"text/css\">@import url(\"" STATIC_RESOURCES "/css/site.css\");</style>\r\n"
+			"    <style type=\"text/css\">@import url(\"" STATIC_RESOURCES "/css/topbar.css\");</style>\r\n"
+			//"    <style type=\"text/css\">@import url(\"" STATIC_RESOURCES "/css/topbar_icons.css\");</style>\r\n"
 			;
 	}
 
