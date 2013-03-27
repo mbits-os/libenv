@@ -32,7 +32,7 @@
 #define LOGFILE "..\\error-%u.log"
 #endif
 
-#ifdef USE_POSIX
+#ifdef POSIX
 #define INI "../conn.ini"
 #define LOGFILE "../error-%u.log"
 #endif

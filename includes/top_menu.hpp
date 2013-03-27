@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifdef USE_POSIX
+#ifdef POSIX
 static inline int itoa(int value, char* str, int radix)
 {
 	const char* frmt = radix == 16 ? "%x" : "%d";
