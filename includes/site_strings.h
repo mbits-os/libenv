@@ -20,9 +20,9 @@ namespace lng
 		LNG_CMD_SEND = 12, // Send
 		LNG_CMD_UPDATE = 13, // Update
 		LNG_GLOBAL_DESCRIPTION = 14, // stay up to date
-		LNG_GLOBAL_PRODUCT = 15, // Aggregator
-		LNG_GLOBAL_SITENAME = 16, // Aggregator
-		LNG_LOGIN_ABSTRACT = 17, // Welcome to the Aggregator, your somsink, somsink.
+		LNG_GLOBAL_PRODUCT = 15, // reedr
+		LNG_GLOBAL_SITENAME = 16, // reedr
+		LNG_LOGIN_ABSTRACT = 17, // Welcome to the reedr, your somsink, somsink.
 		LNG_LOGIN_ERROR_MISMATCHED = 18, // Username and password do not match each other.
 		LNG_LOGIN_ERROR_ONE_MISSING = 19, // Both username and password are required.
 		LNG_LOGIN_FORGOT = 20, // I forgot my password
