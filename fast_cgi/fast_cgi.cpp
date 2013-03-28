@@ -23,9 +23,9 @@
  */
 
 #include "pch.h"
-#include "fast_cgi.h"
-#include "crypt.hpp"
-#include <utils.h>
+#include <fast_cgi.hpp>
+#include <crypt.hpp>
+#include <utils.hpp>
 
 #ifdef _WIN32
 #define INI "..\\conn.ini"

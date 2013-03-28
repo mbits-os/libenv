@@ -25,8 +25,8 @@
 #ifndef __SERVER_HANDLER_H__
 #define __SERVER_HANDLER_H__
 
-#include "fast_cgi.h"
-#include "top_menu.hpp"
+#include <fast_cgi.hpp>
+#include <top_menu.hpp>
 
 #define STATIC_RESOURCES "http://static.reedr.net"
 //#define STATIC_RESOURCES "http://static.dnhotch.net"

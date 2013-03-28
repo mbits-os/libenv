@@ -25,7 +25,7 @@
 #ifndef __FORMS_H__
 #define __FORMS_H__
 
-#include <fast_cgi.h>
+#include <fast_cgi.hpp>
 
 namespace FastCGI {
 

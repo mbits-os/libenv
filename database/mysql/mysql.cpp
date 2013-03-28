@@ -24,7 +24,7 @@
 
 #include "pch.h"
 #include "mysql.hpp"
-#include <utils.h>
+#include <utils.hpp>
 
 namespace db { namespace mysql {
 	bool startup_driver()

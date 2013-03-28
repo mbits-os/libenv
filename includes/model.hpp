@@ -26,7 +26,7 @@
 #define __DBCONN_MODEL_H__
 
 #include <string>
-#include <dbconn.h>
+#include <dbconn.hpp>
 
 namespace data
 {

@@ -25,7 +25,7 @@
 #ifndef __TOP_MENU_HPP_
 #define __TOP_MENU_HPP_
 
-#include <fast_cgi.h>
+#include <fast_cgi.hpp>
 #include <algorithm>
 #include <stdlib.h>
 #include <stdio.h>

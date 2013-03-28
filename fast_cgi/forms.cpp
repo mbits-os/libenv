@@ -23,8 +23,8 @@
  */
 
 #include "pch.h"
-#include "forms.h"
-#include <utils.h>
+#include <forms.hpp>
+#include <utils.hpp>
 
 namespace FastCGI {
 

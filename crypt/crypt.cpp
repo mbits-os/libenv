@@ -23,7 +23,7 @@
  */
 
 #include "pch.h"
-#include <dbconn.h>
+#include <dbconn.hpp>
 #include <crypt.hpp>
 
 namespace Crypt

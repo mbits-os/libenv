@@ -23,8 +23,8 @@
  */
 
 #include "pch.h"
-#include <dbconn.h>
-#include <model.h>
+#include <dbconn.hpp>
+#include <model.hpp>
 
 namespace data
 {

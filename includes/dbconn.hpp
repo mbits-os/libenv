@@ -26,7 +26,7 @@
 #define __DBCONN_H__
 
 #include <memory>
-#include <utils.h>
+#include <utils.hpp>
 
 namespace db
 {

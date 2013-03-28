@@ -25,7 +25,7 @@
 #ifndef __SERVER_FAST_CFGI_H__
 #define __SERVER_FAST_CFGI_H__
 
-#include <dbconn.h>
+#include <dbconn.hpp>
 #include <locale.hpp>
 #include <fstream>
 

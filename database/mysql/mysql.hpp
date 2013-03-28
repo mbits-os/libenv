@@ -25,8 +25,8 @@
 #ifndef __MYSQL_HPP__
 #define __MYSQL_HPP__
 
-#include <dbconn.h>
-#include <dbconn_driver.h>
+#include <dbconn.hpp>
+#include <dbconn_driver.hpp>
 
 #ifdef _WIN32
 #include <WinSock2.h>

@@ -23,9 +23,9 @@
  */
 
 #include "pch.h"
-#include <dbconn.h>
-#include <dbconn_driver.h>
-#include <utils.h>
+#include <dbconn.hpp>
+#include <dbconn_driver.hpp>
+#include <utils.hpp>
 
 namespace db
 {

@@ -24,7 +24,7 @@
 
 #include "pch.h"
 #include <locale.hpp>
-#include <utils.h>
+#include <utils.hpp>
 #include <sys/types.h>
 #include <sys/stat.h>
 
