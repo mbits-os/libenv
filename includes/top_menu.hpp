@@ -31,7 +31,7 @@
 #include <stdio.h>
 
 #ifdef POSIX
-static inline int itoa(int value, char* str, int radix)
+static inline int _itoa(int value, char* str, int radix)
 {
 	const char* frmt = radix == 16 ? "%x" : "%d";
 	return sprintf(str, frmt, value);
@@ -62,6 +62,7 @@ namespace FastCGI { namespace TopMenu {
 
 		const std::string& getId() { return m_id; }
 		void setIcon(const std::string& icon) { m_icon = icon; }
+		void setUrl(const std::string& url) { m_url = url; }
 
 		virtual void echoMarkup(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
 		{
@@ -108,7 +109,7 @@ namespace FastCGI { namespace TopMenu {
 			else if (m_iconPosition != -1)
 			{
 				char buffer[100];
-				itoa(m_iconPosition * 24, buffer, 10);
+				_itoa(m_iconPosition * 24, buffer, 10);
 				style = std::string("      background-position: 0px -") + buffer + "px;\r\n";
 			}
 			return style;
@@ -134,7 +135,7 @@ namespace FastCGI { namespace TopMenu {
 
 		void echoMarkup(Request& request, const std::string&, const std::string&, const std::string& pre)
 		{
-			request << "          "<< pre << "<li><hr/></li>\r\n";
+			request << "        "<< pre << "<li><hr/></li>\r\n";
 		}
 	};
 
@@ -151,7 +152,7 @@ namespace FastCGI { namespace TopMenu {
 			m_url = "/";
 		}
 
-		void echoMarkup(Request& request, const std::string&, const std::string&, const std::string& pre)
+		void echoMarkupContent(Request& request, const std::string&, const std::string&, const std::string& pre)
 		{
 			std::string title;
 			std::string image;
@@ -161,7 +162,7 @@ namespace FastCGI { namespace TopMenu {
 			if (!m_tip.empty())
 				title = " title=\"" + m_tip + "\"";
 
-			request << "          " << pre << "<div class=\"bar-item\"><a href=\"/\"" << title << ">" << image
+			request << "            " << pre << "<div class=\"bar-item\"><a href=\"/\"" << title << ">" << image
 				<< "<b>" << m_product << "</b></a> <i>" << m_description<< "</i></div>\r\n";
 		}
 	};
@@ -188,10 +189,41 @@ namespace FastCGI { namespace TopMenu {
 			return *it;
 		}
 
+		PopupItem& setItemUrl(const std::string& id, const std::string& url)
+		{
+			std::find_if(m_children.begin(), m_children.end(), [&id, &url](MenuItemPtr item) -> bool
+			{
+				bool here = item->getId() == id;
+				if (here)
+					item->setUrl(url);
+				return here;
+			});
+			return *this;
+		}
+
 		PopupItem& add(MenuItemPtr item)
 		{
-			m_children.push_back(item);
+			if (item.get())
+				m_children.push_back(item);
 			return *this;
+		}
+
+		PopupItem& add(MenuItem* child)
+		{
+			MenuItemPtr item(child);
+			if (item.get())
+				m_children.push_back(item);
+			return *this;
+		}
+
+		PopupItem& separator()
+		{
+			return add(new (std::nothrow) SeparatorItem());
+		}
+
+		PopupItem& item(const std::string& id, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
+		{
+			return add(new (std::nothrow) MenuItem(id, iconPosition, label, tip));
 		}
 
 		void echoMarkupContent(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
@@ -203,16 +235,16 @@ namespace FastCGI { namespace TopMenu {
 		virtual void echoSubItems(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
 		{
 			request <<
-				"				" << pre << "<div class=\"tb-sub-wrapper\">\r\n"
-				"					" << pre << "<ul id=\"$menuId-item-menu\" class=\"tb-submenu\">\r\n";
-			std::string _pre = pre + "  ";
+				"          " << pre << "<div class=\"tb-sub-wrapper\">\r\n"
+				"            " << pre << "<ul id=\"" << menuId << "-item-menu\" class=\"tb-submenu\">\r\n";
+			std::string _pre = pre + "    ";
 			std::for_each(m_children.begin(), m_children.end(), [&](MenuItemPtr ptr)
 			{
 				ptr->echoMarkup(request, topbarId, getId(), _pre);
 			});
 			request <<
-				"					" << pre << "</ul>\r\n"
-				"				" << pre << "</div>\r\n";
+				"            " << pre << "</ul>\r\n"
+				"          " << pre << "</div>\r\n";
 		}
 
 		void echoCSS(Request& request, const std::string& topbarId, const std::string& menuId)
@@ -298,6 +330,18 @@ namespace FastCGI { namespace TopMenu {
 				return ptr->getId() == id;
 			});
 			return it == m_items.end() ? MenuItemPtr() : *it;
+		}
+
+		Menu& setItemUrl(const std::string& id, const std::string& url)
+		{
+			std::find_if(m_items.begin(), m_items.end(), [&id, &url](MenuItemPtr item) -> bool
+			{
+				bool here = item->getId() == id;
+				if (here)
+					item->setUrl(url);
+				return here;
+			});
+			return *this;
 		}
 
 		virtual void echoMarkup(Request& request, const std::string& menuPre, const std::string& topbarId, const std::string& klass)

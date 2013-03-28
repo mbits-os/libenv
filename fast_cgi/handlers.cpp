@@ -90,6 +90,20 @@ namespace FastCGI { namespace app {
 			.item("new", 1, tr(lng::LNG_NAV_NEW_MENU), tr(lng::LNG_NAV_NEW_MENU_TIP))
 			.item("refesh", 3, std::string(), tr(lng::LNG_NAV_REFRESH))
 			.add(user);
+		user->item("badge", -1, "Here be badger")
+			.separator()
+			.item("settings", -1, tr(lng::LNG_NAV_SETTINGS))
+			.item("profile", -1, "Pȓôƒïĺê")
+			.item("help", -1, tr(lng::LNG_NAV_HELP))
+			.item("logout", -1, tr(lng::LNG_NAV_SIGNOUT));
+		menu.right()
+			.setItemUrl("search", "javascript:search();")
+			.setItemUrl("new", "javascript:subscribe();")
+			.setItemUrl("refesh", "javascript:reload();");
+		user->setItemUrl("settings", "/settings/general")
+			.setItemUrl("profile", "/settings/profile")
+			.setItemUrl("help", "/help/")
+			.setItemUrl("logout", "/auth/logout");
 	}
 
 	void PageHandler::headElement(SessionPtr session, Request& request, PageTranslation& tr)
