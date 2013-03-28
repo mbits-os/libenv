@@ -45,6 +45,59 @@
 
 namespace FastCGI
 {
+	namespace impl
+	{
+		LibFCGIRequest::LibFCGIRequest(FCGX_Request& request)
+			: m_streambufCin(request.in)
+			, m_streambufCout(request.out)
+			, m_streambufCerr(request.err)
+			, m_cin(&m_streambufCin)
+			, m_cout(&m_streambufCout)
+			, m_cerr(&m_streambufCerr)
+		{
+		}
+
+		STLApplication::STLApplication(const char* uri)
+		{
+			REQUEST_URI = (char*)malloc(strlen(uri) + sizeof("REQUEST_URI="));
+			strcat(strcpy(REQUEST_URI, "REQUEST_URI="), uri);
+			const char* query = strchr(uri, '?');
+			if (query)
+			{
+				++query;
+				QUERY_STRING = (char*)malloc(strlen(query) + sizeof("QUERY_STRING="));
+				strcat(strcpy(QUERY_STRING, "QUERY_STRING="), query);
+			}
+			else QUERY_STRING = _strdup("QUERY_STRING=");
+
+			environment[0] = "FCGI_ROLE=RESPONDER";
+			environment[1] = QUERY_STRING;
+			environment[2] = "REQUEST_METHOD=GET";
+			environment[3] = REQUEST_URI;
+			environment[4] = "SERVER_PORT=80";
+			environment[5] = "SERVER_NAME=www.reedr.net";
+			environment[6] = "HTTP_COOKIE=reader.login=...";
+			environment[7] = NULL;
+		}
+
+		STLApplication::~STLApplication()
+		{
+			free(REQUEST_URI);
+			free(QUERY_STRING);
+		}
+	};
+
+	SessionPtr Session::stlSession()
+	{
+		return SessionPtr(new (std::nothrow) Session(
+			0,
+			"STL Test",
+			"noone@example.com",
+			"...",
+			tyme::now()
+			));
+	}
+
 	SessionPtr Session::fromDB(db::ConnectionPtr db, const char* sessionId)
 	{
 		/*
@@ -163,6 +216,14 @@ namespace FastCGI
 
 	namespace { Application* g_app = nullptr; }
 	Application::Application()
+		: m_backend(new (std::nothrow) impl::LibFCGIApplication)
+	{
+		m_pid = _getpid();
+		g_app = this;
+	}
+
+	Application::Application(const char* uri)
+		: m_backend(new (std::nothrow) impl::STLApplication(uri))
 	{
 		m_pid = _getpid();
 		g_app = this;
@@ -174,11 +235,14 @@ namespace FastCGI
 
 	int Application::init(const char* localeRoot)
 	{
+		if (!m_backend.get())
+			return 1;
+
 		int ret = FCGX_Init();
 		if (ret != 0)
 			return ret;
 
-		FCGX_InitRequest(&m_request, 0, 0);
+		m_backend->init();
 		m_locale.init(localeRoot);
 
 		char filename[200];
@@ -189,15 +253,15 @@ namespace FastCGI
 
 	bool Application::accept()
 	{
-		bool ret = FCGX_Accept_r(&m_request) == 0;
+		bool ret = m_backend->accept();
 #if DEBUG_CGI
 		if (ret)
 		{
 			ReqInfo info;
-			info.resource    = FCGX_GetParam("REQUEST_URI", m_request.envp);
-			info.server      = FCGX_GetParam("SERVER_NAME", m_request.envp);
-			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", m_request.envp);
-			info.remote_port = FCGX_GetParam("REMOTE_PORT", m_request.envp);
+			info.resource    = FCGX_GetParam("REQUEST_URI", (char**)envp());
+			info.server      = FCGX_GetParam("SERVER_NAME", (char**)envp());
+			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", (char**)envp());
+			info.remote_port = FCGX_GetParam("REMOTE_PORT", (char**)envp());
 			info.now = tyme::now();
 			m_requs.push_back(info);
 		}
@@ -234,6 +298,13 @@ namespace FastCGI
 		});
 
 		m_sessions = copy;
+	}
+
+	void Application::addStlSession()
+	{
+		SessionPtr out = Session::stlSession();
+		if (out.get())
+			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));
 	}
 
 	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
@@ -340,13 +411,8 @@ namespace FastCGI
 	Request::Request(Application& app)
 		: m_app(app)
 		, m_headersSent(false)
-		, m_streambufCin(app.m_request.in)
-		, m_streambufCout(app.m_request.out)
-		, m_cerr(app.m_request.err)
-		, m_cin(&m_streambufCin)
-		, m_cout(&m_streambufCout)
-		, cerr(&m_cerr)
 		, m_alreadyReadSomething(false)
+		, m_backend(app.m_backend->newRequestBackend())
 	{
 		unpackCookies();
 		unpackVariables();
@@ -472,7 +538,7 @@ namespace FastCGI
 		m_alreadyReadSomething = true;
 		// ignore() doesn't set the eof bit in some versions of glibc++
 		// so use gcount() instead of eof()...
-		do m_cin.ignore(1024); while (m_cin.gcount() == 1024);
+		do m_backend->cin().ignore(1024); while (m_backend->cin().gcount() == 1024);
 	}
 
 	long long Request::calcStreamSize()
@@ -503,8 +569,13 @@ namespace FastCGI
 	{
 		std::string cookies;
 
-		std::string domAndPath = "; Version=1; Domain=";
-		domAndPath += getParam("SERVER_NAME");
+		std::string domAndPath = "; Version=1";
+		param_t SERVER_NAME = getParam("SERVER_NAME");
+		if (SERVER_NAME && *SERVER_NAME)
+		{
+			domAndPath += "; Domain=";
+			domAndPath += SERVER_NAME;
+		}
 		domAndPath += "; Path=/; HttpOnly";
 
 		bool first = true;

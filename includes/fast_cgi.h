@@ -33,7 +33,76 @@ namespace FastCGI
 {
 	class Request;
 	class Session;
+	class Application;
 	typedef std::shared_ptr<Session> SessionPtr;
+
+	typedef const char* param_t;
+	class FinishResponse {};
+
+	namespace impl
+	{
+		struct RequestBackend
+		{
+			virtual std::ostream& cout() = 0;
+			virtual std::ostream& cerr() = 0;
+			virtual std::istream& cin() = 0;
+		};
+
+		class LibFCGIRequest: public RequestBackend
+		{
+			fcgi_streambuf m_streambufCin;
+			fcgi_streambuf m_streambufCout;
+			fcgi_streambuf m_streambufCerr;
+			std::ostream m_cout;
+			std::ostream m_cerr;
+			std::istream m_cin;
+		public:
+			LibFCGIRequest(FCGX_Request& request);
+			std::ostream& cout() { return m_cout; }
+			std::ostream& cerr() { return m_cerr; }
+			std::istream& cin() { return m_cin; }
+		};
+
+		class STLRequest: public RequestBackend
+		{
+		public:
+			std::ostream& cout() { return std::cout; }
+			std::ostream& cerr() { return std::cerr; }
+			std::istream& cin() { return std::cin; }
+		};
+
+		struct ApplicationBackend
+		{
+			virtual void init() {}
+			virtual const char * const* envp() const = 0;
+			virtual bool accept() = 0;
+			virtual std::shared_ptr<RequestBackend> newRequestBackend() = 0;
+		};
+
+		class LibFCGIApplication: public ApplicationBackend
+		{
+			FCGX_Request m_request;
+		public:
+			void init() { FCGX_InitRequest(&m_request, 0, 0); }
+			const char * const* envp() const { return m_request.envp; }
+			bool accept() { return FCGX_Accept_r(&m_request) == 0; }
+			std::shared_ptr<RequestBackend> newRequestBackend() { return std::shared_ptr<RequestBackend>(new (std::nothrow) LibFCGIRequest(m_request)); }
+		};
+
+		class STLApplication: public ApplicationBackend
+		{
+			char* REQUEST_URI;
+			char* QUERY_STRING;
+			const char* environment[8];
+		public:
+			STLApplication(const char* uri);
+			~STLApplication();
+			void init() {}
+			const char * const* envp() const { return environment; }
+			bool accept() { return false; }
+			std::shared_ptr<RequestBackend> newRequestBackend() { return std::shared_ptr<RequestBackend>(new (std::nothrow) STLRequest()); }
+		};
+	};
 
 	class Session
 	{
@@ -55,6 +124,7 @@ namespace FastCGI
 		{
 		}
 	public:
+		static SessionPtr stlSession();
 		static SessionPtr fromDB(db::ConnectionPtr db, const char* sessionId);
 		static SessionPtr startSession(db::ConnectionPtr db, const char* email);
 		static void endSession(db::ConnectionPtr db, const char* sessionId);
@@ -75,7 +145,6 @@ namespace FastCGI
 		typedef std::map<std::string, SessionCacheItem> Sessions;
 
 		long m_pid;
-		FCGX_Request m_request;
 		db::ConnectionPtr m_dbConn;
 		Sessions m_sessions;
 		lng::Locale m_locale;
@@ -83,11 +152,16 @@ namespace FastCGI
 		std::ofstream m_log;
 
 		void cleanSessionCache();
+
+		std::shared_ptr<impl::ApplicationBackend> m_backend;
 	public:
 		Application();
+		explicit Application(const char* uri);
 		~Application();
+		void addStlSession();
 		int init(const char* localeRoot);
 		int pid() const { return m_pid; }
+		const char * const* envp() const { return m_backend->envp(); }
 		bool accept();
 		db::ConnectionPtr dbConn(Request& request);
 		SessionPtr getSession(Request& request, const std::string& sessionId);
@@ -127,10 +201,6 @@ namespace FastCGI
 		}
 	};
 #define FLOG FastCGI::ApplicationLog(__FILE__, __LINE__)
-
-	typedef const char* param_t;
-
-	class FinishResponse {};
 
 	struct RequestState
 	{
@@ -179,18 +249,14 @@ namespace FastCGI
 
 		Application& m_app;
 		bool m_headersSent;
-		fcgi_streambuf m_streambufCin;
-		fcgi_streambuf m_streambufCout;
-		fcgi_streambuf m_cerr;
 		Headers m_headers;
 		ResponseCookies m_respCookies;
 		RequestCookies m_reqCookies;
 		RequestVariables m_reqVars;
-		std::ostream m_cout;
-		std::istream m_cin;
 		mutable bool m_alreadyReadSomething;
 		RequestStatePtr m_requestState;
 		ContentPtr m_content;
+		std::shared_ptr<impl::RequestBackend> m_backend;
 
 		void unpackCookies();
 		void unpackVariables(const char* data, size_t len);
@@ -201,18 +267,18 @@ namespace FastCGI
 		void printHeaders();
 
 	public:
-		std::ostream cerr;
+		std::ostream& cerr() { return m_backend->cerr(); }
 
 		explicit Request(Application& app);
 		~Request();
-		const char * const* envp() const { return m_app.m_request.envp; }
+		const char * const* envp() const { return m_app.envp(); }
 		Application& app() { return m_app; }
 		db::ConnectionPtr dbConn() { return m_app.dbConn(*this); }
 
 		void setHeader(const std::string& name, const std::string& value);
 		void setCookie(const std::string& name, const std::string& value, tyme::time_t expire = 0);
 		long long calcStreamSize();
-		param_t getParam(const char* name) const { return FCGX_GetParam(name, m_app.m_request.envp); }
+		param_t getParam(const char* name) const { return FCGX_GetParam(name, (char**)envp()); }
 		param_t getCookie(const char* name) const {
 			RequestCookies::const_iterator _it = m_reqCookies.find(name);
 			if (_it == m_reqCookies.end())
@@ -258,7 +324,19 @@ namespace FastCGI
 		{
 			ensureInputWasRead();
 			printHeaders();
-			m_cout << obj;
+			m_backend->cout() << obj;
+			return *this;
+		}
+
+		template <typename T>
+		Request& operator << (const T* obj)
+		{
+			ensureInputWasRead();
+			printHeaders();
+			if (obj)
+				m_backend->cout() << obj;
+			else
+				m_backend->cout() << "(nullptr)";
 			return *this;
 		}
 
@@ -266,23 +344,23 @@ namespace FastCGI
 		const Request& operator >> (T& obj) const
 		{
 			m_alreadyReadSomething = true;
-			m_cin >> obj;
+			m_backend->cin() >> obj;
 			return *this;
 		}
 
 		std::streamsize read(void* ptr, std::streamsize length)
 		{
 			m_alreadyReadSomething = true;
-			m_cin.read((char*)ptr, length);
-			return m_cin.gcount();
+			m_backend->cin().read((char*)ptr, length);
+			return m_backend->cin().gcount();
 		}
 
 		template<std::streamsize length>
 		std::streamsize read(char* (&ptr)[length])
 		{
 			m_alreadyReadSomething = true;
-			m_cin.read(ptr, length);
-			return m_cin.gcount();
+			m_backend->cin().read(ptr, length);
+			return m_backend->cin().gcount();
 		}
 
 #if DEBUG_CGI
