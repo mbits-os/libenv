@@ -26,6 +26,7 @@
 #include <fast_cgi.hpp>
 #include <crypt.hpp>
 #include <utils.hpp>
+#include <string.h>
 
 #ifdef _WIN32
 #define INI "..\\conn.ini"
@@ -57,6 +58,16 @@ namespace FastCGI
 		{
 		}
 
+		static inline char* dup(const char* src)
+		{
+			size_t len = strlen(src) + 1;
+			char* dst = (char*)malloc(len);
+			if (!dst)
+				return dst;
+			memcpy(dst, src, len);
+			return dst;
+		}
+
 		STLApplication::STLApplication(const char* uri)
 		{
 			REQUEST_URI = (char*)malloc(strlen(uri) + sizeof("REQUEST_URI="));
@@ -68,7 +79,7 @@ namespace FastCGI
 				QUERY_STRING = (char*)malloc(strlen(query) + sizeof("QUERY_STRING="));
 				strcat(strcpy(QUERY_STRING, "QUERY_STRING="), query);
 			}
-			else QUERY_STRING = _strdup("QUERY_STRING=");
+			else QUERY_STRING = dup("QUERY_STRING=");
 
 			environment[0] = "FCGI_ROLE=RESPONDER";
 			environment[1] = QUERY_STRING;
