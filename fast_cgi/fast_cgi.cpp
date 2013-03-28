@@ -255,7 +255,7 @@ namespace FastCGI
 	{
 		bool ret = m_backend->accept();
 #if DEBUG_CGI
-		if (ret)
+		if (ret && false)
 		{
 			ReqInfo info;
 			info.resource    = FCGX_GetParam("REQUEST_URI", (char**)envp());
@@ -263,7 +263,7 @@ namespace FastCGI
 			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", (char**)envp());
 			info.remote_port = FCGX_GetParam("REMOTE_PORT", (char**)envp());
 			info.now = tyme::now();
-			m_requs.push_back(info);
+			//m_requs.push_back(info);
 		}
 #endif
 		return ret;
@@ -530,6 +530,16 @@ namespace FastCGI
 		if (QUERY_STRING && *QUERY_STRING)
 		{
 			unpackVariables(QUERY_STRING, strlen(QUERY_STRING));
+		}
+		else
+		{
+			param_t REQUEST_URI = getParam("REQUEST_URI");
+			param_t query = REQUEST_URI ? strchr(REQUEST_URI, '?') : nullptr;
+			if (query)
+			{
+				if (*++query)
+					unpackVariables(query, strlen(query));
+			}
 		}
 	}
 
