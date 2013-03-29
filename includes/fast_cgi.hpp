@@ -71,35 +71,38 @@ namespace FastCGI
 			std::istream& cin() { return std::cin; }
 		};
 
-		struct ApplicationBackend
+		struct ThreadBackend
 		{
 			virtual void init() {}
 			virtual const char * const* envp() const = 0;
 			virtual bool accept() = 0;
+			virtual void release() = 0;
 			virtual std::shared_ptr<RequestBackend> newRequestBackend() = 0;
 		};
 
-		class LibFCGIApplication: public ApplicationBackend
+		class LibFCGIThread: public ThreadBackend
 		{
 			FCGX_Request m_request;
 		public:
 			void init() { FCGX_InitRequest(&m_request, 0, 0); }
 			const char * const* envp() const { return m_request.envp; }
 			bool accept() { return FCGX_Accept_r(&m_request) == 0; }
+			void release() { FCGX_Finish_r(&m_request); }
 			std::shared_ptr<RequestBackend> newRequestBackend() { return std::shared_ptr<RequestBackend>(new (std::nothrow) LibFCGIRequest(m_request)); }
 		};
 
-		class STLApplication: public ApplicationBackend
+		class STLThread: public ThreadBackend
 		{
 			char* REQUEST_URI;
 			char* QUERY_STRING;
 			const char* environment[8];
 		public:
-			STLApplication(const char* uri);
-			~STLApplication();
+			STLThread(const char* uri);
+			~STLThread();
 			void init() {}
 			const char * const* envp() const { return environment; }
 			bool accept() { return false; }
+			void release() { }
 			std::shared_ptr<RequestBackend> newRequestBackend() { return std::shared_ptr<RequestBackend>(new (std::nothrow) STLRequest()); }
 		};
 	};
@@ -139,8 +142,6 @@ namespace FastCGI
 
 	class Application
 	{
-		friend class Request;
-
 		typedef std::pair<tyme::time_t, SessionPtr> SessionCacheItem;
 		typedef std::map<std::string, SessionCacheItem> Sessions;
 
@@ -152,17 +153,12 @@ namespace FastCGI
 		std::ofstream m_log;
 
 		void cleanSessionCache();
-
-		std::shared_ptr<impl::ApplicationBackend> m_backend;
 	public:
 		Application();
-		explicit Application(const char* uri);
 		~Application();
 		void addStlSession();
 		int init(const char* localeRoot);
 		int pid() const { return m_pid; }
-		const char * const* envp() const { return m_backend->envp(); }
-		bool accept();
 		db::ConnectionPtr dbConn(Request& request);
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
@@ -182,6 +178,7 @@ namespace FastCGI
 		};
 		typedef std::list<ReqInfo> ReqList;
 		const ReqList& requs() const { return m_requs; }
+		void report(char** envp);
 	private:
 		ReqList m_requs;
 #endif
@@ -226,6 +223,35 @@ namespace FastCGI
 	};
 	typedef std::shared_ptr<Content> ContentPtr;
 
+	class Thread
+	{
+		friend class Request;
+
+		Application* m_app;
+		std::shared_ptr<impl::ThreadBackend> m_backend;
+		static void* thread_run(void* _this)
+		{
+			((Thread*)_this)->run();
+			return nullptr;
+		}
+	public:
+		Thread();
+		explicit Thread(const char* uri);
+		virtual ~Thread();
+
+		bool init();
+		void setApplication(Application& app) { m_app = &app; }
+
+		Application* app() { return m_app; }
+		const char * const* envp() const { return m_backend->envp(); }
+		bool accept();
+		void handleRequest();
+		virtual void onRequest(Request& request) = 0;
+
+		void start();
+		void run();
+	};
+
 	class Request
 	{
 		typedef std::map<std::string, std::string> Headers;
@@ -247,7 +273,7 @@ namespace FastCGI
 		typedef std::map<std::string, std::string> RequestCookies;
 		typedef std::map<std::string, std::string> RequestVariables;
 
-		Application& m_app;
+		Thread& m_thread;
 		bool m_headersSent;
 		Headers m_headers;
 		ResponseCookies m_respCookies;
@@ -269,11 +295,16 @@ namespace FastCGI
 	public:
 		std::ostream& cerr() { return m_backend->cerr(); }
 
-		explicit Request(Application& app);
+		explicit Request(Thread& thread);
 		~Request();
-		const char * const* envp() const { return m_app.envp(); }
-		Application& app() { return m_app; }
-		db::ConnectionPtr dbConn() { return m_app.dbConn(*this); }
+		const char * const* envp() const { return m_thread.envp(); }
+		Application& app()
+		{
+			Application* ptr = m_thread.app();
+			if (!ptr) on500();
+			return *ptr;
+		}
+		db::ConnectionPtr dbConn() { return app().dbConn(*this); }
 
 		void setHeader(const std::string& name, const std::string& value);
 		void setCookie(const std::string& name, const std::string& value, tyme::time_t expire = 0);

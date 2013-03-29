@@ -68,7 +68,7 @@ namespace FastCGI
 			return dst;
 		}
 
-		STLApplication::STLApplication(const char* uri)
+		STLThread::STLThread(const char* uri)
 		{
 			REQUEST_URI = (char*)malloc(strlen(uri) + sizeof("REQUEST_URI="));
 			strcat(strcpy(REQUEST_URI, "REQUEST_URI="), uri);
@@ -91,7 +91,7 @@ namespace FastCGI
 			environment[7] = NULL;
 		}
 
-		STLApplication::~STLApplication()
+		STLThread::~STLThread()
 		{
 			free(REQUEST_URI);
 			free(QUERY_STRING);
@@ -227,14 +227,6 @@ namespace FastCGI
 
 	namespace { Application* g_app = nullptr; }
 	Application::Application()
-		: m_backend(new (std::nothrow) impl::LibFCGIApplication)
-	{
-		m_pid = _getpid();
-		g_app = this;
-	}
-
-	Application::Application(const char* uri)
-		: m_backend(new (std::nothrow) impl::STLApplication(uri))
 	{
 		m_pid = _getpid();
 		g_app = this;
@@ -246,14 +238,10 @@ namespace FastCGI
 
 	int Application::init(const char* localeRoot)
 	{
-		if (!m_backend.get())
-			return 1;
-
 		int ret = FCGX_Init();
 		if (ret != 0)
 			return ret;
 
-		m_backend->init();
 		m_locale.init(localeRoot);
 
 		char filename[200];
@@ -262,23 +250,21 @@ namespace FastCGI
 		return m_log.is_open() ? 0 : 1;
 	}
 
-	bool Application::accept()
-	{
-		bool ret = m_backend->accept();
 #if DEBUG_CGI
-		if (ret && false)
+	void Application::report(char** envp)
+	{
+		if (false) //turned off for now
 		{
 			ReqInfo info;
-			info.resource    = FCGX_GetParam("REQUEST_URI", (char**)envp());
-			info.server      = FCGX_GetParam("SERVER_NAME", (char**)envp());
-			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", (char**)envp());
-			info.remote_port = FCGX_GetParam("REMOTE_PORT", (char**)envp());
+			info.resource    = FCGX_GetParam("REQUEST_URI", envp);
+			info.server      = FCGX_GetParam("SERVER_NAME", envp);
+			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", envp);
+			info.remote_port = FCGX_GetParam("REMOTE_PORT", envp);
 			info.now = tyme::now();
 			//m_requs.push_back(info);
 		}
-#endif
-		return ret;
 	}
+#endif
 
 	db::ConnectionPtr Application::dbConn(Request& request)
 	{
@@ -419,11 +405,69 @@ namespace FastCGI
 		return str;
 	}
 
-	Request::Request(Application& app)
-		: m_app(app)
+	Thread::Thread()
+		: m_backend(new (std::nothrow) impl::LibFCGIThread)
+	{
+	}
+
+	Thread::Thread(const char* uri)
+		: m_backend(new (std::nothrow) impl::STLThread(uri))
+	{
+	}
+
+	Thread::~Thread()
+	{
+	}
+
+	bool Thread::init()
+	{
+		if (!m_backend.get() || !m_app)
+			return false;
+
+		m_backend->init();
+		return true;
+	}
+
+	bool Thread::accept()
+	{
+		// Some platforms require accept() serialization, some don't..
+		// synchronize { (class-level)
+		bool ret = m_backend->accept();
+#if DEBUG_CGI
+		m_app->report((char**)envp());
+#endif
+		return ret;
+		// synchronize }
+	}
+
+	void Thread::start()
+	{
+	}
+
+	void Thread::run()
+	{
+		if (!init())
+			return;
+		while (accept())
+		{
+			handleRequest();
+			m_backend->release();
+		}
+	}
+
+	void Thread::handleRequest()
+	{
+		FastCGI::Request req(*this);
+
+		try { onRequest(req); }
+		catch(FastCGI::FinishResponse) {} // die() lands here
+	}
+
+	Request::Request(Thread& thread)
+		: m_thread(thread)
 		, m_headersSent(false)
 		, m_alreadyReadSomething(false)
-		, m_backend(app.m_backend->newRequestBackend())
+		, m_backend(thread.m_backend->newRequestBackend())
 	{
 		unpackCookies();
 		unpackVariables();
@@ -746,7 +790,7 @@ namespace FastCGI
 		SessionPtr out;
 		param_t sessionId = getCookie("reader.login");
 		if (sessionId && *sessionId)
-			out = m_app.getSession(*this, sessionId);
+			out = app().getSession(*this, sessionId);
 		if (require && out.get() == nullptr)
 		{
 			std::string cont = serverUri(getParam("REQUEST_URI"), false);
@@ -760,7 +804,7 @@ namespace FastCGI
 
 	SessionPtr Request::startSession(bool long_session, const char* email)
 	{
-		SessionPtr session = m_app.startSession(*this, email);
+		SessionPtr session = app().startSession(*this, email);
 		if (session.get())
 		{
 			if (long_session)
@@ -773,7 +817,7 @@ namespace FastCGI
 
 	void Request::endSession(const std::string& sessionId)
 	{
-		m_app.endSession(*this, sessionId);
+		app().endSession(*this, sessionId);
 		setCookie("reader.login", "", tyme::now());
 	}
 
@@ -781,13 +825,13 @@ namespace FastCGI
 	{
 		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
 		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		return m_app.httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
+		return app().httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
 	}
 
 	void Request::sendMail(const char* mailFile, const char* email)
 	{
 		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
 		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		std::string path = m_app.getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
+		std::string path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
 	}
 }
