@@ -238,6 +238,9 @@ namespace FastCGI
 
 	int Application::init(const char* localeRoot)
 	{
+		if (!os::AsyncData::isInitialized())
+			return false;
+
 		int ret = FCGX_Init();
 		if (ret != 0)
 			return ret;
@@ -268,7 +271,7 @@ namespace FastCGI
 
 	db::ConnectionPtr Application::dbConn(Request& request)
 	{
-		// synchronized {
+		os::Lock on (*this);
 
 		//restart if needed
 		if (!m_dbConn.get())
@@ -280,8 +283,6 @@ namespace FastCGI
 			request.on500();
 
 		return m_dbConn;
-
-		// synchronized }
 	}
 
 	void Application::cleanSessionCache()
@@ -306,7 +307,8 @@ namespace FastCGI
 
 	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
 	{
-		// synchronized {
+		os::Lock on (*this);
+
 		cleanSessionCache();
 
 		SessionPtr out;
@@ -328,12 +330,12 @@ namespace FastCGI
 		}
 
 		return out;
-		// synchronized }
 	}
 
 	SessionPtr Application::startSession(Request& request, const char* email)
 	{
-		// synchronized {
+		os::Lock on (*this);
+
 		cleanSessionCache();
 
 		SessionPtr out;
@@ -345,7 +347,6 @@ namespace FastCGI
 			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));
 
 		return out;
-		// synchronized }
 	}
 
 	void Application::endSession(Request& request, const std::string& sessionId)
@@ -362,12 +363,14 @@ namespace FastCGI
 		: m_log(g_app->log())
 	{
 		// lock
-		m_log << file << ":" << line << " ";
+		g_app->lock();
+		m_log << file << ":" << line << " @" << os::Thread::currentId() << " ";
 	}
 
 	ApplicationLog::~ApplicationLog()
 	{
 		m_log << std::endl;
+		g_app->unlock();
 		// unlock
 	}
 
@@ -430,14 +433,20 @@ namespace FastCGI
 
 	bool Thread::accept()
 	{
-		// Some platforms require accept() serialization, some don't..
-		// synchronize { (class-level)
-		bool ret = m_backend->accept();
+		try {
+			// Some platforms require accept() serialization, some don't..
+			static os::InitializedAsyncData accept_guard;
+
+			os::Lock the(accept_guard);
+
+			bool ret = m_backend->accept();
 #if DEBUG_CGI
-		m_app->report((char**)envp());
+			m_app->report((char**)envp());
 #endif
-		return ret;
-		// synchronize }
+			return ret;
+		} catch (std::runtime_error) {
+			return false;
+		}
 	}
 
 	void Thread::start()

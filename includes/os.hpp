@@ -22,6 +22,68 @@
  * SOFTWARE.
  */
 
+#ifndef __OS_HPP__
+#define __OS_HPP__
+
+#include <stdexcept>
+
 namespace os
 {
+	class Thread
+	{
+	public:
+		static unsigned long currentId() { return 0; }
+		void start() {}
+		virtual void run() = 0;
+	};
+
+	class CriticalSection
+	{
+	public:
+		bool init() { return true; }
+		void lock() {}
+		void unlock() {}
+	};
+
+	class AsyncData
+	{
+		CriticalSection m_cs;
+		bool m_inited;
+	public:
+		AsyncData()
+		{
+			m_inited = m_cs.init();
+		}
+		bool isInitialized() const { return m_inited; }
+
+		void lock() { m_cs.lock(); }
+		void unlock() { m_cs.unlock(); }
+	};
+
+	class InitializedAsyncData: public AsyncData
+	{
+	public:
+		InitializedAsyncData()
+		{
+			if (!isInitialized())
+				throw std::runtime_error("");
+		}
+	};
+
+	class Lock
+	{
+		AsyncData& m_ref;
+	public:
+		Lock(AsyncData& ref)
+			: m_ref(ref)
+		{
+			m_ref.lock();
+		}
+		~Lock()
+		{
+			m_ref.unlock();
+		}
+	};
 }
+
+#endif // __OS_HPP__

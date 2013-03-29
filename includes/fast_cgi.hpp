@@ -27,6 +27,7 @@
 
 #include <dbconn.hpp>
 #include <locale.hpp>
+#include <os.hpp>
 #include <fstream>
 
 namespace FastCGI
@@ -140,7 +141,7 @@ namespace FastCGI
 		void setTranslation(lng::TranslationPtr tr) { m_tr = tr; }
 	};
 
-	class Application
+	class Application: public os::AsyncData
 	{
 		typedef std::pair<tyme::time_t, SessionPtr> SessionCacheItem;
 		typedef std::map<std::string, SessionCacheItem> Sessions;
