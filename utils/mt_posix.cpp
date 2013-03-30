@@ -32,9 +32,21 @@ namespace mt
 		return (unsigned long)pthread_self();
 	}
 
-	void Mutex::init()
-		: m_mutex(PTHREAD_MUTEX_INITIALIZER)
+	static void* thread_run(void* ptr)
 	{
+		auto _this = (Thread*)ptr;
+		_this->run();
+		return nullptr;
+	}
+
+	void Thread::start()
+	{
+		pthread_create(&m_thread, NULL, thread_run, this);
+	}
+
+	void Mutex::init()
+	{
+		m_mutex = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_init(&m_mutex, NULL);
 	}
 

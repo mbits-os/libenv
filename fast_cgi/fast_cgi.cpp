@@ -238,9 +238,6 @@ namespace FastCGI
 
 	int Application::init(const char* localeRoot)
 	{
-		if (!mt::AsyncData::isInitialized())
-			return false;
-
 		int ret = FCGX_Init();
 		if (ret != 0)
 			return ret;
@@ -447,10 +444,6 @@ namespace FastCGI
 		} catch (std::runtime_error) {
 			return false;
 		}
-	}
-
-	void Thread::start()
-	{
 	}
 
 	void Thread::run()

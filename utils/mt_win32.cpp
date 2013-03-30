@@ -32,6 +32,18 @@ namespace mt
 		return GetCurrentThreadId();
 	}
 
+	static void thread_run(void* ptr)
+	{
+		auto _this = (Thread*)ptr;
+		_this->run();
+		_endthreadex(0);
+	}
+
+	void Thread::start()
+	{
+		m_thread = _beginthread(thread_run, 0, this);
+	}
+
 	void Mutex::init()
 	{
 		InitializeCriticalSection(&m_cs);

@@ -27,6 +27,10 @@
 
 #include <stdexcept>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifdef POSIX
 #include <pthread.h>
 #endif
@@ -35,9 +39,16 @@ namespace mt
 {
 	class Thread
 	{
+#ifdef _WIN32
+		uintptr_t m_thread;
+#endif
+#ifdef POSIX
+		pthread_t m_thread;
+#endif
 	public:
+		Thread(): m_thread(0) {}
 		static unsigned long currentId();
-		void start() {}
+		void start();
 		virtual void run() = 0;
 	};
 

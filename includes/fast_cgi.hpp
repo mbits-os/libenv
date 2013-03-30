@@ -224,7 +224,7 @@ namespace FastCGI
 	};
 	typedef std::shared_ptr<Content> ContentPtr;
 
-	class Thread
+	class Thread: public mt::Thread
 	{
 		friend class Request;
 
@@ -249,7 +249,6 @@ namespace FastCGI
 		void handleRequest();
 		virtual void onRequest(Request& request) = 0;
 
-		void start();
 		void run();
 	};
 
