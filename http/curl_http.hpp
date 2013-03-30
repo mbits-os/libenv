@@ -30,15 +30,21 @@ namespace http
 	typedef std::map< std::string, std::string > Headers;
 	typedef void (*APPENDHEADER)(const std::string& header, void* data);
 
+	struct ConnectionCallback
+	{
+		virtual void abort() = 0;
+		virtual void appendHeader(const std::string& header) = 0;
+	};
+
 	struct HttpCallback
 	{
-		virtual void onStart() = 0;
+		virtual void onStart(ConnectionCallback* cb) = 0;
 		virtual void onError() = 0;
 		virtual void onFinish() = 0;
 		virtual size_t onData(const void* data, size_t count) = 0;
 		virtual void onHeaders(const std::string& reason, int http_status, const Headers& headers) = 0;
 
-		virtual void appendHeaders(APPENDHEADER cb, void* data) = 0;
+		virtual void appendHeaders() = 0;
 		virtual std::string getUrl() = 0;
 		virtual void* getContent(size_t& length) = 0;
 		virtual bool getDebug() = 0;

@@ -49,7 +49,7 @@ namespace http
 			void* content;
 			size_t content_length;
 			ContentData()
-				: content(NULL)
+				: content(nullptr)
 				, content_length(0)
 			{
 			}
@@ -60,7 +60,7 @@ namespace http
 
 			bool append(const void* data, size_t len)
 			{
-				void* copy = NULL;
+				void* copy = nullptr;
 				if (data && len)
 				{
 					void* copy = realloc(content, content_length + len);
@@ -75,7 +75,7 @@ namespace http
 			void clear()
 			{
 				free(content);
-				content = NULL;
+				content = nullptr;
 				content_length = 0;
 			}
 		};
@@ -102,6 +102,7 @@ namespace http
 			ContentData response;
 
 			bool send_flag, done_flag, debug;
+			ConnectionCallback* m_connection;
 
 			void onReadyStateChange()
 			{
@@ -121,8 +122,8 @@ namespace http
 		public:
 
 			XmlHttpRequest()
-				: handler(NULL)
-				, handler_data(NULL)
+				: handler(nullptr)
+				, handler_data(nullptr)
 				, http_method(HTTP_GET)
 				, async(true)
 				, ready_state(UNSENT)
@@ -130,6 +131,7 @@ namespace http
 				, send_flag(false)
 				, done_flag(false)
 				, debug(false)
+				, m_connection(nullptr)
 			{
 			}
 
@@ -157,13 +159,13 @@ namespace http
 
 			void setDebug(bool debug);
 
-			void onStart();
+			void onStart(ConnectionCallback* cb);
 			void onError();
 			void onFinish();
 			size_t onData(const void* data, size_t count);
 			void onHeaders(const std::string& reason, int http_status, const Headers& headers);
 
-			void appendHeaders(APPENDHEADER cb, void* data);
+			void appendHeaders();
 			std::string getUrl();
 			void* getContent(size_t& length);
 			bool getDebug();
@@ -265,6 +267,9 @@ namespace http
 
 		void XmlHttpRequest::abort()
 		{
+			if (m_connection)
+				m_connection->abort();
+			m_connection = nullptr;
 		}
 
 		int XmlHttpRequest::getStatus() const
@@ -304,10 +309,14 @@ namespace http
 			this->debug = debug;
 		}
 
-		void XmlHttpRequest::onStart()
+		void XmlHttpRequest::onStart(ConnectionCallback* connection)
 		{
+			m_connection = connection;
+
 			if (!body.content || !body.content_length)
 				http_method = HTTP_GET;
+
+			onReadyStateChange();
 		}
 
 		void XmlHttpRequest::onError()
@@ -347,15 +356,17 @@ namespace http
 			onReadyStateChange();
 		}
 
-		void XmlHttpRequest::appendHeaders(APPENDHEADER cb, void* data)
+		void XmlHttpRequest::appendHeaders()
 		{
+			if (!m_connection)
+				return;
 			//Synchronize on(*this);
 			for (Headers::const_iterator _cur = request_headers.begin(); _cur != request_headers.end(); ++_cur)
-				cb(_cur->second, data);
+				m_connection->appendHeader(_cur->second);
 		}
 
 		std::string XmlHttpRequest::getUrl() { return url; }
-		void* XmlHttpRequest::getContent(size_t& length) { if (http_method == HTTP_POST) { length = body.content_length; return body.content; } return NULL; }
+		void* XmlHttpRequest::getContent(size_t& length) { if (http_method == HTTP_POST) { length = body.content_length; return body.content; } return nullptr; }
 		bool XmlHttpRequest::getDebug() { return debug; }
 
 		static void GetMimeAndEncoding(std::string ct, std::string& mime, std::string& enc)

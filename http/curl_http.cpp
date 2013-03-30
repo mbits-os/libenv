@@ -143,19 +143,29 @@ namespace http
 
 	};
 
-	struct CurlAsyncJob
+	struct CurlAsyncJob: http::ConnectionCallback
 	{
 		typedef HttpCallbackPtr Init;
 		Init ref;
 		HttpHeaderBuilder resp_builder;
+		bool aborting;
+		curl_slist* headers;
 
-		CurlAsyncJob(const Init& init): ref(init) {}
+		CurlAsyncJob(const Init& init): ref(init), aborting(false), headers(nullptr) {}
 		~CurlAsyncJob() {}
 		void Run();
 		void Start(bool async) { Run(); } // sync until job are ported
 
 		size_t OnData(const void * _Str, size_t _Size, size_t _Count);
 		size_t OnHeaders(const void * _Str, size_t _Size, size_t _Count);
+
+		void abort() { aborting = true; }
+		bool isAborting() const { return aborting; }
+		void appendHeader(const std::string& header)
+		{
+			headers = curl_slist_append(headers, header.c_str());
+		}
+
 	};
 
 	void Init()
@@ -171,28 +181,31 @@ namespace http
 		} catch(std::bad_alloc) {}
 	}
 
-	static void AppendHeader(const std::string& header, struct curl_slist ** chunk)
-	{
-		*chunk = curl_slist_append(*chunk, header.c_str());
-	}
-
 	struct curl_f
 	{
 		static size_t _fwrite(const void * _Str, size_t _Size, size_t _Count, CurlAsyncJob* _this)
 		{
+			if (_this->isAborting())
+				return 0;
 			_this->OnData(_Str, _Size, _Count);
 			return _Count;
 		}
 		static size_t _fwrite_header(const char* _Str, size_t _Size, size_t _Count, CurlAsyncJob* _this)
 		{
+			if (_this->isAborting())
+				return 0;
 			return _this->OnHeaders(_Str, _Size, _Count);
 		}
 		static size_t _fread(void * _Str, size_t _Size, size_t _Count, CurlAsyncJob* _this)
 		{
 		}
+		static int _progress(CurlAsyncJob* _this, double, double, double, double)
+		{
+			return _this->isAborting() ? 1 : 0;
+		}
 		static int my_trace(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
 		{
-			const char *text = NULL;
+			const char *text = nullptr;
 			(void)handle; /* prevent compiler warning */
 
 			switch (type)
@@ -251,7 +264,7 @@ namespace http
 	void CurlAsyncJob::Run()
 	{
 		resp_builder.clear();
-		ref->onStart();
+		ref->onStart(this);
 
 		CURL* curl = curl_easy_init();
 		if (!curl)
@@ -259,6 +272,9 @@ namespace http
 			ref->onError();
 			return;
 		}
+		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, curl_f::_progress);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
 		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, curl_f::my_trace);
 		if (ref->getDebug()) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -268,12 +284,11 @@ namespace http
 
 
 		{
-			struct curl_slist *chunk = NULL;
-			ref->appendHeaders((APPENDHEADER)AppendHeader, &chunk);
+			ref->appendHeaders();
 
 			curl_easy_setopt(curl, CURLOPT_URL, ref->getUrl().c_str());
 			curl_easy_setopt(curl, CURLOPT_USERAGENT, getUserAgent().c_str());
-			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
 			curl_easy_setopt(curl, CURLOPT_WRITEHEADER, this);
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);

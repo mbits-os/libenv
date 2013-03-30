@@ -89,7 +89,7 @@ namespace http
 
 		virtual void send(const void* data, size_t length) { setBody(data, length); send(); } 
 		virtual void send() = 0;
-		virtual void abort() = 0; //noop?
+		virtual void abort() = 0;
 
 		virtual size_t getResponseTextLength() const = 0;
 		virtual const char* getResponseText() const = 0;
