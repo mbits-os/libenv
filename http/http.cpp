@@ -39,6 +39,7 @@
 
 #include <string>
 #include "curl_http.hpp"
+#include <expat.hpp>
 
 namespace http
 {
@@ -100,6 +101,7 @@ namespace http
 			std::string reason;
 			Headers response_headers;
 			ContentData response;
+			dom::XmlDocumentPtr doc;
 
 			bool send_flag, done_flag, debug;
 			ConnectionCallback* m_connection;
@@ -109,8 +111,8 @@ namespace http
 				if (handler)
 					handler(this, handler_data);
 			}
-			//bool RebuildDOM();
-			//bool ParseXML(const std::string& encoding);
+			bool rebuildDOM();
+			bool parseXML(const std::string& encoding);
 
 			void clear_response()
 			{
@@ -156,6 +158,7 @@ namespace http
 			std::map<std::string, std::string> getResponseHeaders() const;
 			size_t getResponseTextLength() const;
 			const char* getResponseText() const;
+			dom::XmlDocumentPtr getResponseXml();
 
 			void setDebug(bool debug);
 
@@ -304,6 +307,19 @@ namespace http
 			return (const char*)response.content;
 		}
 
+		dom::XmlDocumentPtr XmlHttpRequest::getResponseXml()
+		{
+			// Synchronize on (*this);
+
+			if (ready_state != DONE || done_flag) return false;
+
+			if (!doc && response.content && response.content_length)
+				if (!rebuildDOM())
+					return dom::XmlDocumentPtr();
+
+			return doc; 
+		}
+
 		void XmlHttpRequest::setDebug(bool debug)
 		{
 			this->debug = debug;
@@ -369,7 +385,7 @@ namespace http
 		void* XmlHttpRequest::getContent(size_t& length) { if (http_method == HTTP_POST) { length = body.content_length; return body.content; } return nullptr; }
 		bool XmlHttpRequest::getDebug() { return debug; }
 
-		static void GetMimeAndEncoding(std::string ct, std::string& mime, std::string& enc)
+		static void getMimeAndEncoding(std::string ct, std::string& mime, std::string& enc)
 		{
 			mime.empty();
 			enc.empty();
@@ -403,6 +419,92 @@ namespace http
 				ct = ct.substr(pos+1);
 			};
 		}
+
+		bool XmlHttpRequest::rebuildDOM()
+		{
+			std::string mime;
+			std::string enc;
+			getMimeAndEncoding(getResponseHeader("Content-Type"), mime, enc);
+
+			if (mime == "" ||
+				mime == "text/xml" ||
+				mime == "application/xml" || 
+				(mime.length() > 4 && mime.substr(mime.length()-4) == "+xml"))
+			{
+				return parseXML(enc);
+			}
+
+			return true;
+		}
+
+		class XHRParser: public xml::ExpatBase<XHRParser>
+		{
+			dom::XmlElementPtr elem;
+			std::string text;
+
+			void addText()
+			{
+				if (text.empty()) return;
+				if (elem)
+					elem->appendChild(doc->createTextNode(text));
+				text.clear();
+			}
+		public:
+
+			dom::XmlDocumentPtr doc;
+
+			bool create(const char* cp)
+			{
+				doc = dom::XmlDocument::create();
+				if (!doc) return false;
+				return xml::ExpatBase<XHRParser>::create(cp);
+			}
+
+			void onStartElement(const XML_Char *name, const XML_Char **attrs)
+			{
+				addText();
+				auto current = doc->createElement(name);
+				if (!current) return;
+				for (; *attrs; attrs += 2)
+				{
+					auto attr = doc->createAttribute(attrs[0], attrs[1]);
+					if (!attr) continue;
+					current->setAttribute(attr);
+				}
+				if (elem)
+					elem->appendChild(current);
+				else
+					doc->setDocumentElement(current);
+				elem = current;
+			}
+
+			void onEndElement(const XML_Char *name)
+			{
+				addText();
+				if (!elem) return;
+				dom::XmlNodePtr node = elem->parentNode();
+				elem = std::static_pointer_cast<dom::XmlElement>(node);
+			}
+
+			void onCharacterData(const XML_Char *pszData, int nLength)
+			{
+				text += std::string(pszData, nLength);
+			}
+		};
+
+		bool XmlHttpRequest::parseXML(const std::string& encoding)
+		{
+			const char* cp = NULL;
+			if (encoding != "") cp = encoding.c_str();
+			XHRParser parser;
+			if (!parser.create(cp)) return false;
+			parser.enableElementHandler();
+			parser.enableCharacterDataHandler();
+			if (!parser.parse((const char*)response.content, response.content_length))
+				return false;
+			doc = parser.doc;
+			return true;
+		} 
 	} // http::impl
 
 	XmlHttpRequestPtr XmlHttpRequest::Create()

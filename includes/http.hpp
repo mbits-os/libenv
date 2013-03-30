@@ -25,6 +25,8 @@
 #ifndef __HTTP_HPP__
 #define __HTTP_HPP__
 
+#include <dom.hpp>
+
 namespace http
 {
 	struct HttpResponse;
@@ -93,6 +95,7 @@ namespace http
 
 		virtual size_t getResponseTextLength() const = 0;
 		virtual const char* getResponseText() const = 0;
+		virtual dom::XmlDocumentPtr getResponseXml() = 0;
 
 		virtual void setDebug(bool debug = true) = 0;
 	};

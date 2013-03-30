@@ -387,6 +387,8 @@ namespace dom
 				val = val.substr(lo, hi - lo);
 				if (val.empty()) return;
 			}
+			if (val.length() > 80)
+				val = val.substr(0, 77) + "[...]";
 			out += "# " + val;
 		}
 		else if (type == ELEMENT_NODE)
@@ -413,13 +415,39 @@ namespace dom
 					out += node->nodeName();
 					if (!sattrs.empty())
 						out += "[" + sattrs + " ]";
-					out += ": " + sub->nodeValue() + "\n";
+
+					std::string val = sub->nodeValue();
+					if (ignorews)
+					{
+						size_t lo = 0, hi = val.length();
+						while (val[lo] && isspace(val[lo])) lo++;
+						while (lo < hi && isspace(val[hi-1])) hi--;
+						val = val.substr(lo, hi - lo);
+						if (val.empty()) return;
+					}
+
+					if (val.length() > 80)
+						val = val.substr(0, 77) + "[...]";
+
+					out += ": " + val + "\n";
 					fprintf(stderr, "%s", out.c_str());
 #ifdef WIN32
 					OutputDebugStringA(out.c_str());
 #endif
 					return;
 				}
+			}
+			if (!subs || subs->length() == 0)
+			{
+					out += node->nodeName();
+					if (!sattrs.empty())
+						out += "[" + sattrs + " ]";
+					out += "\n";
+					fprintf(stderr, "%s", out.c_str());
+#ifdef WIN32
+					OutputDebugStringA(out.c_str());
+#endif
+					return;
 			}
 			out += "<" + node->nodeName() + sattrs + ">";
 		}
