@@ -93,7 +93,7 @@ namespace db
 	{
 		DriverRegistrar(const std::string& resource)
 		{
-			Drivers::registerRaw(resource, new (std::nothrow) DriverImpl());
+			try { Drivers::registerRaw(resource, new DriverImpl()); } catch (std::bad_alloc) {}
 		}
 	};
 }
