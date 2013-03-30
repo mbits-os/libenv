@@ -27,6 +27,7 @@
 
 #include <string>
 #include <list>
+#include <algorithm>
 
 template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 
@@ -110,5 +111,22 @@ namespace tyme
 		return strftime(buffer, size, format, tm);
 	}
 };
+
+namespace std
+{
+	static inline std::string tolower(const std::string& s)
+	{
+		std::string out = s;
+		std::transform(out.begin(), out.end(), out.begin(), ::tolower);
+		return out;
+	}
+
+	static inline std::string toupper(const std::string& s)
+	{
+		std::string out = s;
+		std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+		return out;
+	}
+}
 
 #endif //__UTILS_H__
