@@ -151,6 +151,7 @@ namespace http
 			int getStatus() const;
 			std::string getStatusText() const;
 			std::string getResponseHeader(const std::string& name) const;
+			std::map<std::string, std::string> getResponseHeaders() const;
 			size_t getResponseTextLength() const;
 			const char* getResponseText() const;
 
@@ -281,6 +282,11 @@ namespace http
 			Headers::const_iterator _it = response_headers.find(std::tolower(name));
 			if (_it == response_headers.end()) return std::string();
 			return _it->second;
+		}
+
+		std::map<std::string, std::string> XmlHttpRequest::getResponseHeaders() const
+		{
+			return response_headers;
 		}
 
 		size_t XmlHttpRequest::getResponseTextLength() const

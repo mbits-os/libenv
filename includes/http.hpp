@@ -48,6 +48,7 @@ namespace http
 		virtual int getStatus() const = 0;
 		virtual std::string getStatusText() const = 0;
 		virtual std::string getResponseHeader(const std::string& name) const = 0;
+		virtual std::map<std::string, std::string> getResponseHeaders() const = 0;
 	};
 
 	struct XmlHttpRequest: HttpResponse
@@ -63,9 +64,23 @@ namespace http
 			DONE = 4
 		};
 
-		typedef void (*ONREADYSTATECHANGE)(XmlHttpRequest* req, void* userdata);
+		typedef void (*ONREADYSTATECHANGE)(XmlHttpRequest* xhr, void* userdata);
+
+		struct OnReadyStateChange
+		{
+			virtual ~OnReadyStateChange() {}
+			virtual void onReadyStateChange(XmlHttpRequest* xhr) {}
+			static void Callback(XmlHttpRequest* xhr, void* userdata)
+			{
+				((OnReadyStateChange*)userdata)->onReadyStateChange(xhr);
+			}
+		};
 
 		virtual void onreadystatechange(ONREADYSTATECHANGE handler, void* userdata) = 0;
+		void onreadystatechange(OnReadyStateChange* handler)
+		{
+			onreadystatechange(OnReadyStateChange::Callback, handler);
+		}
 		virtual READY_STATE getReadyState() const = 0;
 
 		virtual void open(HTTP_METHOD method, const std::string& url, bool async = true) = 0;

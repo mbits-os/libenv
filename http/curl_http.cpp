@@ -6,6 +6,8 @@
 #include <curl/curl.h>
 #ifdef WIN32
 #include <windows.h>
+#else
+#include <sys/utsname.h>
 #endif
 #include <string.h>
 
@@ -36,7 +38,10 @@ namespace http
 		ret += ver;
 		return ret;
 #else
-		return PLATFORM;
+		utsname name;
+		if (uname(&name))
+			return PLATFORM;
+		return name.sysname;
 #endif
 	}
 
@@ -287,12 +292,15 @@ namespace http
 		}
 		//if (req.body != std::string())
 		//	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, req.body.c_str());
-		curl_easy_perform(curl);
+		CURLcode ret = curl_easy_perform(curl);
 
 		/* always cleanup */
 		curl_easy_cleanup(curl);
 
-		ref->onFinish();
+		if (ret == CURLE_OK)
+			ref->onFinish();
+		else
+			ref->onError();
 	}
 
 	size_t CurlAsyncJob::OnData(const void * _Str, size_t _Size, size_t _Count)
