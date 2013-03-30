@@ -238,7 +238,7 @@ namespace FastCGI
 
 	int Application::init(const char* localeRoot)
 	{
-		if (!os::AsyncData::isInitialized())
+		if (!mt::AsyncData::isInitialized())
 			return false;
 
 		int ret = FCGX_Init();
@@ -271,7 +271,7 @@ namespace FastCGI
 
 	db::ConnectionPtr Application::dbConn(Request& request)
 	{
-		os::Lock on (*this);
+		Synchronize on (*this);
 
 		//restart if needed
 		if (!m_dbConn.get())
@@ -307,7 +307,7 @@ namespace FastCGI
 
 	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
 	{
-		os::Lock on (*this);
+		Synchronize on (*this);
 
 		cleanSessionCache();
 
@@ -334,7 +334,7 @@ namespace FastCGI
 
 	SessionPtr Application::startSession(Request& request, const char* email)
 	{
-		os::Lock on (*this);
+		Synchronize on (*this);
 
 		cleanSessionCache();
 
@@ -364,7 +364,7 @@ namespace FastCGI
 	{
 		// lock
 		g_app->lock();
-		m_log << file << ":" << line << " @" << os::Thread::currentId() << " ";
+		m_log << file << ":" << line << " @" << mt::Thread::currentId() << " ";
 	}
 
 	ApplicationLog::~ApplicationLog()
@@ -435,9 +435,9 @@ namespace FastCGI
 	{
 		try {
 			// Some platforms require accept() serialization, some don't..
-			static os::InitializedAsyncData accept_guard;
+			static mt::AsyncData accept_guard;
 
-			os::Lock the(accept_guard);
+			Synchronize the(accept_guard);
 
 			bool ret = m_backend->accept();
 #if DEBUG_CGI

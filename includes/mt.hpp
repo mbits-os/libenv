@@ -22,9 +22,59 @@
  * SOFTWARE.
  */
 
-#include "pch.h"
-#include <os.hpp>
+#ifndef __MT_HPP__
+#define __MT_HPP__
 
-namespace os
+#include <stdexcept>
+
+#ifdef POSIX
+#include <pthread.h>
+#endif
+
+namespace mt
 {
-}
+	class Thread
+	{
+	public:
+		static unsigned long currentId();
+		void start() {}
+		virtual void run() = 0;
+	};
+
+	struct Mutex
+	{
+#ifdef _WIN32
+		CRITICAL_SECTION m_cs;
+#endif
+#ifdef POSIX
+		pthread_mutex_t m_mutex;
+#endif
+		void init();
+		void finalize();
+		void lock();
+		void unlock();
+	};
+
+	class AsyncData
+	{
+	protected:
+		Mutex m_mtx;
+	public:
+		AsyncData() { m_mtx.init(); }
+		~AsyncData() { m_mtx.finalize(); }
+		void lock() { m_mtx.lock(); }
+		void unlock() { m_mtx.unlock(); }
+	};
+
+	struct Synchronize
+	{
+		AsyncData& data;
+
+		Synchronize(AsyncData& d): data(d) { data.lock(); };
+		~Synchronize() { data.unlock(); };
+	};
+ }
+
+using mt::Synchronize;
+
+#endif // __MT_HPP__

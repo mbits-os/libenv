@@ -23,8 +23,32 @@
  */
 
 #include "pch.h"
-#include <os.hpp>
+#include <mt.hpp>
 
-namespace os
+namespace mt
 {
+	unsigned long Thread::currentId()
+	{
+		return GetCurrentThreadId();
+	}
+
+	void Mutex::init()
+	{
+		InitializeCriticalSection(&m_cs);
+	}
+
+	void Mutex::finalize()
+	{
+		DeleteCriticalSection(&m_cs);
+	}
+
+	void Mutex::lock()
+	{
+		EnterCriticalSection(&m_cs);
+	}
+
+	void Mutex::unlock()
+	{
+		LeaveCriticalSection(&m_cs);
+	}
 }

@@ -22,68 +22,34 @@
  * SOFTWARE.
  */
 
-#ifndef __OS_HPP__
-#define __OS_HPP__
+#include "pch.h"
+#include <mt.hpp>
 
-#include <stdexcept>
-
-namespace os
+namespace mt
 {
-	class Thread
+	unsigned long Thread::currentId()
 	{
-	public:
-		static unsigned long currentId() { return 0; }
-		void start() {}
-		virtual void run() = 0;
-	};
+		return (unsigned long)pthread_self();
+	}
 
-	class CriticalSection
+	void Mutex::init()
+		: m_mutex(PTHREAD_MUTEX_INITIALIZER)
 	{
-	public:
-		bool init() { return true; }
-		void lock() {}
-		void unlock() {}
-	};
+		pthread_mutex_init(&m_mutex, NULL);
+	}
 
-	class AsyncData
+	void Mutex::finalize()
 	{
-		CriticalSection m_cs;
-		bool m_inited;
-	public:
-		AsyncData()
-		{
-			m_inited = m_cs.init();
-		}
-		bool isInitialized() const { return m_inited; }
+		pthread_mutex_destroy(&m_mutex);
+	}
 
-		void lock() { m_cs.lock(); }
-		void unlock() { m_cs.unlock(); }
-	};
-
-	class InitializedAsyncData: public AsyncData
+	void Mutex::lock()
 	{
-	public:
-		InitializedAsyncData()
-		{
-			if (!isInitialized())
-				throw std::runtime_error("");
-		}
-	};
+		pthread_mutex_lock(&m_mutex);
+	}
 
-	class Lock
+	void Mutex::unlock()
 	{
-		AsyncData& m_ref;
-	public:
-		Lock(AsyncData& ref)
-			: m_ref(ref)
-		{
-			m_ref.lock();
-		}
-		~Lock()
-		{
-			m_ref.unlock();
-		}
-	};
+		pthread_mutex_unlock(&m_mutex);
+	}
 }
-
-#endif // __OS_HPP__
