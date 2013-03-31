@@ -266,22 +266,6 @@ namespace FastCGI
 	}
 #endif
 
-	db::ConnectionPtr Application::dbConn(Request& request)
-	{
-		Synchronize on (*this);
-
-		//restart if needed
-		if (!m_dbConn.get())
-			m_dbConn = db::Connection::open(INI);
-		else if (!m_dbConn->isStillAlive())
-			m_dbConn->reconnect();
-
-		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
-			request.on500();
-
-		return m_dbConn;
-	}
-
 	void Application::cleanSessionCache()
 	{
 		tyme::time_t treshold = tyme::now() - 30 * 60;
@@ -312,7 +296,7 @@ namespace FastCGI
 		Sessions::iterator _it = m_sessions.find(sessionId);
 		if (_it == m_sessions.end() || !_it->second.second.get())
 		{
-			db::ConnectionPtr db = dbConn(request);
+			db::ConnectionPtr db = request.dbConn();
 			if (db.get())
 				out = Session::fromDB(db, sessionId.c_str());
 
@@ -336,7 +320,7 @@ namespace FastCGI
 		cleanSessionCache();
 
 		SessionPtr out;
-		db::ConnectionPtr db = dbConn(request);
+		db::ConnectionPtr db = request.dbConn();
 		if (db.get())
 			out = Session::startSession(db, email);
 		// TODO: limits needed, or DoS eminent
@@ -348,7 +332,7 @@ namespace FastCGI
 
 	void Application::endSession(Request& request, const std::string& sessionId)
 	{
-		db::ConnectionPtr db = dbConn(request);
+		db::ConnectionPtr db = request.dbConn();
 		if (db.get())
 			Session::endSession(db, sessionId.c_str());
 		Sessions::iterator _it = m_sessions.find(sessionId);
@@ -463,6 +447,22 @@ namespace FastCGI
 
 		try { onRequest(req); }
 		catch(FastCGI::FinishResponse) {} // die() lands here
+	}
+
+	db::ConnectionPtr Thread::dbConn(Request& request)
+	{
+		Synchronize on (*this);
+
+		//restart if needed
+		if (!m_dbConn.get())
+			m_dbConn = db::Connection::open(INI);
+		else if (!m_dbConn->isStillAlive())
+			m_dbConn->reconnect();
+
+		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
+			request.on500();
+
+		return m_dbConn;
 	}
 
 	Request::Request(Thread& thread)

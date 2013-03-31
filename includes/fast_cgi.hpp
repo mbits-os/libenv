@@ -147,7 +147,6 @@ namespace FastCGI
 		typedef std::map<std::string, SessionCacheItem> Sessions;
 
 		long m_pid;
-		db::ConnectionPtr m_dbConn;
 		Sessions m_sessions;
 		lng::Locale m_locale;
 
@@ -160,7 +159,6 @@ namespace FastCGI
 		void addStlSession();
 		int init(const char* localeRoot);
 		int pid() const { return m_pid; }
-		db::ConnectionPtr dbConn(Request& request);
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
@@ -224,11 +222,12 @@ namespace FastCGI
 	};
 	typedef std::shared_ptr<Content> ContentPtr;
 
-	class Thread: public mt::Thread
+	class Thread: public mt::Thread, public mt::AsyncData
 	{
 		friend class Request;
 
 		Application* m_app;
+		db::ConnectionPtr m_dbConn;
 		std::shared_ptr<impl::ThreadBackend> m_backend;
 		static void* thread_run(void* _this)
 		{
@@ -244,6 +243,11 @@ namespace FastCGI
 		void setApplication(Application& app) { m_app = &app; }
 
 		Application* app() { return m_app; }
+		db::ConnectionPtr dbConn(Request& request);
+		SessionPtr getSession(Request& request, const std::string& sessionId);
+		SessionPtr startSession(Request& request, const char* email);
+		void endSession(Request& request, const std::string& sessionId);
+
 		const char * const* envp() const { return m_backend->envp(); }
 		bool accept();
 		void handleRequest();
@@ -304,7 +308,7 @@ namespace FastCGI
 			if (!ptr) on500();
 			return *ptr;
 		}
-		db::ConnectionPtr dbConn() { return app().dbConn(*this); }
+		db::ConnectionPtr dbConn() { return m_thread.dbConn(*this); }
 
 		void setHeader(const std::string& name, const std::string& value);
 		void setCookie(const std::string& name, const std::string& value, tyme::time_t expire = 0);
