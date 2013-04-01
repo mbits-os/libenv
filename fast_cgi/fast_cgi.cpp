@@ -422,7 +422,8 @@ namespace FastCGI
 
 			bool ret = m_backend->accept();
 #if DEBUG_CGI
-			m_app->report((char**)envp());
+			if (ret)
+				m_app->report((char**)envp());
 #endif
 			return ret;
 		} catch (std::runtime_error) {
@@ -438,6 +439,9 @@ namespace FastCGI
 		{
 			handleRequest();
 			m_backend->release();
+
+			if (shouldStop())
+				break;
 		}
 	}
 

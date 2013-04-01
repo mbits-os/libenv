@@ -229,11 +229,6 @@ namespace FastCGI
 		Application* m_app;
 		db::ConnectionPtr m_dbConn;
 		std::shared_ptr<impl::ThreadBackend> m_backend;
-		static void* thread_run(void* _this)
-		{
-			((Thread*)_this)->run();
-			return nullptr;
-		}
 	public:
 		Thread();
 		explicit Thread(const char* uri);

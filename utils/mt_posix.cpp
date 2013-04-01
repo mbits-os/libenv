@@ -32,16 +32,91 @@ namespace mt
 		return (unsigned long)pthread_self();
 	}
 
+	struct Event: public AsyncData
+	{
+		pthread_cond_t m_cond;
+		bool m_condInited;
+		bool m_alreadySignalled;
+	public:
+		Event(): m_condInited(false), m_alreadySignalled(false) {}
+		~Event()
+		{
+			if (m_condInited)
+				pthread_cond_destroy(&m_cond);
+		}
+		bool create()
+		{
+			m_condInited = (pthread_cond_init(&m_cond, NULL) == 0);
+			return m_condInited;
+		}
+
+		bool signal()
+		{
+			Synchronize on (*this);
+			int ret = pthread_cond_signal(&m_cond);
+			m_alreadySignalled = true;
+			return ret == 0;
+		}
+
+		bool wait()
+		{
+			Synchronize on (*this);
+			if (m_alreadySignalled)
+			{
+				m_alreadySignalled = false;
+				return true;
+			}
+			bool ret = pthread_cond_wait(&m_cond, &m_mtx.m_mutex) == 0;
+			m_alreadySignalled = false;
+			return ret;
+		}
+	}; 
+
+	struct ThreadArgs
+	{
+		Thread* thread;
+		Event   posixEvent;
+	};
+
 	static void* thread_run(void* ptr)
 	{
-		auto _this = (Thread*)ptr;
-		_this->run();
+		//printf("Thread started: 0x%08x\n", mt::Thread::currentId()); fflush(stdout);
+		auto args = (ThreadArgs*)ptr;
+		auto thread = args->thread;
+		args->posixEvent.signal();
+		args = nullptr;
+
+		thread->run();
 		return nullptr;
 	}
 
 	void Thread::start()
 	{
-		pthread_create(&m_thread, NULL, thread_run, this);
+		//printf("Starting a new thread\n"); fflush(stdout);
+		ThreadArgs args = { this };
+		if (!args.posixEvent.create()) return;
+
+		if(pthread_create(&m_thread, NULL, thread_run, &args))
+			return;
+
+		args.posixEvent.wait();
+		//printf("Thread 0x%08x signalled start. Moving on.\n", m_thread); fflush(stdout);
+
+	}
+
+	void Thread::attach()
+	{
+		m_thread = pthread_self();
+		//printf("Thread %p attached. Moving on.\n", m_thread); fflush(stdout);
+	}
+
+	bool Thread::stop()
+	{
+		//printf("Requesting thread 0x%08x to close\n", m_thread); fflush(stdout);
+		stopThread = true;
+		bool ret = pthread_join(m_thread, NULL) == 0;
+		//printf("Thread 0x%08x closed. Moving on.\n", m_thread); fflush(stdout);
+		return ret;
 	}
 
 	void Mutex::init()

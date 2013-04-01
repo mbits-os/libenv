@@ -32,16 +32,57 @@ namespace mt
 		return GetCurrentThreadId();
 	}
 
-	static void thread_run(void* ptr)
+	struct ThreadArgs
 	{
-		auto _this = (Thread*)ptr;
-		_this->run();
+		Thread* thread;
+		HANDLE  hEvent;
+	};
+
+	static unsigned int __stdcall thread_run(void* ptr)
+	{
+		//printf("Thread started: %u\n", mt::Thread::currentId()); fflush(stdout);
+		auto args = (ThreadArgs*)ptr;
+		auto thread = args->thread;
+		SetEvent(args->hEvent);
+		args = nullptr;
+
+		thread->run();
+
 		_endthreadex(0);
+		return 0;
 	}
 
 	void Thread::start()
 	{
-		m_thread = _beginthread(thread_run, 0, this);
+		//printf("Starting a new thread\n"); fflush(stdout);
+		ThreadArgs args = { this };
+		args.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+		if (!args.hEvent) return;
+		m_thread = _beginthreadex(nullptr, 0, thread_run, &args, 0, &m_threadId);
+		if (!m_thread)
+		{
+			CloseHandle(args.hEvent);
+			return;
+		}
+		WaitForSingleObject(args.hEvent, INFINITE);
+		CloseHandle(args.hEvent);
+		//printf("Thread %u signalled start. Moving on.\n", m_threadId); fflush(stdout);
+	}
+
+	void Thread::attach()
+	{
+		m_thread = NULL;
+		m_threadId = mt::Thread::currentId();
+		//printf("Thread %u attached. Moving on.\n", m_threadId); fflush(stdout);
+	}
+
+	bool Thread::stop()
+	{
+		//printf("Requesting thread %u to close\n", m_threadId); fflush(stdout);
+		stopThread = true;
+		bool ret = WaitForSingleObject((HANDLE)m_thread,INFINITE) == WAIT_OBJECT_0;
+		//printf("Thread %u closed. Moving on.\n", m_threadId); fflush(stdout);
+		return ret;
 	}
 
 	void Mutex::init()

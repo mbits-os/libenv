@@ -41,18 +41,23 @@ namespace mt
 	{
 #ifdef _WIN32
 		uintptr_t m_thread;
+		unsigned int m_threadId;
 #endif
 #ifdef POSIX
 		pthread_t m_thread;
 #endif
+		bool stopThread;
 	public:
 		Thread(): m_thread(0) {}
 		static unsigned long currentId();
+		void attach();
 		void start();
+		bool stop();
+		bool shouldStop() const { return stopThread; }
 		virtual void run() = 0;
 	};
 
-	struct Mutex
+ 	struct Mutex
 	{
 #ifdef _WIN32
 		CRITICAL_SECTION m_cs;
@@ -84,7 +89,8 @@ namespace mt
 		Synchronize(AsyncData& d): data(d) { data.lock(); };
 		~Synchronize() { data.unlock(); };
 	};
- }
+ 
+}
 
 using mt::Synchronize;
 
