@@ -107,7 +107,8 @@ namespace mt
 	void Thread::attach()
 	{
 		m_thread = pthread_self();
-		//printf("Thread %p attached. Moving on.\n", m_thread); fflush(stdout);
+		//printf("Thread %p attached. Running.\n", m_thread); fflush(stdout);
+		run();
 	}
 
 	bool Thread::stop()

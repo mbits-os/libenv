@@ -24,6 +24,7 @@
 
 #include "pch.h"
 #include <mt.hpp>
+#include <fast_cgi.hpp>
 
 namespace mt
 {
@@ -40,7 +41,7 @@ namespace mt
 
 	static unsigned int __stdcall thread_run(void* ptr)
 	{
-		//printf("Thread started: %u\n", mt::Thread::currentId()); fflush(stdout);
+		//FLOG << "Thread started: " << mt::Thread::currentId();
 		auto args = (ThreadArgs*)ptr;
 		auto thread = args->thread;
 		SetEvent(args->hEvent);
@@ -54,7 +55,7 @@ namespace mt
 
 	void Thread::start()
 	{
-		//printf("Starting a new thread\n"); fflush(stdout);
+		//FLOG << "Starting a new thread";
 		ThreadArgs args = { this };
 		args.hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 		if (!args.hEvent) return;
@@ -66,22 +67,23 @@ namespace mt
 		}
 		WaitForSingleObject(args.hEvent, INFINITE);
 		CloseHandle(args.hEvent);
-		//printf("Thread %u signalled start. Moving on.\n", m_threadId); fflush(stdout);
+		//FLOG << "Thread " << m_threadId << " signalled start. Moving on.";
 	}
 
 	void Thread::attach()
 	{
 		m_thread = NULL;
 		m_threadId = mt::Thread::currentId();
-		//printf("Thread %u attached. Moving on.\n", m_threadId); fflush(stdout);
+		//FLOG << "Thread " << m_threadId << " attached. Running.";
+		run();
 	}
 
 	bool Thread::stop()
 	{
-		//printf("Requesting thread %u to close\n", m_threadId); fflush(stdout);
+		//FLOG << "Requesting thread " << m_threadId << " to close";
 		stopThread = true;
 		bool ret = WaitForSingleObject((HANDLE)m_thread,INFINITE) == WAIT_OBJECT_0;
-		//printf("Thread %u closed. Moving on.\n", m_threadId); fflush(stdout);
+		//FLOG << "Thread " << m_threadId << " closed. Moving on.";
 		return ret;
 	}
 
