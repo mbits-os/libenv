@@ -841,3 +841,13 @@ namespace FastCGI
 		std::string path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
 	}
 }
+
+extern "C" void flog(const char* file, int line, const char* fmt, ...)
+{
+	char buffer[8196];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buffer, sizeof(buffer), fmt, args);
+	va_end(args);
+	FastCGI::ApplicationLog(file, line) << buffer;
+}

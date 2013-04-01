@@ -30,6 +30,13 @@
 #include <mt.hpp>
 #include <fstream>
 
+#define LINED_2(name, line) name ## _ ## line
+#define LINED_1(name, line) LINED_2(name, line)
+#define LINED(name) LINED_1(name, __LINE__)
+
+#define LOG_FUNC() FastCGI::FLOGBlock LINED(dummy)(__FUNCTION__, __FILE__, __LINE__)
+#define LOG_BLOCK(tag) FastCGI::FLOGBlock LINED(dummy)(tag, __FILE__, __LINE__)
+
 namespace FastCGI
 {
 	class Request;
@@ -39,6 +46,15 @@ namespace FastCGI
 
 	typedef const char* param_t;
 	class FinishResponse {};
+
+	struct FLOGBlock
+	{
+		const char* tag;
+		const char* file;
+		int line;
+		inline FLOGBlock(const char* tag, const char* file, int line);
+		inline ~FLOGBlock();
+	};
 
 	namespace impl
 	{
@@ -197,6 +213,10 @@ namespace FastCGI
 		}
 	};
 #define FLOG FastCGI::ApplicationLog(__FILE__, __LINE__)
+
+	inline FLOGBlock::FLOGBlock(const char* tag, const char* file, int line)
+		: tag(tag), file(file), line(line) { ApplicationLog(file, line) << "[in] " << tag; }
+	inline FLOGBlock::~FLOGBlock() { ApplicationLog(file, line) << "[out] " << tag; }
 
 	struct RequestState
 	{
@@ -405,5 +425,8 @@ namespace FastCGI
 }
 
 namespace fcgi = FastCGI;
+
+extern "C" void flog(const char* file, int line, const char* fmt, ...);
+#define DBG(fmt, ...) flog(__FILE__, __LINE__, fmt, __VA_ARGS__)
 
 #endif //__SERVER_FAST_CFGI_H__
