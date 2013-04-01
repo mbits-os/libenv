@@ -39,9 +39,11 @@
 
 namespace FastCGI
 {
+	class Thread;
 	class Request;
 	class Session;
 	class Application;
+	typedef std::shared_ptr<Thread> ThreadPtr;
 	typedef std::shared_ptr<Session> SessionPtr;
 
 	typedef const char* param_t;
@@ -161,9 +163,11 @@ namespace FastCGI
 	{
 		typedef std::pair<tyme::time_t, SessionPtr> SessionCacheItem;
 		typedef std::map<std::string, SessionCacheItem> Sessions;
+		typedef std::list<ThreadPtr> Threads;
 
 		long m_pid;
 		Sessions m_sessions;
+		Threads m_threads;
 		lng::Locale m_locale;
 
 		std::ofstream m_log;
@@ -172,8 +176,22 @@ namespace FastCGI
 	public:
 		Application();
 		~Application();
+		template <typename T>
+		bool addThreads(int threadCount)
+		{
+			for (int i = 0; i < threadCount; ++i)
+			{
+				auto ptr = std::make_shared<T>();
+				if (!ptr)
+					return false;
+				ptr->setApplication(*this);
+				m_threads.push_back(ptr);
+			}
+			return true;
+		}
 		void addStlSession();
 		int init(const char* localeRoot);
+		void run();
 		int pid() const { return m_pid; }
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
@@ -194,6 +212,7 @@ namespace FastCGI
 		typedef std::list<ReqInfo> ReqList;
 		const ReqList& requs() const { return m_requs; }
 		void report(char** envp);
+		std::list<ThreadPtr> getThreads() const { return m_threads; }
 	private:
 		ReqList m_requs;
 #endif
@@ -267,6 +286,7 @@ namespace FastCGI
 		bool accept();
 		void handleRequest();
 		virtual void onRequest(Request& request) = 0;
+		virtual unsigned long getLoad() const = 0;
 
 		void run();
 	};

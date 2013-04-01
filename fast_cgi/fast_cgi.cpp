@@ -27,6 +27,8 @@
 #include <crypt.hpp>
 #include <utils.hpp>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #ifdef _WIN32
 #define INI "..\\conn.ini"
@@ -248,6 +250,20 @@ namespace FastCGI
 		sprintf(filename, LOGFILE, m_pid);
 		m_log.open(filename, std::ios_base::out | std::ios_base::binary);
 		return m_log.is_open() ? 0 : 1;
+	}
+
+	void Application::run()
+	{
+		auto first = m_threads.begin(), end = m_threads.end();
+		auto cur = first;
+		if (first == end)
+			return;
+		for (++cur; cur != end; ++cur)
+			(*cur)->start();
+
+		(*first)->attach();
+
+		std::for_each(++first, end, [](ThreadPtr thread) { thread->stop(); });
 	}
 
 #if DEBUG_CGI
@@ -847,7 +863,7 @@ extern "C" void flog(const char* file, int line, const char* fmt, ...)
 	char buffer[8196];
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(buffer, sizeof(buffer), fmt, args);
+	vsprintf(buffer, fmt, args);
 	va_end(args);
 	FastCGI::ApplicationLog(file, line) << buffer;
 }

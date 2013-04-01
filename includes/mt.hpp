@@ -55,6 +55,13 @@ namespace mt
 		bool stop();
 		bool shouldStop() const { return stopThread; }
 		virtual void run() = 0;
+#ifdef _WIN32
+		unsigned int threadId() const { return m_threadId; }
+#endif
+#ifdef POSIX
+		pthread_t threadId() const { return m_thread; }
+#endif
+
 	};
 
  	struct Mutex
