@@ -82,6 +82,7 @@ namespace FastCGI
 		bool accept();
 		void handleRequest();
 		virtual void onRequest(Request& request) = 0;
+		virtual unsigned long getLoad() const = 0;
 
 		void run();
 	};
