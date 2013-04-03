@@ -30,9 +30,9 @@ namespace FastCGI { namespace app {
 
 	HandlerPtr Handlers::_handler(Request& request)
 	{
-		fcgi::param_t REQUEST_URI = request.getParam("REQUEST_URI");
+		param_t REQUEST_URI = request.getParam("REQUEST_URI");
 		if (REQUEST_URI == nullptr) return HandlerPtr();
-		fcgi::param_t query = strchr(REQUEST_URI, '?');
+		param_t query = strchr(REQUEST_URI, '?');
 
 		HandlerMap::iterator _it = m_handlers.find(query ? std::string(REQUEST_URI, query) : REQUEST_URI);
 		if (_it == m_handlers.end()) return HandlerPtr();

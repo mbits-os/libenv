@@ -23,31 +23,19 @@
  */
 
 #include "pch.h"
-#include <fast_cgi.hpp>
-#include <crypt.hpp>
-#include <utils.hpp>
+#include <fast_cgi/application.hpp>
+#include <fast_cgi/request.hpp>
+#include <fast_cgi/session.hpp>
+#include <fast_cgi/thread.hpp>
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
-
-#ifdef _WIN32
-#define INI "..\\conn.ini"
-#define LOGFILE "..\\error-%u.log"
-#endif
-
-#ifdef POSIX
-#define INI "../conn.ini"
-#define LOGFILE "../error-%u.log"
-#endif
-
-#ifndef INI
-#error There is no path to conn.ini defined...
-#endif
 
 #define MAX_FORM_BUFFER 10240
 
 namespace FastCGI
 {
+<<<<<<< HEAD:libenv/fast_cgi/fast_cgi.cpp
 	namespace impl
 	{
 		LibFCGIRequest::LibFCGIRequest(FCGX_Request& request)
@@ -371,6 +359,8 @@ namespace FastCGI
 		// unlock
 	}
 
+=======
+>>>>>>> b8924ad... Breaking 1200-odd lines into separate headers/code:libenv/fast_cgi/request.cpp
 	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
 		if (session.get() != nullptr)
@@ -403,86 +393,6 @@ namespace FastCGI
 		if (!str)
 			return error(m_badString, stringId);
 		return str;
-	}
-
-	Thread::Thread()
-		: m_backend(new (std::nothrow) impl::LibFCGIThread)
-	{
-	}
-
-	Thread::Thread(const char* uri)
-		: m_backend(new (std::nothrow) impl::STLThread(uri))
-	{
-	}
-
-	Thread::~Thread()
-	{
-	}
-
-	bool Thread::init()
-	{
-		if (!m_backend.get() || !m_app)
-			return false;
-
-		m_backend->init();
-		return true;
-	}
-
-	bool Thread::accept()
-	{
-		try {
-			// Some platforms require accept() serialization, some don't..
-			static mt::AsyncData accept_guard;
-
-			Synchronize the(accept_guard);
-
-			bool ret = m_backend->accept();
-#if DEBUG_CGI
-			if (ret)
-				m_app->report((char**)envp());
-#endif
-			return ret;
-		} catch (std::runtime_error) {
-			return false;
-		}
-	}
-
-	void Thread::run()
-	{
-		if (!init())
-			return;
-		while (accept())
-		{
-			handleRequest();
-			m_backend->release();
-
-			if (shouldStop())
-				break;
-		}
-	}
-
-	void Thread::handleRequest()
-	{
-		FastCGI::Request req(*this);
-
-		try { onRequest(req); }
-		catch(FastCGI::FinishResponse) {} // die() lands here
-	}
-
-	db::ConnectionPtr Thread::dbConn(Request& request)
-	{
-		Synchronize on (*this);
-
-		//restart if needed
-		if (!m_dbConn.get())
-			m_dbConn = db::Connection::open(INI);
-		else if (!m_dbConn->isStillAlive())
-			m_dbConn->reconnect();
-
-		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
-			request.on500();
-
-		return m_dbConn;
 	}
 
 	Request::Request(Thread& thread)
@@ -746,9 +656,9 @@ namespace FastCGI
 
 	std::string Request::serverUri(const std::string& resource, bool withQuery)
 	{
-		fcgi::param_t port = getParam("SERVER_PORT");
-		fcgi::param_t server = getParam("SERVER_NAME");
-		fcgi::param_t query = withQuery ? getParam("QUERY_STRING") : nullptr;
+		param_t port = getParam("SERVER_PORT");
+		param_t server = getParam("SERVER_NAME");
+		param_t query = withQuery ? getParam("QUERY_STRING") : nullptr;
 		std::string url;
 
 		if (server != nullptr)
@@ -857,6 +767,7 @@ namespace FastCGI
 		std::string path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
 	}
 }
+<<<<<<< HEAD:libenv/fast_cgi/fast_cgi.cpp
 
 extern "C" void flog(const char* file, int line, const char* fmt, ...)
 {
@@ -867,3 +778,5 @@ extern "C" void flog(const char* file, int line, const char* fmt, ...)
 	va_end(args);
 	FastCGI::ApplicationLog(file, line) << buffer;
 }
+=======
+>>>>>>> b8924ad... Breaking 1200-odd lines into separate headers/code:libenv/fast_cgi/request.cpp
