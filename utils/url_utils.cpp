@@ -215,8 +215,8 @@ namespace url
 			return m_pos < right.m_pos;
 		}
 
-#define WS do { while (isspace(*c) && c < end) c++; } while(0)
-#define LOOK_FOR(ch) do { while (!isspace(*c) && *c != ',' && *c != (ch) && c < end) c++; } while(0)
+#define WS do { while (isspace((unsigned char)*c) && c < end) c++; } while(0)
+#define LOOK_FOR(ch) do { while (!isspace((unsigned char)*c) && *c != ',' && *c != (ch) && c < end) c++; } while(0)
 
 		const char* read(size_t pos, const char* c, const char* end)
 		{

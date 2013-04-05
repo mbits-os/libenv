@@ -401,16 +401,16 @@ namespace http
 				std::string cand = ct.substr(0, pos);
 				ct = ct.substr(pos+1);
 				size_t low = 0, hi = cand.length();
-				while (cand[low] && isspace(cand[low])) ++low;
-				while (hi > low && isspace(cand[hi-1])) --hi;
+				while (cand[low] && isspace((unsigned char)cand[low])) ++low;
+				while (hi > low && isspace((unsigned char)cand[hi-1])) --hi;
 
 				if (std::tolower(cand.substr(low, hi - low)) == "charset")
 				{
 					pos = ct.find_first_of(';');
 					enc = ct.substr(0, pos);
 					low = 0; hi = enc.length();
-					while (enc[low] && isspace(enc[low])) ++low;
-					while (hi > low && isspace(enc[hi-1])) --hi;
+					while (enc[low] && isspace((unsigned char)enc[low])) ++low;
+					while (hi > low && isspace((unsigned char)enc[hi-1])) --hi;
 					enc = std::toupper(enc.substr(low, hi-low));
 					return;
 				}
