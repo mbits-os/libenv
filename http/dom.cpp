@@ -24,6 +24,7 @@
 
 #include "pch.h"
 #include <dom.hpp>
+#include <dom_xpath.hpp>
 #include <vector>
 #include <iterator>
 #include <string.h>
@@ -151,6 +152,15 @@ namespace dom
 			void* internalData() { return (XmlNodeImplInit*)this; }
 
 			bool appendAttr(dom::XmlNodePtr newChild) { return false; }
+
+			XmlNodePtr find(const std::string& path, const Namespaces& ns)
+			{
+				return xpath::XPath(path, ns).find(self.lock());
+			}
+			XmlNodeListPtr findall(const std::string& path, const Namespaces& ns)
+			{
+				return xpath::XPath(path, ns).findall(self.lock());
+			}
 		};
 
 		class XmlNodeList: public dom::XmlNodeList
@@ -457,6 +467,15 @@ namespace dom
 			{
 				return nullptr;
 			}
+
+			XmlNodePtr find(const std::string& path, const Namespaces& ns)
+			{
+				return xpath::XPath(path, ns).find(self.lock());
+			}
+			XmlNodeListPtr findall(const std::string& path, const Namespaces& ns)
+			{
+				return xpath::XPath(path, ns).findall(self.lock());
+			}
 		};
 	}
 
@@ -575,5 +594,12 @@ namespace dom
 #endif
 
 		Print(subs, ignorews, depth+1);
+	}
+
+	XmlNodeListPtr createList(const std::vector<XmlNodePtr>& list)
+	{
+		try {
+		return std::make_shared<impl::XmlNodeList>(list);
+		} catch(std::bad_alloc) { return nullptr; }
 	}
 }

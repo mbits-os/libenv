@@ -99,6 +99,10 @@ namespace dom
 		virtual XmlDocumentPtr ownerDocument() = 0;
 		virtual bool appendChild(XmlNodePtr newChild) = 0;
 		virtual void* internalData() = 0;
+
+		virtual XmlNodePtr find(const std::string& path, const Namespaces& ns) = 0;
+		virtual XmlNodePtr find(const std::string& path) { return find(path, nullptr); }
+		virtual XmlNodeListPtr findall(const std::string& path, const Namespaces& ns) = 0;
 	};
 
 	struct XmlDocument: XmlNode
