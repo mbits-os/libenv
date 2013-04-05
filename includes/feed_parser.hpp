@@ -27,6 +27,12 @@
 
 #include <utils.hpp>
 
+namespace dom
+{
+	struct XmlDocument;
+	typedef std::shared_ptr<XmlDocument> XmlDocumentPtr;
+};
+
 namespace feed
 {
 	struct Enclosure
@@ -34,6 +40,7 @@ namespace feed
 		std::string m_url;
 		std::string m_type;
 		size_t m_size;
+		Enclosure(): m_size(0) {}
 	};
 	typedef std::list<Enclosure> Enclosures;
 
@@ -54,7 +61,6 @@ namespace feed
 	struct Entry
 	{
 		std::string  m_entryUniqueId;
-		std::string  m_originalEntryId;
 
 		NamedUrl     m_entry;
 		std::string  m_description;
@@ -63,10 +69,10 @@ namespace feed
 		Enclosures   m_enclosures;
 		Categories   m_categories;
 
-		tyme::time_t m_publishDateTime;
-		tyme::time_t m_lastUpdatedDateTime;
+		tyme::time_t m_dateTime;
 
 		std::string  m_content;
+		Entry(): m_dateTime(0) {}
 	};
 	typedef std::list<Entry> Entries;
 
@@ -81,6 +87,8 @@ namespace feed
         Categories  m_categories;
         Entries     m_entry;
 	};
+
+	bool parse(dom::XmlDocumentPtr document, Feed& feed);
 };
 
 #endif //__FEED_PARSER_H__

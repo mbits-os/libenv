@@ -24,3 +24,33 @@
 
 #include "pch.h"
 #include <feed_parser.hpp>
+
+namespace feed
+{
+	namespace atom03 { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
+	namespace atom10 { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
+	namespace rdf10  { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
+	namespace rss20  { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
+
+	typedef bool (*Parser)(dom::XmlDocumentPtr, Feed&);
+	static Parser parsers[] = {
+		atom10::parse,
+		atom03::parse,
+		rss20::parse,
+		rdf10::parse
+	};
+
+	bool parse(dom::XmlDocumentPtr document, Feed& feed)
+	{
+		for (size_t i = 0; i < sizeof(parsers)/sizeof(parsers[0]); ++i)
+		{
+			Feed f;
+			if (parsers[i](document, f))
+			{
+				feed = std::move(f);
+				return true;
+			}
+		}
+		return false;
+	}
+}
