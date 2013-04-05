@@ -41,31 +41,51 @@ namespace dom
 	typedef std::shared_ptr<XmlAttribute> XmlAttributePtr;
 	typedef std::shared_ptr<XmlText> XmlTextPtr;
 
+	struct NSData
+	{
+		const char* key;
+		const char* ns;
+	};
+
+	typedef NSData* Namespaces;
+
+	struct QName
+	{
+		std::string nsName;
+		std::string localName;
+
+		bool operator == (const QName& right) const
+		{
+			return nsName == right.nsName && localName == right.localName;
+		}
+		bool operator != (const QName& right) const
+		{
+			return !(*this == right);
+		}
+	};
+
+	inline std::ostream& operator << (std::ostream& o, const QName& qname)
+	{
+		if (!qname.nsName.empty())
+			o << "{" << qname.nsName << "}";
+		return o << qname.localName;
+	}
+
 	enum NODE_TYPE
 	{
+		DOCUMENT_NODE  = 0,
 		ELEMENT_NODE   = 1,
 		ATTRIBUTE_NODE = 2,
 		TEXT_NODE      = 3
-	};
-
-	struct XmlDocument
-	{
-		static XmlDocumentPtr create();
-		virtual ~XmlDocument() {}
-		virtual XmlElementPtr documentElement() = 0;
-		virtual void setDocumentElement(XmlElementPtr elem) = 0;
-		virtual XmlElementPtr createElement(const std::string& tagName) = 0;
-		virtual XmlTextPtr createTextNode(const std::string& data) = 0;
-		virtual XmlAttributePtr createAttribute(const std::string& name, const std::string& value) = 0;
-		virtual XmlNodeListPtr getElementsByTagName(const std::string& tagName) = 0;
-		virtual XmlElementPtr getElementById(const std::string& elementId) = 0;
 	};
 
 	struct XmlNode
 	{
 		virtual ~XmlNode() {}
 		virtual std::string nodeName() const = 0;
+		virtual const QName& nodeQName() const = 0;
 		virtual std::string nodeValue() const = 0;
+		virtual std::string stringValue() { return nodeValue(); } // nodeValue for TEXT, ATTRIBUTE, and - coincidently - DOCUMENT; innerText for ELEMENT; used in xpath
 		virtual void nodeValue(const std::string& val) = 0;
 		virtual NODE_TYPE nodeType() const = 0;
 
@@ -79,6 +99,22 @@ namespace dom
 		virtual XmlDocumentPtr ownerDocument() = 0;
 		virtual bool appendChild(XmlNodePtr newChild) = 0;
 		virtual void* internalData() = 0;
+	};
+
+	struct XmlDocument: XmlNode
+	{
+		static XmlDocumentPtr create();
+		virtual ~XmlDocument() {}
+
+		virtual XmlElementPtr documentElement() = 0;
+		virtual void setDocumentElement(XmlElementPtr elem) = 0;
+
+		virtual XmlElementPtr createElement(const std::string& tagName) = 0;
+		virtual XmlTextPtr createTextNode(const std::string& data) = 0;
+		virtual XmlAttributePtr createAttribute(const std::string& name, const std::string& value) = 0;
+
+		virtual XmlNodeListPtr getElementsByTagName(const std::string& tagName) = 0;
+		virtual XmlElementPtr getElementById(const std::string& elementId) = 0;
 	};
 
 	struct XmlNodeList
@@ -105,6 +141,7 @@ namespace dom
 	struct XmlElement: XmlNode
 	{
 		virtual std::string tagName() const { return nodeName(); }
+		virtual std::string stringValue() { return innerText(); }
 		virtual std::string getAttribute(const std::string& name) = 0;
 		virtual XmlAttributePtr getAttributeNode(const std::string& name) = 0;
 		virtual bool setAttribute(XmlAttributePtr attr) = 0;

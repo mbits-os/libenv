@@ -26,11 +26,14 @@
 #include <dom.hpp>
 #include <vector>
 #include <iterator>
+#include <string.h>
 
 namespace dom
 {
 	namespace impl
 	{
+		typedef std::vector< dom::XmlNodePtr > NodesInit;
+
 		struct XmlNodeImplInit
 		{
 			NODE_TYPE type;
@@ -40,6 +43,26 @@ namespace dom
 			std::weak_ptr<dom::XmlNode> parent;
 			std::weak_ptr<dom::XmlNode> self;
 			size_t index;
+			QName qname;
+
+			virtual void fixQName(bool forElem = true)
+			{
+				std::string::size_type col = _name.find(':');
+				if (col == std::string::npos && !forElem) return;
+				if (col == std::string::npos)
+					fixQName(qname, std::string(), _name);
+				else
+					fixQName(qname, std::string(_name.c_str(), col), std::string(_name.c_str() + col + 1));
+			}
+
+			virtual void fixQName(QName& qname, const std::string& ns, const std::string& localName)
+			{
+				dom::XmlNodePtr parent = this->parent.lock();
+				if (!parent) return;
+				XmlNodeImplInit* p = (XmlNodeImplInit*)parent->internalData();
+				if (!p) return;
+				p->fixQName(qname, ns, localName);
+			}
 		};
 
 		template <typename T, typename _Interface>
@@ -50,9 +73,13 @@ namespace dom
 			typedef XmlNodeImplInit Init;
 			typedef _Interface Interface;
 
-			XmlNodeImpl(const Init& init): Init(init) {}
+			XmlNodeImpl(const Init& init): Init(init)
+			{
+				qname.localName = init._name;
+			}
 
 			std::string nodeName() const { return _name; }
+			const QName& nodeQName() const { return qname; }
 			std::string nodeValue() const { return _value; }
 			void nodeValue(const std::string& val)
 			{
@@ -83,6 +110,7 @@ namespace dom
 					return dom::XmlNodePtr();
 
 				XmlNodeImplInit* plist = (XmlNodeImplInit*)par->internalData();
+				if (!plist) return nullptr;
 				return plist->children[index - 1];
 			}
 
@@ -93,6 +121,7 @@ namespace dom
 					return dom::XmlNodePtr();
 
 				XmlNodeImplInit* plist = (XmlNodeImplInit*)par->internalData();
+				if (!plist) return nullptr;
 
 				size_t ndx = index + 1;
 				if (ndx >= plist->children.size()) return dom::XmlNodePtr();
@@ -114,6 +143,7 @@ namespace dom
 				p->parent = self;
 				p->index = children.size();
 				children.push_back(newChild);
+				p->fixQName();
 
 				return true;
 			}
@@ -126,7 +156,7 @@ namespace dom
 		class XmlNodeList: public dom::XmlNodeList
 		{
 		public:
-			typedef std::vector< dom::XmlNodePtr > Init;
+			typedef NodesInit Init;
 			Init children;
 
 			XmlNodeList(const Init& init): children(init) {}
@@ -177,10 +207,13 @@ namespace dom
 		class XmlElement: public XmlNodeImpl<XmlElement, dom::XmlElement>
 		{
 		public:
-			//std::vector< dom::XmlAttributePtr > attrs;
+			bool nsRebuilt;
+			typedef std::map< std::string, std::string > InternalNamespaces;
+			InternalNamespaces namespaces;
+
 			std::map< std::string, dom::XmlAttributePtr > lookup;
 
-			XmlElement(const Init& init): XmlNodeImpl(init) {}
+			XmlElement(const Init& init): XmlNodeImpl(init), nsRebuilt(false) {}
 
 			std::string getAttribute(const std::string& name)
 			{
@@ -284,21 +317,97 @@ namespace dom
 
 				return out;
 			}
+
+			void fixQName(bool forElem = true)
+			{
+				XmlNodeImpl<XmlElement, dom::XmlElement>::fixQName(forElem);
+				if (!forElem) return;
+				std::for_each(lookup.begin(), lookup.end(), [&](std::pair< std::string, dom::XmlAttributePtr > pair)
+				{
+					if (strncmp(pair.first.c_str(), "xmlns", 5) == 0 &&
+						(pair.first.length() == 5 || pair.first[5] == ':'))
+					{
+						return;
+					}
+					XmlNodeImplInit* p = (XmlNodeImplInit*)pair.second->internalData();
+					if (!p) return;
+					p->fixQName(false);
+				});
+			}
+
+			void fixQName(QName& qname, const std::string& ns, const std::string& localName)
+			{
+				if (!nsRebuilt)
+				{
+					nsRebuilt = true;
+					namespaces.clear();
+					std::for_each(lookup.begin(), lookup.end(), [&](std::pair< std::string, dom::XmlAttributePtr > pair)
+					{
+						if (strncmp(pair.first.c_str(), "xmlns", 5) != 0) return;
+						if (pair.first.length() != 5 && pair.first[5] != ':') return;
+						if (pair.first.length() == 5) namespaces[""] = pair.second->value();
+						else namespaces[std::string(pair.first.c_str() + 6)] = pair.second->value();
+					});
+				}
+				InternalNamespaces::const_iterator _it = namespaces.find(ns);
+				if (_it != namespaces.end())
+				{
+					qname.nsName = _it->second;
+					qname.localName = localName;
+					return;
+				}
+				XmlNodeImpl<XmlElement, dom::XmlElement>::fixQName(qname, ns, localName);
+			}
 		};
 
 		class XmlDocument: public dom::XmlDocument
 		{
+			QName m_qname;
 			dom::XmlElementPtr root;
 			std::weak_ptr<dom::XmlDocument> self;
 
 			friend XmlDocumentPtr dom::XmlDocument::create();
 		public:
 
-			XmlDocument() {}
+			XmlDocument()
+			{
+				m_qname.localName = "#document";
+			}
 			~XmlDocument() {}
 
+			std::string nodeName() const { return m_qname.localName; }
+			const QName& nodeQName() const { return m_qname; }
+			std::string nodeValue() const { return std::string(); }
+			void nodeValue(const std::string&) {}
+			NODE_TYPE nodeType() const { return DOCUMENT_NODE; }
+
+			XmlNodePtr parentNode() { return nullptr; }
+			XmlNodePtr firstChild() { return documentElement(); }
+			XmlNodePtr lastChild() { return documentElement(); }
+			XmlNodePtr previousSibling() { return nullptr; }
+			XmlNodePtr nextSibling() { return nullptr; }
+			XmlNodeListPtr childNodes()
+			{
+				if (!root)
+					return nullptr;
+				try {
+				NodesInit children;
+				children.push_back(root);
+				return std::make_shared<XmlNodeList>(children);
+				} catch(std::bad_alloc) { return nullptr; }
+			}
+
+			XmlDocumentPtr ownerDocument() { return self.lock(); }
+			bool appendChild(XmlNodePtr newChild) { return false; }
+			void* internalData() { return nullptr; }
+
 			dom::XmlElementPtr documentElement() { return root; }
-			void setDocumentElement(dom::XmlElementPtr elem) { root = elem; }
+			void setDocumentElement(dom::XmlElementPtr elem)
+			{
+				root = elem;
+				if (elem)
+					((XmlNodeImplInit*)elem->internalData())->fixQName();
+			}
 			dom::XmlElementPtr createElement(const std::string& tagName)
 			{
 				XmlNodeImplInit init;
@@ -368,6 +477,14 @@ namespace dom
 		}
 	}
 
+	template <typename T>
+	inline std::string qName(std::shared_ptr<T> ptr)
+	{
+		QName qname = ptr->nodeQName();
+		if (qname.nsName.empty()) return qname.localName;
+		return "{" + qname.nsName + "}" + qname.localName;
+	}
+
 	void Print(dom::XmlNodePtr node, bool ignorews, size_t depth)
 	{
 		dom::XmlNodeListPtr subs = node->childNodes();
@@ -382,8 +499,8 @@ namespace dom
 			if (ignorews)
 			{
 				size_t lo = 0, hi = val.length();
-				while (val[lo] && isspace(val[lo])) lo++;
-				while (lo < hi && isspace(val[hi-1])) hi--;
+				while (lo < hi && val[lo] && isspace((unsigned char)val[lo])) lo++;
+				while (lo < hi && isspace((unsigned char)val[hi-1])) hi--;
 				val = val.substr(lo, hi - lo);
 				if (val.empty()) return;
 			}
@@ -403,7 +520,7 @@ namespace dom
 				for(size_t i = 0; i < count; ++i)
 				{
 					dom::XmlNodePtr node = attrs->item(i);
-					sattrs += " " + node->nodeName() + "='" + node->nodeValue() + "'";
+					sattrs += " " + qName(node) + "='" + node->nodeValue() + "'";
 				}
 			}
 
@@ -412,7 +529,7 @@ namespace dom
 				dom::XmlNodePtr sub = subs->item(0);
 				if (sub && sub->nodeType() == TEXT_NODE)
 				{
-					out += node->nodeName();
+					out += qName(node);
 					if (!sattrs.empty())
 						out += "[" + sattrs + " ]";
 
@@ -420,8 +537,8 @@ namespace dom
 					if (ignorews)
 					{
 						size_t lo = 0, hi = val.length();
-						while (val[lo] && isspace(val[lo])) lo++;
-						while (lo < hi && isspace(val[hi-1])) hi--;
+						while (val[lo] && isspace((unsigned char)val[lo])) lo++;
+						while (lo < hi && isspace((unsigned char)val[hi-1])) hi--;
 						val = val.substr(lo, hi - lo);
 						if (val.empty()) return;
 					}
@@ -439,7 +556,7 @@ namespace dom
 			}
 			if (!subs || subs->length() == 0)
 			{
-					out += node->nodeName();
+					out += qName(node);
 					if (!sattrs.empty())
 						out += "[" + sattrs + " ]";
 					out += "\n";
@@ -449,7 +566,7 @@ namespace dom
 #endif
 					return;
 			}
-			out += "<" + node->nodeName() + sattrs + ">";
+			out += "<" + qName(node) + sattrs + ">";
 		}
 		out += "\n";
 		fprintf(stderr, "%s", out.c_str());
