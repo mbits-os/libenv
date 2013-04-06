@@ -80,11 +80,12 @@ namespace dom
 			void ancestor(XmlNodePtr context, std::list<XmlNodePtr>& list);
 			void ancestor_or_self(XmlNodePtr context, std::list<XmlNodePtr>& list);
 		};
+		typedef std::list<SimpleSelector> SimpleSelectors;
 
 		struct Predicate
 		{
 			PRED m_type;
-			SimpleSelector m_selector;
+			SimpleSelectors m_selectors;
 			std::string m_value;
 			Predicate(): m_type(PRED_EXISTS) {}
 			bool test(XmlNodePtr context);

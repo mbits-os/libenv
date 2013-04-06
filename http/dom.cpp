@@ -28,6 +28,7 @@
 #include <vector>
 #include <iterator>
 #include <string.h>
+#include <expat.hpp>
 
 namespace dom
 {
@@ -243,6 +244,10 @@ namespace dom
 
 			bool setAttribute(dom::XmlAttributePtr attr)
 			{
+				XmlNodeImplInit* p = (XmlNodeImplInit*)attr->internalData();
+				if (p)
+					p->parent = self;
+
 				std::map< std::string, dom::XmlAttributePtr >::const_iterator
 					_it = lookup.find(attr->name());
 				if (_it != lookup.end())
@@ -479,11 +484,95 @@ namespace dom
 		};
 	}
 
-	dom::XmlDocumentPtr dom::XmlDocument::create()
+	XmlDocumentPtr XmlDocument::create()
 	{
 		auto out = std::make_shared<impl::XmlDocument>();
 		out->self = out;
 		return out;
+	}
+
+	class DOMParser: public xml::ExpatBase<DOMParser>
+	{
+		dom::XmlElementPtr elem;
+		std::string text;
+
+		void addText()
+		{
+			if (text.empty()) return;
+			if (elem)
+				elem->appendChild(doc->createTextNode(text));
+			text.clear();
+		}
+	public:
+
+		dom::XmlDocumentPtr doc;
+
+		bool create(const char* cp)
+		{
+			doc = dom::XmlDocument::create();
+			if (!doc) return false;
+			return xml::ExpatBase<DOMParser>::create(cp);
+		}
+
+		void onStartElement(const XML_Char *name, const XML_Char **attrs)
+		{
+			addText();
+			auto current = doc->createElement(name);
+			if (!current) return;
+			for (; *attrs; attrs += 2)
+			{
+				auto attr = doc->createAttribute(attrs[0], attrs[1]);
+				if (!attr) continue;
+				current->setAttribute(attr);
+			}
+			if (elem)
+				elem->appendChild(current);
+			else
+				doc->setDocumentElement(current);
+			elem = current;
+		}
+
+		void onEndElement(const XML_Char *name)
+		{
+			addText();
+			if (!elem) return;
+			dom::XmlNodePtr node = elem->parentNode();
+			elem = std::static_pointer_cast<dom::XmlElement>(node);
+		}
+
+		void onCharacterData(const XML_Char *pszData, int nLength)
+		{
+			text += std::string(pszData, nLength);
+		}
+	};
+
+	XmlDocumentPtr XmlDocument::fromFile(const char* path)
+	{
+		DOMParser parser;
+		if (!parser.create(nullptr)) return nullptr;
+		parser.enableElementHandler();
+		parser.enableCharacterDataHandler();
+
+		FILE* f = fopen(path, "rb");
+		if (!f)
+			return nullptr;
+
+		char buffer[8192];
+		size_t read;
+		while ((read = fread(buffer, 1, sizeof(buffer), f)) > 0)
+		{
+			if (!parser.parse(buffer, read, false))
+			{
+				fclose(f);
+				return nullptr;
+			}
+		}
+		fclose(f);
+
+		if (!parser.parse(buffer, 0))
+			return nullptr;
+
+		return parser.doc;
 	}
 
 	void Print(dom::XmlNodeListPtr subs, bool ignorews, size_t depth)

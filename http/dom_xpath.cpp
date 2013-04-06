@@ -209,10 +209,29 @@ namespace dom { namespace xpath {
 		ancestor(context, list);
 	}
 
+	template <typename It>
+	std::list<XmlNodePtr> select(It from, It to, XmlNodePtr context)
+	{
+		std::list<XmlNodePtr> parent;
+		parent.push_back(context);
+		while (from != to)
+		{
+			auto& query = *from;
+
+			std::list<XmlNodePtr> list;
+			std::for_each(parent.begin(), parent.end(), [&](XmlNodePtr ctx)
+			{
+				query.select(ctx, list);
+			});
+			parent = list;
+			++from;
+		}
+		return parent;
+	}
+
 	bool Predicate::test(XmlNodePtr context)
 	{
-		std::list<XmlNodePtr> list;
-		m_selector.select(context, list);
+		std::list<XmlNodePtr> list = select(m_selectors.begin(), m_selectors.end(), context);
 
 		if (m_type == PRED_EXISTS)
 			return !list.empty();
@@ -241,46 +260,18 @@ namespace dom { namespace xpath {
 
 	XmlNodePtr XPath::find(XmlNodePtr context)
 	{
-		auto cur = m_segments.begin(), end = m_segments.end();
-		std::list<XmlNodePtr> parent;
-		parent.push_back(context);
-		while (cur != end)
-		{
-			Segment& seg = *cur;
-
-			std::list<XmlNodePtr> list;
-			std::for_each(parent.begin(), parent.end(), [&](XmlNodePtr ctx)
-			{
-				seg.select(ctx, list);
-			});
-			parent = list;
-			++cur;
-		}
-		if (parent.size())
-			return *parent.begin();
+		std::list<XmlNodePtr> list = select(m_segments.begin(), m_segments.end(), context);
+		if (list.size())
+			return *list.begin();
 		return nullptr;
 	}
 
 	XmlNodeListPtr XPath::findall(XmlNodePtr context)
 	{
-		auto cur = m_segments.begin(), end = m_segments.end();
-		std::list<XmlNodePtr> parent;
-		parent.push_back(context);
-		while (cur != end)
+		std::list<XmlNodePtr> list = select(m_segments.begin(), m_segments.end(), context);
+		if (list.size())
 		{
-			Segment& seg = *cur;
-
-			std::list<XmlNodePtr> list;
-			std::for_each(parent.begin(), parent.end(), [&](XmlNodePtr ctx)
-			{
-				seg.select(ctx, list);
-			});
-			parent = list;
-			++cur;
-		}
-		if (parent.size())
-		{
-			std::vector<XmlNodePtr> nodes(parent.begin(), parent.end());
+			std::vector<XmlNodePtr> nodes(list.begin(), list.end());
 			return createList(nodes);
 		}
 		return nullptr;
@@ -457,9 +448,23 @@ namespace dom { namespace xpath {
 
 		while (ptr < end && isspace((unsigned char)*ptr)) ++ptr;
 
-		ptr = readSelector(ptr, end, pred.m_selector, ns);
+		SimpleSelector selector;
+		ptr = readSelector(ptr, end, selector, ns);
 		if (!ptr)
 			return nullptr;
+
+		pred.m_selectors.push_back(selector);
+		while(ptr < end && *ptr == '/')
+		{
+			++ptr;
+			SimpleSelector selector;
+			ptr = readSelector(ptr, end, selector, ns);
+			if (!ptr)
+				return nullptr;
+
+			pred.m_selectors.push_back(selector);
+		}
+
 		while (ptr < end && isspace((unsigned char)*ptr)) ++ptr;
 		if (ptr < end && *ptr == '=')
 		{
@@ -506,14 +511,14 @@ namespace dom { namespace xpath {
 		ptr = readSelector(ptr, end, seg.m_selector, ns);
 		if (!ptr)
 			return nullptr;
-		while (ptr < end && *ptr == '[')
+		while (ptr && ptr < end && *ptr == '[')
 		{
 			Predicate pred;
 			ptr = readPredicate(ptr, end, pred, ns);
 			if (ptr)
 				seg.m_preds.push_back(pred);
 		}
-		if (ptr < end && *ptr != '/')
+		if (ptr && ptr < end && *ptr != '/')
 			return nullptr;
 
 		return ptr;
@@ -530,7 +535,14 @@ namespace dom { namespace xpath {
 	}
 	std::ostream& operator << (std::ostream& o, const Predicate& pred)
 	{
-		o << "[" << pred.m_selector;
+		o << "[";
+		bool first = true;
+		std::for_each (pred.m_selectors.begin(), pred.m_selectors.end(), [&first, &o](const SimpleSelector& selector)
+		{
+			if (first) first = false;
+			else o << "/";
+			o << selector;
+		});
 		if (pred.m_type == PRED_EQUALS)
 			o << "='" << pred.m_value << "'";
 		return o << "]";

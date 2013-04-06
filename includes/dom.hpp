@@ -108,6 +108,7 @@ namespace dom
 	struct XmlDocument: XmlNode
 	{
 		static XmlDocumentPtr create();
+		static XmlDocumentPtr fromFile(const char* path);
 		virtual ~XmlDocument() {}
 
 		virtual XmlElementPtr documentElement() = 0;
