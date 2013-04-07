@@ -27,6 +27,8 @@
 
 #include <string>
 #include <list>
+#include <algorithm>
+#include <string.h>
 
 template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 
@@ -109,6 +111,32 @@ namespace tyme
 	{
 		return strftime(buffer, size, format, tm);
 	}
+
+	bool scan(const char* from, const char* to, tm_t& tm);
+	inline bool scan(const char* buffer, tm_t& tm)
+	{
+		if (!buffer)
+			return false;
+		const char* end = buffer + strlen(buffer);
+		return scan(buffer, end, tm);
+	}
 };
+
+namespace std
+{
+	static inline std::string tolower(const std::string& s)
+	{
+		std::string out = s;
+		std::transform(out.begin(), out.end(), out.begin(), ::tolower);
+		return out;
+	}
+
+	static inline std::string toupper(const std::string& s)
+	{
+		std::string out = s;
+		std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+		return out;
+	}
+}
 
 #endif //__UTILS_H__

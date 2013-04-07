@@ -66,17 +66,17 @@ namespace db { namespace mysql {
 
 		//std::cerr << "user: " << user << "\npassword: " << password << "\naddress: " << server << std::endl;
 
-		std::shared_ptr<MySQLConnection> conn(new (std::nothrow) MySQLConnection(ini_path));
-		if (conn.get() == nullptr)
-			return nullptr;
+		try {
+			auto conn = std::make_shared<MySQLConnection>(ini_path);
 
-		if (!conn->connect(data.user, data.password, data.server, data.database))
-		{
-			std::cerr << "MySQL: cannot connect to " << data.user << "@" << data.server << std::endl;
-			return nullptr;
-		}
+			if (!conn->connect(data.user, data.password, data.server, data.database))
+			{
+				std::cerr << "MySQL: cannot connect to " << data.user << "@" << data.server << std::endl;
+				return nullptr;
+			}
 
-		return std::static_pointer_cast<Connection>(conn);
+			return conn;
+		} catch(std::bad_alloc) { return nullptr; }
 	}
 
 	MySQLConnection::MySQLConnection(const std::string& path)
@@ -154,14 +154,14 @@ namespace db { namespace mysql {
 		if (stmtptr == nullptr)
 			return nullptr;
 
-		std::shared_ptr<MySQLStatement> stmt(new (std::nothrow) MySQLStatement(&m_mysql, stmtptr));
-		if (stmt.get() == nullptr)
-			return nullptr;
+		try {
+			auto stmt = std::make_shared<MySQLStatement>(&m_mysql, stmtptr);
 
-		if (!stmt->prepare(sql))
-			return nullptr;
+			if (!stmt->prepare(sql))
+				return nullptr;
 
-		return std::static_pointer_cast<Statement>(stmt);
+			return stmt;
+		} catch(std::bad_alloc) { return nullptr; }
 	}
 
 	bool MySQLConnection::exec(const char* sql)
@@ -283,14 +283,14 @@ namespace db { namespace mysql {
 		if (mysql_stmt_execute(m_stmt) != 0)
 			return false;
 
-		std::shared_ptr<MySQLCursor> cursor(new (std::nothrow) MySQLCursor(m_mysql, m_stmt));
-		if (cursor.get() == nullptr)
-			return nullptr;
+		try {
+			auto cursor = std::make_shared<MySQLCursor>(m_mysql, m_stmt);
 
-		if (!cursor->prepare())
-			return nullptr;
+			if (!cursor->prepare())
+				return nullptr;
 
-		return cursor;
+			return cursor;
+		} catch(std::bad_alloc) { return nullptr; }
 	}
 
 	const char* MySQLStatement::errorMessage()

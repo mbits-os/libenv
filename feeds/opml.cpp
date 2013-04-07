@@ -22,73 +22,49 @@
  * SOFTWARE.
  */
 
-#ifndef __FEED_PARSER_H__
-#define __FEED_PARSER_H__
+#include "pch.h"
+#include <opml.hpp>
 
-#include <utils.hpp>
-
-namespace dom
-{
-	struct XmlDocument;
-	typedef std::shared_ptr<XmlDocument> XmlDocumentPtr;
-};
+#define PARSER_TAG OPML
+#include "feed_parser_internal.hpp"
 
 namespace feed
 {
-	struct Enclosure
+	RULE(opml::Outline)
 	{
-		std::string m_url;
-		std::string m_type;
-		size_t m_size;
-		Enclosure(): m_size(0) {}
-	};
-	typedef std::list<Enclosure> Enclosures;
-
-	typedef std::list<std::string> Categories;
-
-	struct NamedUrl
-	{
-		std::string  m_title;
-		std::string  m_url;
-	};
-
-	struct Author
-	{
-		std::string m_name;
-		std::string m_email;
-	};
-
-	struct Entry
-	{
-		std::string  m_entryUniqueId;
-
-		NamedUrl     m_entry;
-		std::string  m_description;
-		Author       m_author;
-
-		Enclosures   m_enclosures;
-		Categories   m_categories;
-
-		tyme::time_t m_dateTime;
-
-		std::string  m_content;
-		Entry(): m_dateTime(-1) {}
-	};
-	typedef std::list<Entry> Entries;
-
-	struct Feed
-	{
-		NamedUrl    m_feed;
-        std::string m_description;
-        Author      m_author;
-        std::string m_language;
-        std::string m_copyright;
-		NamedUrl    m_image;
-        Categories  m_categories;
-        Entries     m_entry;
-	};
-
-	bool parse(dom::XmlDocumentPtr document, Feed& feed);
+		FIND("@title", m_text);
+		FIND("@text", m_text);
+		FIND("@xmlUrl[../@type='rss']", m_url);
+		FIND("outline", m_children);
+	}
 };
 
-#endif //__FEED_PARSER_H__
+namespace opml
+{
+	dom::NSData ns[] = {
+		{ NULL }
+	};
+
+	struct Opml: feed::FeedParser
+	{
+		Opml(): feed::FeedParser("OPML (1.0)", "/opml/body", ns)
+		{
+		}
+
+		bool parse(dom::XmlDocumentPtr document, Outline& outline)
+		{
+			feed::Parser<Outline> parser;
+			parser.setContext(&outline);
+			dom::Namespaces ns = getNamespaces();
+			dom::XmlNodePtr root = document->find(getRoot(), ns);
+			if (!root)
+				return false;
+			return parser.parse(root, ns);
+		}
+	};
+
+	bool parse(dom::XmlDocumentPtr document, Outline& outline)
+	{
+		return Opml().parse(document, outline);
+	}
+}

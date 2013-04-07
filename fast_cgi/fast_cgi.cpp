@@ -88,7 +88,7 @@ namespace FastCGI
 			environment[4] = "SERVER_PORT=80";
 			environment[5] = "SERVER_NAME=www.reedr.net";
 			environment[6] = "HTTP_COOKIE=reader.login=...";
-			environment[7] = NULL;
+			environment[7] = nullptr;
 		}
 
 		STLApplication::~STLApplication()

@@ -22,35 +22,37 @@
  * SOFTWARE.
  */
 
-#include "pch.h"
-#include <feed_parser.hpp>
+#ifndef __CURL_HTTP_HPP__
+#define __CURL_HTTP_HPP__
 
-namespace feed
+namespace http
 {
-	namespace atom03 { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
-	namespace atom10 { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
-	namespace rdf10  { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
-	namespace rss20  { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
+	typedef std::map< std::string, std::string > Headers;
+	typedef void (*APPENDHEADER)(const std::string& header, void* data);
 
-	typedef bool (*Parser)(dom::XmlDocumentPtr, Feed&);
-	static Parser parsers[] = {
-		atom10::parse,
-		atom03::parse,
-		rss20::parse,
-		rdf10::parse
+	struct ConnectionCallback
+	{
+		virtual void abort() = 0;
+		virtual void appendHeader(const std::string& header) = 0;
 	};
 
-	bool parse(dom::XmlDocumentPtr document, Feed& feed)
+	struct HttpCallback
 	{
-		for (size_t i = 0; i < sizeof(parsers)/sizeof(parsers[0]); ++i)
-		{
-			Feed f;
-			if (parsers[i](document, f))
-			{
-				feed = std::move(f);
-				return true;
-			}
-		}
-		return false;
-	}
+		virtual void onStart(ConnectionCallback* cb) = 0;
+		virtual void onError() = 0;
+		virtual void onFinish() = 0;
+		virtual size_t onData(const void* data, size_t count) = 0;
+		virtual void onHeaders(const std::string& reason, int http_status, const Headers& headers) = 0;
+
+		virtual void appendHeaders() = 0;
+		virtual std::string getUrl() = 0;
+		virtual void* getContent(size_t& length) = 0;
+		virtual bool getDebug() = 0;
+	};
+
+	typedef std::shared_ptr<HttpCallback> HttpCallbackPtr;
+
+	void Send(HttpCallbackPtr ref, bool async);
 }
+
+#endif //__CURL_HTTP_HPP__

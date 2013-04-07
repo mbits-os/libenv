@@ -22,10 +22,8 @@
  * SOFTWARE.
  */
 
-#ifndef __FEED_PARSER_H__
-#define __FEED_PARSER_H__
-
-#include <utils.hpp>
+#ifndef __OPML_H__
+#define __OPML_H__
 
 namespace dom
 {
@@ -33,62 +31,15 @@ namespace dom
 	typedef std::shared_ptr<XmlDocument> XmlDocumentPtr;
 };
 
-namespace feed
+namespace opml
 {
-	struct Enclosure
+	struct Outline
 	{
-		std::string m_url;
-		std::string m_type;
-		size_t m_size;
-		Enclosure(): m_size(0) {}
-	};
-	typedef std::list<Enclosure> Enclosures;
-
-	typedef std::list<std::string> Categories;
-
-	struct NamedUrl
-	{
-		std::string  m_title;
-		std::string  m_url;
+		std::string m_text, m_url;
+		std::list<Outline> m_children;
 	};
 
-	struct Author
-	{
-		std::string m_name;
-		std::string m_email;
-	};
-
-	struct Entry
-	{
-		std::string  m_entryUniqueId;
-
-		NamedUrl     m_entry;
-		std::string  m_description;
-		Author       m_author;
-
-		Enclosures   m_enclosures;
-		Categories   m_categories;
-
-		tyme::time_t m_dateTime;
-
-		std::string  m_content;
-		Entry(): m_dateTime(-1) {}
-	};
-	typedef std::list<Entry> Entries;
-
-	struct Feed
-	{
-		NamedUrl    m_feed;
-        std::string m_description;
-        Author      m_author;
-        std::string m_language;
-        std::string m_copyright;
-		NamedUrl    m_image;
-        Categories  m_categories;
-        Entries     m_entry;
-	};
-
-	bool parse(dom::XmlDocumentPtr document, Feed& feed);
+	bool parse(dom::XmlDocumentPtr document, Outline& outline);
 };
 
-#endif //__FEED_PARSER_H__
+#endif //__OPML_H__
