@@ -53,7 +53,6 @@ namespace opml
 
 		bool parse(dom::XmlDocumentPtr document, Outline& outline)
 		{
-			printf("%s Root: %s\n", m_name, getRoot().c_str());
 			feed::Parser<Outline> parser;
 			parser.setContext(&outline);
 			dom::Namespaces ns = getNamespaces();

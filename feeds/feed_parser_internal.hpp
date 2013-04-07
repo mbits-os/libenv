@@ -120,9 +120,11 @@ namespace feed
 			dom::NODE_TYPE type = node->nodeType();
 			std::string contents = node->stringValue();
 
-			printf("Found time: %s\n", contents.c_str());
+			tyme::tm_t tm;
+			if (!tyme::scan(contents.c_str(), tm))
+				return true;
 
-			ctx->m_time = 0; //parse...
+			ctx->m_time = tyme::mktime(tm);
 			return true;
 		}
 	};
