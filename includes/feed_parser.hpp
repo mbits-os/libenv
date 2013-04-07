@@ -72,7 +72,7 @@ namespace feed
 		tyme::time_t m_dateTime;
 
 		std::string  m_content;
-		Entry(): m_dateTime(0) {}
+		Entry(): m_dateTime(-1) {}
 	};
 	typedef std::list<Entry> Entries;
 

@@ -28,6 +28,7 @@
 #include <string>
 #include <list>
 #include <algorithm>
+#include <string.h>
 
 template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 
@@ -109,6 +110,15 @@ namespace tyme
 	static inline size_t strftime(char (&buffer)[size], const char * format, const tm_t& tm)
 	{
 		return strftime(buffer, size, format, tm);
+	}
+
+	bool scan(const char* from, const char* to, tm_t& tm);
+	inline bool scan(const char* buffer, tm_t& tm)
+	{
+		if (!buffer)
+			return false;
+		const char* end = buffer + strlen(buffer);
+		return scan(buffer, end, tm);
 	}
 };
 
