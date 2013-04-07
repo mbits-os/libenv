@@ -719,6 +719,26 @@ namespace FastCGI
 		die();
 	}
 
+	void Request::on400(const char* reason)
+	{
+		if (!reason)
+			setHeader("Status", "400 Bad Request");
+		else
+		{
+			std::string msg = "400 ";
+			msg += reason;
+			setHeader("Status", msg.c_str());
+		}
+		*this
+			<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
+		if (reason && *reason)
+			*this << "<br/>" << reason;
+#if DEBUG_CGI
+		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
+#endif
+		die();
+	}
+
 	void Request::on404()
 	{
 		setHeader("Status", "404 Not Found");

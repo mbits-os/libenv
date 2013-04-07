@@ -301,6 +301,7 @@ namespace FastCGI
 			redirectUrl(serverUri(resource, withQuery));
 		}
 
+		void on400(const char* reason = nullptr);
 		void on404();
 		void on500();
 
