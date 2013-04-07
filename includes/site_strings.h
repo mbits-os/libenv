@@ -43,18 +43,19 @@ namespace lng
 		LNG_NAV_SKIP = 35, // Skip to content
 		LNG_RESET_TITLE = 36, // Reset my password
 		LNG_RESET_USERNAME_HINT = 37, // Enter your user name or your e-mail
-		LNG_USER_HELLO = 38, // Hello, %1!
-		LNG_USER_SETTINGS_CHANGE_PASSWORD = 39, // Change password
-		LNG_USER_SETTINGS_EMAIL = 40, // E-Mail:
-		LNG_USER_SETTINGS_ERROR_EMAIL_ALREADY_USED = 41, // E-mail address used by different account.
-		LNG_USER_SETTINGS_ERROR_EMAIL_FILLED = 42, // E-mail address must be filled out.
-		LNG_USER_SETTINGS_ERROR_INVALID_PASSWORD = 43, // Current password is invalid.
-		LNG_USER_SETTINGS_ERROR_NAME_REQUIRED = 44, // User name must be filled out.
-		LNG_USER_SETTINGS_ERROR_SOME_ISSUES = 45, // There were some issues:
-		LNG_USER_SETTINGS_NAME = 46, // Name:
-		LNG_USER_SETTINGS_PASSWORD_MAIL_HINT = 47, // You must supply password if you want to change e-mail
-		LNG_USER_SETTINGS_SEC_SIGNIN = 48, // Signing in
-		LNG_USER_SETTINGS_TITLE = 49, // Settings
+		LNG_URL_MISSING = 38, // URL parameter is missing
+		LNG_USER_HELLO = 39, // Hello, %1!
+		LNG_USER_SETTINGS_CHANGE_PASSWORD = 40, // Change password
+		LNG_USER_SETTINGS_EMAIL = 41, // E-Mail:
+		LNG_USER_SETTINGS_ERROR_EMAIL_ALREADY_USED = 42, // E-mail address used by different account.
+		LNG_USER_SETTINGS_ERROR_EMAIL_FILLED = 43, // E-mail address must be filled out.
+		LNG_USER_SETTINGS_ERROR_INVALID_PASSWORD = 44, // Current password is invalid.
+		LNG_USER_SETTINGS_ERROR_NAME_REQUIRED = 45, // User name must be filled out.
+		LNG_USER_SETTINGS_ERROR_SOME_ISSUES = 46, // There were some issues:
+		LNG_USER_SETTINGS_NAME = 47, // Name:
+		LNG_USER_SETTINGS_PASSWORD_MAIL_HINT = 48, // You must supply password if you want to change e-mail
+		LNG_USER_SETTINGS_SEC_SIGNIN = 49, // Signing in
+		LNG_USER_SETTINGS_TITLE = 50, // Settings
 	};
 } // lng
 #endif // __STRINGS_INCLUDE__
