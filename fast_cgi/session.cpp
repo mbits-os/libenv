@@ -34,6 +34,7 @@ namespace FastCGI
 	{
 		return SessionPtr(new (std::nothrow) Session(
 			0,
+			"stl.test",
 			"STL Test",
 			"noone@example.com",
 			"...",
@@ -59,7 +60,7 @@ namespace FastCGI
 		}
 		*/
 		db::StatementPtr query = db->prepare(
-			"SELECT user._id AS _id, user.name AS name, user.email AS email, session.set_on AS set_on "
+			"SELECT user._id AS _id, user.login AS login, user.name AS name, user.email AS email, session.set_on AS set_on "
 			"FROM session "
 			"LEFT JOIN user ON (user._id = session.user_id) "
 			"WHERE session.hash=?"
@@ -74,8 +75,9 @@ namespace FastCGI
 					c->getLongLong(0),
 					c->getText(1),
 					c->getText(2),
+					c->getText(3),
 					sessionId,
-					c->getTimestamp(3)));
+					c->getTimestamp(4)));
 			}
 		}
 		return SessionPtr();
@@ -90,7 +92,7 @@ namespace FastCGI
 		Crypt::session(seed, sessionId);
 
 		const char* SQL_USER_BY_EMAIL =
-			"SELECT _id, name "
+			"SELECT _id, login, name "
 			"FROM user "
 			"WHERE email=?"
 			;
@@ -104,7 +106,8 @@ namespace FastCGI
 			if (c.get() && c->next())
 			{
 				long long _id = c->getLongLong(0);
-				std::string name = c->getText(1);
+				std::string login = c->getText(1);
+				std::string name = c->getText(2);
 				c = db::CursorPtr();
 				query = db->prepare(
 					SQL_NEW_SESSION
@@ -120,6 +123,7 @@ namespace FastCGI
 					{
 						return SessionPtr(new (std::nothrow) Session(
 							_id,
+							login,
 							name,
 							email,
 							sessionId,

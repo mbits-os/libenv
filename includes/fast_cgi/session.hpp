@@ -48,6 +48,7 @@ namespace FastCGI
 	class Session
 	{
 		long long m_id;
+		std::string m_login;
 		std::string m_name;
 		std::string m_email;
 		std::string m_hash;
@@ -56,8 +57,9 @@ namespace FastCGI
 		Session()
 		{
 		}
-		Session(long long id, const std::string& name, const std::string& email, const std::string& hash, tyme::time_t setOn)
+		Session(long long id, const std::string& login, const std::string& name, const std::string& email, const std::string& hash, tyme::time_t setOn)
 			: m_id(id)
+			, m_login(login)
 			, m_name(name)
 			, m_email(email)
 			, m_hash(hash)
@@ -70,6 +72,7 @@ namespace FastCGI
 		static SessionPtr startSession(db::ConnectionPtr db, const char* email);
 		static void endSession(db::ConnectionPtr db, const char* sessionId);
 		long long getId() const { return m_id; }
+		const std::string& getLogin() const { return m_login; }
 		const std::string& getName() const { return m_name; }
 		const std::string& getEmail() const { return m_email; }
 		const std::string& getSessionId() const { return m_hash; }
