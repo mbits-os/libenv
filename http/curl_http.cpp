@@ -293,6 +293,7 @@ namespace http
 			ref->onError();
 			return;
 		}
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
 		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, curl_f::_progress);
 		curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
