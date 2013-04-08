@@ -51,7 +51,6 @@ namespace feed
 	{
 		FIND_NAMED("atom:title",            m_entry, m_title);
 		FIND_NAMED("atom:link[@rel='alternate']/@href",               m_entry, m_url);
-		FIND_NAMED("atom:link[@rel='self']/@href",                    m_entry, m_url);
 		FIND_NAMED("atom:link[@rel='self'][@type='text/html']/@href", m_entry, m_url);
 		FIND("atom:id",                     m_entryUniqueId);
 		FIND("atom:link[@rel='enclosure']", m_enclosures);
@@ -67,7 +66,6 @@ namespace feed
 	{
 		FIND_NAMED("atom:title",   m_feed, m_title);
 		FIND_NAMED("atom:link[@rel='alternate']/@href", m_feed, m_url);
-		FIND_NAMED("atom:link[@rel='self']/@href", m_feed, m_url);
 		FIND_NAMED("atom:link[@rel='self'][@type='text/html']/@href", m_feed, m_url);
 		FIND("atom:author",         m_author);
 		FIND("atom:subtitle",       m_description);
