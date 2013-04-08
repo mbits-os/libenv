@@ -23,368 +23,18 @@
  */
 
 #include "pch.h"
-#include <fast_cgi.hpp>
-#include <crypt.hpp>
-#include <utils.hpp>
+#include <fast_cgi/application.hpp>
+#include <fast_cgi/request.hpp>
+#include <fast_cgi/session.hpp>
+#include <fast_cgi/thread.hpp>
 #include <string.h>
-
-#ifdef _WIN32
-#define INI "..\\conn.ini"
-#define LOGFILE "..\\error-%u.log"
-#endif
-
-#ifdef POSIX
-#define INI "../conn.ini"
-#define LOGFILE "../error-%u.log"
-#endif
-
-#ifndef INI
-#error There is no path to conn.ini defined...
-#endif
+#include <stdio.h>
+#include <stdarg.h>
 
 #define MAX_FORM_BUFFER 10240
 
 namespace FastCGI
 {
-	namespace impl
-	{
-		LibFCGIRequest::LibFCGIRequest(FCGX_Request& request)
-			: m_streambufCin(request.in)
-			, m_streambufCout(request.out)
-			, m_streambufCerr(request.err)
-			, m_cin(&m_streambufCin)
-			, m_cout(&m_streambufCout)
-			, m_cerr(&m_streambufCerr)
-		{
-		}
-
-		static inline char* dup(const char* src)
-		{
-			size_t len = strlen(src) + 1;
-			char* dst = (char*)malloc(len);
-			if (!dst)
-				return dst;
-			memcpy(dst, src, len);
-			return dst;
-		}
-
-		STLApplication::STLApplication(const char* uri)
-		{
-			REQUEST_URI = (char*)malloc(strlen(uri) + sizeof("REQUEST_URI="));
-			strcat(strcpy(REQUEST_URI, "REQUEST_URI="), uri);
-			const char* query = strchr(uri, '?');
-			if (query)
-			{
-				++query;
-				QUERY_STRING = (char*)malloc(strlen(query) + sizeof("QUERY_STRING="));
-				strcat(strcpy(QUERY_STRING, "QUERY_STRING="), query);
-			}
-			else QUERY_STRING = dup("QUERY_STRING=");
-
-			environment[0] = "FCGI_ROLE=RESPONDER";
-			environment[1] = QUERY_STRING;
-			environment[2] = "REQUEST_METHOD=GET";
-			environment[3] = REQUEST_URI;
-			environment[4] = "SERVER_PORT=80";
-			environment[5] = "SERVER_NAME=www.reedr.net";
-			environment[6] = "HTTP_COOKIE=reader.login=...";
-			environment[7] = nullptr;
-		}
-
-		STLApplication::~STLApplication()
-		{
-			free(REQUEST_URI);
-			free(QUERY_STRING);
-		}
-	};
-
-	SessionPtr Session::stlSession()
-	{
-		return SessionPtr(new (std::nothrow) Session(
-			0,
-			"STL Test",
-			"noone@example.com",
-			"...",
-			tyme::now()
-			));
-	}
-
-	SessionPtr Session::fromDB(db::ConnectionPtr db, const char* sessionId)
-	{
-		/*
-		I want:
-
-		query = schema
-			.select("user._id AS _id", "user.name AS name", "user.email AS email", "session.set_on AS set_on")
-			.leftJoin("session", "user")
-			.where("session.has=?");
-
-		query.bind(0, sessionId).run(db);
-		if (c.next())
-		{
-			c[0].as<long long>();
-			c["_id"].as<long long>();
-		}
-		*/
-		db::StatementPtr query = db->prepare(
-			"SELECT user._id AS _id, user.name AS name, user.email AS email, session.set_on AS set_on "
-			"FROM session "
-			"LEFT JOIN user ON (user._id = session.user_id) "
-			"WHERE session.hash=?"
-			);
-
-		if (query.get() && query->bind(0, sessionId))
-		{
-			db::CursorPtr c = query->query();
-			if (c.get() && c->next())
-			{
-				return SessionPtr(new (std::nothrow) Session(
-					c->getLongLong(0),
-					c->getText(1),
-					c->getText(2),
-					sessionId,
-					c->getTimestamp(3)));
-			}
-		}
-		return SessionPtr();
-	}
-
-	SessionPtr Session::startSession(db::ConnectionPtr db, const char* email)
-	{
-		tyme::time_t now = tyme::now();
-		char seed[20];
-		Crypt::session_t sessionId;
-		Crypt::newSalt(seed);
-		Crypt::session(seed, sessionId);
-
-		const char* SQL_USER_BY_EMAIL =
-			"SELECT _id, name "
-			"FROM user "
-			"WHERE email=?"
-			;
-		const char* SQL_NEW_SESSION = "INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, ?, ?)";
-
-		db::StatementPtr query = db->prepare(SQL_USER_BY_EMAIL);
-
-		if (query.get() && query->bind(0, email))
-		{
-			db::CursorPtr c = query->query();
-			if (c.get() && c->next())
-			{
-				long long _id = c->getLongLong(0);
-				std::string name = c->getText(1);
-				c = db::CursorPtr();
-				query = db->prepare(
-					SQL_NEW_SESSION
-					);
-				if (query.get() &&
-					query->bind(0, sessionId) &&
-					query->bind(1, seed) &&
-					query->bind(2, _id) &&
-					query->bindTime(3, now)
-					)
-				{
-					if (query->execute())
-					{
-						return SessionPtr(new (std::nothrow) Session(
-							_id,
-							name,
-							email,
-							sessionId,
-							now
-							));
-					}
-					else
-					{
-						const char* error = query->errorMessage();
-						if (!error) error = "";
-						FLOG << "DB error: " << SQL_NEW_SESSION << " " << error << "\n";
-					}
-				}
-				else
-				{
-					const char* error = db->errorMessage();
-					if (!error) error = "";
-					FLOG << "DB error: " << SQL_NEW_SESSION << " " << error << "\n";
-				}
-			}
-		}
-		else
-		{
-			const char* error = query.get() ? query->errorMessage() : db->errorMessage();
-			if (!error) error = "";
-			FLOG << "DB error: " << SQL_USER_BY_EMAIL << " " << error << "\n";
-		}
-		return SessionPtr();
-	}
-
-	void Session::endSession(db::ConnectionPtr db, const char* sessionId)
-	{
-		db::StatementPtr query = db->prepare("DELETE FROM session WHERE hash=?");
-		if (query.get() && query->bind(0, sessionId))
-			query->execute();
-	}
-
-	namespace { Application* g_app = nullptr; }
-	Application::Application()
-		: m_backend(new (std::nothrow) impl::LibFCGIApplication)
-	{
-		m_pid = _getpid();
-		g_app = this;
-	}
-
-	Application::Application(const char* uri)
-		: m_backend(new (std::nothrow) impl::STLApplication(uri))
-	{
-		m_pid = _getpid();
-		g_app = this;
-	}
-
-	Application::~Application()
-	{
-	}
-
-	int Application::init(const char* localeRoot)
-	{
-		if (!m_backend.get())
-			return 1;
-
-		int ret = FCGX_Init();
-		if (ret != 0)
-			return ret;
-
-		m_backend->init();
-		m_locale.init(localeRoot);
-
-		char filename[200];
-		sprintf(filename, LOGFILE, m_pid);
-		m_log.open(filename, std::ios_base::out | std::ios_base::binary);
-		return m_log.is_open() ? 0 : 1;
-	}
-
-	bool Application::accept()
-	{
-		bool ret = m_backend->accept();
-#if DEBUG_CGI
-		if (ret && false)
-		{
-			ReqInfo info;
-			info.resource    = FCGX_GetParam("REQUEST_URI", (char**)envp());
-			info.server      = FCGX_GetParam("SERVER_NAME", (char**)envp());
-			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", (char**)envp());
-			info.remote_port = FCGX_GetParam("REMOTE_PORT", (char**)envp());
-			info.now = tyme::now();
-			//m_requs.push_back(info);
-		}
-#endif
-		return ret;
-	}
-
-	db::ConnectionPtr Application::dbConn(Request& request)
-	{
-		// synchronized {
-
-		//restart if needed
-		if (!m_dbConn.get())
-			m_dbConn = db::Connection::open(INI);
-		else if (!m_dbConn->isStillAlive())
-			m_dbConn->reconnect();
-
-		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
-			request.on500();
-
-		return m_dbConn;
-
-		// synchronized }
-	}
-
-	void Application::cleanSessionCache()
-	{
-		tyme::time_t treshold = tyme::now() - 30 * 60;
-
-		Sessions copy;
-		std::for_each(m_sessions.begin(), m_sessions.end(), [&copy](const Sessions::value_type& pair)
-		{
-			copy.insert(pair);
-		});
-
-		m_sessions = copy;
-	}
-
-	void Application::addStlSession()
-	{
-		SessionPtr out = Session::stlSession();
-		if (out.get())
-			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));
-	}
-
-	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
-	{
-		// synchronized {
-		cleanSessionCache();
-
-		SessionPtr out;
-		Sessions::iterator _it = m_sessions.find(sessionId);
-		if (_it == m_sessions.end() || !_it->second.second.get())
-		{
-			db::ConnectionPtr db = dbConn(request);
-			if (db.get())
-				out = Session::fromDB(db, sessionId.c_str());
-
-			// TODO: limits needed, or DoS eminent
-			if (out.get())
-				m_sessions.insert(std::make_pair(sessionId, std::make_pair(tyme::now(), out)));
-		}
-		else
-		{
-			out = _it->second.second;
-			_it->second.first = tyme::now(); // ping the session
-		}
-
-		return out;
-		// synchronized }
-	}
-
-	SessionPtr Application::startSession(Request& request, const char* email)
-	{
-		// synchronized {
-		cleanSessionCache();
-
-		SessionPtr out;
-		db::ConnectionPtr db = dbConn(request);
-		if (db.get())
-			out = Session::startSession(db, email);
-		// TODO: limits needed, or DoS eminent
-		if (out.get())
-			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));
-
-		return out;
-		// synchronized }
-	}
-
-	void Application::endSession(Request& request, const std::string& sessionId)
-	{
-		db::ConnectionPtr db = dbConn(request);
-		if (db.get())
-			Session::endSession(db, sessionId.c_str());
-		Sessions::iterator _it = m_sessions.find(sessionId);
-		if (_it != m_sessions.end())
-			m_sessions.erase(_it);
-	}
-
-	ApplicationLog::ApplicationLog(const char* file, int line)
-		: m_log(g_app->log())
-	{
-		// lock
-		m_log << file << ":" << line << " ";
-	}
-
-	ApplicationLog::~ApplicationLog()
-	{
-		m_log << std::endl;
-		// unlock
-	}
-
 	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
 		if (session.get() != nullptr)
@@ -419,11 +69,11 @@ namespace FastCGI
 		return str;
 	}
 
-	Request::Request(Application& app)
-		: m_app(app)
+	Request::Request(Thread& thread)
+		: m_thread(thread)
 		, m_headersSent(false)
 		, m_alreadyReadSomething(false)
-		, m_backend(app.m_backend->newRequestBackend())
+		, m_backend(thread.m_backend->newRequestBackend())
 	{
 		unpackCookies();
 		unpackVariables();
@@ -680,9 +330,9 @@ namespace FastCGI
 
 	std::string Request::serverUri(const std::string& resource, bool withQuery)
 	{
-		fcgi::param_t port = getParam("SERVER_PORT");
-		fcgi::param_t server = getParam("SERVER_NAME");
-		fcgi::param_t query = withQuery ? getParam("QUERY_STRING") : nullptr;
+		param_t port = getParam("SERVER_PORT");
+		param_t server = getParam("SERVER_NAME");
+		param_t query = withQuery ? getParam("QUERY_STRING") : nullptr;
 		std::string url;
 
 		if (server != nullptr)
@@ -766,7 +416,7 @@ namespace FastCGI
 		SessionPtr out;
 		param_t sessionId = getCookie("reader.login");
 		if (sessionId && *sessionId)
-			out = m_app.getSession(*this, sessionId);
+			out = app().getSession(*this, sessionId);
 		if (require && out.get() == nullptr)
 		{
 			std::string cont = serverUri(getParam("REQUEST_URI"), false);
@@ -780,7 +430,7 @@ namespace FastCGI
 
 	SessionPtr Request::startSession(bool long_session, const char* email)
 	{
-		SessionPtr session = m_app.startSession(*this, email);
+		SessionPtr session = app().startSession(*this, email);
 		if (session.get())
 		{
 			if (long_session)
@@ -793,7 +443,7 @@ namespace FastCGI
 
 	void Request::endSession(const std::string& sessionId)
 	{
-		m_app.endSession(*this, sessionId);
+		app().endSession(*this, sessionId);
 		setCookie("reader.login", "", tyme::now());
 	}
 
@@ -801,13 +451,13 @@ namespace FastCGI
 	{
 		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
 		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		return m_app.httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
+		return app().httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
 	}
 
 	void Request::sendMail(const char* mailFile, const char* email)
 	{
 		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
 		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		std::string path = m_app.getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
+		std::string path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
 	}
 }
