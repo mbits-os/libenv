@@ -25,6 +25,7 @@
 #include "pch.h"
 #include "mysql.hpp"
 #include <utils.hpp>
+#include <sstream>
 
 namespace db { namespace mysql {
 	bool startup_driver()
@@ -140,12 +141,12 @@ namespace db { namespace mysql {
 
 	bool MySQLConnection::rollbackTransaction()
 	{
-		return mysql_rollback(&m_mysql) == 0;
+		return mysql_query(&m_mysql, "ROLLBACK") == 0;
 	}
 
 	bool MySQLConnection::commitTransaction()
 	{
-		return mysql_commit(&m_mysql) == 0;
+		return mysql_query(&m_mysql, "COMMIT") == 0;
 	}
 
 	StatementPtr MySQLConnection::prepare(const char* sql)
@@ -162,6 +163,13 @@ namespace db { namespace mysql {
 
 			return stmt;
 		} catch(std::bad_alloc) { return nullptr; }
+	}
+
+	StatementPtr MySQLConnection::prepare(const char* sql, long lowLimit, long hiLimit)
+	{
+		std::ostringstream s;
+		s << sql << " LIMIT " << lowLimit << ", " << hiLimit;
+		return prepare(s.str().c_str());
 	}
 
 	bool MySQLConnection::exec(const char* sql)

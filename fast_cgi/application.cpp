@@ -47,7 +47,7 @@ namespace FastCGI
 	}
 
 	FLogSource::FLogSource(const char* path)
-		: m_log(path, std::ios_base::out | std::ios_base::binary)
+		: m_log(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app)
 	{
 		g_log = this;
 	}
@@ -188,6 +188,7 @@ namespace FastCGI
 	ApplicationLog::~ApplicationLog()
 	{
 		m_log << std::endl;
+		m_log.flush();
 		g_log->unlock();
 		// unlock
 	}

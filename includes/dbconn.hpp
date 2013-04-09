@@ -74,6 +74,7 @@ namespace db
 		virtual bool commitTransaction() = 0;
 		virtual bool exec(const char* sql) = 0;
 		virtual StatementPtr prepare(const char* sql) = 0;
+		virtual StatementPtr prepare(const char* sql, long lowLimit, long hiLimit) = 0;
 		virtual const char* errorMessage() = 0;
 		virtual bool reconnect() = 0;
 		static ConnectionPtr open(const char* path);

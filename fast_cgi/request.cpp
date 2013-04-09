@@ -380,7 +380,7 @@ namespace FastCGI
 			setHeader("Status", msg.c_str());
 		}
 		*this
-			<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
+			<< "<tt>400: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 		if (reason && *reason)
 			*this << "<br/>" << reason;
 #if DEBUG_CGI

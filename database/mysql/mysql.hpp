@@ -184,6 +184,7 @@ namespace db
 			bool rollbackTransaction();
 			bool commitTransaction();
 			StatementPtr prepare(const char* sql);
+			StatementPtr prepare(const char* sql, long lowLimit, long hiLimit);
 			bool exec(const char* sql);
 			const char* errorMessage();
 		};
