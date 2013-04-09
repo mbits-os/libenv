@@ -59,6 +59,7 @@ namespace db
 		virtual bool bind(int arg, long long value) = 0;
 		virtual bool bind(int arg, const char* value) = 0;
 		virtual bool bindTime(int arg, tyme::time_t value) = 0;
+		virtual bool bindNull(int arg) = 0;
 		virtual bool execute() = 0;
 		virtual CursorPtr query() = 0;
 		virtual const char* errorMessage() = 0;

@@ -154,6 +154,7 @@ namespace db
 			bool bind(int arg, long long value);
 			bool bind(int arg, const char* value);
 			bool bindTime(int arg, tyme::time_t value);
+			bool bindNull(int arg);
 			template <class T>
 			bool bindImpl(int arg, const T& value)
 			{

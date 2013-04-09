@@ -221,7 +221,7 @@ namespace db { namespace mysql {
 	bool MySQLStatement::bind(int arg, const char* value)
 	{
 		if (!value)
-			return false;
+			return bindNull(arg);
 
 		size_t len = strlen(value);
 		if (!bindImpl(arg, value, len))
@@ -246,6 +246,21 @@ namespace db { namespace mysql {
 		if (!bindImpl(arg, time))
 			return false;
 		m_bind[arg].buffer_type = MYSQL_TYPE_TIMESTAMP;
+		return true;
+	}
+
+	bool MySQLStatement::bindNull(int arg)
+	{
+		if ((size_t)arg >= m_count)
+			return false;
+
+		delete [] m_buffers[arg];
+		m_buffers[arg] = nullptr;
+
+		m_bind[arg].buffer = nullptr;
+		m_bind[arg].buffer_length = 0;
+		m_bind[arg].buffer_type = MYSQL_TYPE_NULL;
+
 		return true;
 	}
 
