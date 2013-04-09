@@ -45,6 +45,15 @@ namespace FastCGI
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;
 
+	enum SUBSCRIBE_ERROR
+	{
+		SERR_INTERNAL_ERROR = -500,
+		SERR_4xx_ANSWER = -4,
+		SERR_5xx_ANSWER = -5,
+		SERR_OTHER_ANSWER = -6,
+		SERR_NOT_A_FEED = -7
+	};
+
 	class Session
 	{
 		long long m_id;
@@ -79,6 +88,8 @@ namespace FastCGI
 		tyme::time_t getStartTime() const { return m_setOn; }
 		lng::TranslationPtr getTranslation() { return m_tr; }
 		void setTranslation(lng::TranslationPtr tr) { m_tr = tr; }
+		long long createFolder(db::ConnectionPtr db, const char* name, long long parent = 0);
+		long long subscribe(db::ConnectionPtr db, const char* url, long long folder = 0);
 	};
 }
 

@@ -79,13 +79,16 @@ namespace feed
 	struct Feed
 	{
 		NamedUrl    m_feed;
-        std::string m_description;
-        Author      m_author;
-        std::string m_language;
-        std::string m_copyright;
+		std::string m_self;
+		std::string m_description;
+		Author      m_author;
+		std::string m_language;
+		std::string m_copyright;
 		NamedUrl    m_image;
-        Categories  m_categories;
-        Entries     m_entry;
+		Categories  m_categories;
+		Entries     m_entry;
+		std::string m_etag;
+		std::string m_lastModified;
 	};
 
 	bool parse(dom::XmlDocumentPtr document, Feed& feed);
