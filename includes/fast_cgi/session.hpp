@@ -54,6 +54,13 @@ namespace FastCGI
 		SERR_NOT_A_FEED = -7
 	};
 
+	enum ENTRY_STATE
+	{
+		ENTRY_UNREAD,
+		ENTRY_STARRED,
+		ENTRY_IMPORTANT
+	};
+
 	class Session
 	{
 		long long m_id;

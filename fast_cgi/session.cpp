@@ -31,6 +31,8 @@
 #include <http.hpp>
 #include <feed_parser.hpp>
 
+#define UNREAD_COUNT 10
+
 namespace FastCGI
 {
 	SessionPtr Session::stlSession()
@@ -203,16 +205,27 @@ namespace FastCGI
 	inline static bool createEntry(const db::ConnectionPtr& db, long long feed_id, const feed::Entry& entry)
 	{
 		const char* entryUniqueId = nullifier(entry.m_entryUniqueId);
+		const char* title = nullifier(entry.m_entry.m_title);
+
 		if (!entryUniqueId)
 			return false;
 
-		const char* title = nullifier(entry.m_entry.m_title);
 		if (!title)
 			title = "";
 
 		auto del = db->prepare("DELETE FROM entry WHERE guid=?");
-		if (del || !del->bind(0, entryUniqueId)) return false;
-		if (!del->execute()) return false;
+
+		if (!del || !del->bind(0, entryUniqueId))
+		{
+			FLOG << del->errorMessage();
+			return false;
+		}
+
+		if (!del->execute())
+		{
+			FLOG << del->errorMessage();
+			return false;
+		}
 
 		auto insert = db->prepare("INSERT INTO entry (feed_id, guid, title, url, date, author, authorLink, description, contents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
 		if (!insert)
@@ -231,6 +244,7 @@ namespace FastCGI
 		if (!insert->bind(8, nullifier(entry.m_content))) return false;
 
 		if (!insert->execute()) return false;
+
 		if (entry.m_categories.empty() && entry.m_enclosures.empty())
 			return true;
 		
@@ -244,36 +258,39 @@ namespace FastCGI
 		insert = db->prepare("INSERT INTO categories(entry_id, cat) VALUES (?, ?)");
 		if (!insert)
 			return false;
-		if (!insert->bind(0, feed_id)) return false;
+		if (!insert->bind(0, entry_id)) return false;
 		auto cat_it = std::find_if(entry.m_categories.begin(), entry.m_categories.end(), [&insert](const std::string& cat) -> bool
 		{
-			if (!insert->bind(1, cat.c_str())) return true;
-			return !insert->execute();
+			if (!insert->bind(1, cat.c_str())) { FLOG << insert->errorMessage(); return true; }
+			if (!insert->execute()) { FLOG << insert->errorMessage(); return true; }
+			return false;
 		});
 		if (cat_it != entry.m_categories.end()) return false;
 
 		insert = db->prepare("INSERT INTO enclosure(entry_id, url, mime, length) VALUES (?, ?, ?, ?)");
 		if (!insert)
 			return false;
-		if (!insert->bind(0, feed_id)) return false;
+		if (!insert->bind(0, entry_id)) return false;
 		auto enc_it = std::find_if(entry.m_enclosures.begin(), entry.m_enclosures.end(), [&insert](const feed::Enclosure& enc) -> bool
 		{
-			if (!insert->bind(1, enc.m_url.c_str())) return true;
-			if (!insert->bind(2, enc.m_type.c_str())) return true;
-			if (!insert->bind(3, (long long)enc.m_size)) return true;
-			return !insert->execute();
+			if (!insert->bind(1, enc.m_url.c_str())) { FLOG << insert->errorMessage(); return true; }
+			if (!insert->bind(2, enc.m_type.c_str())) { FLOG << insert->errorMessage(); return true; }
+			if (!insert->bind(3, (long long)enc.m_size)) { FLOG << insert->errorMessage(); return true; }
+			if (!insert->execute()) { FLOG << insert->errorMessage(); return true; }
+			return false;
 		});
 		if (enc_it != entry.m_enclosures.end()) return false;
+
 		return true;
 	}
 
 	inline static bool createEntries(const db::ConnectionPtr& db, long long feed_id, const feed::Entries& entries)
 	{
-		auto it = std::find_if(entries.begin(), entries.end(), [&](const feed::Entry& entry) -> bool
+		auto it = std::find_if(entries.rbegin(), entries.rend(), [&](const feed::Entry& entry) -> bool
 		{
 			return !createEntry(db, feed_id, entry);
 		});
-		return it == entries.end();
+		return it == entries.rend();
 	}
 
 	inline static bool createFeed(const db::ConnectionPtr& db, const feed::Feed& feed)
@@ -295,13 +312,88 @@ namespace FastCGI
 		return insert->execute();
 	}
 
+	static inline int alreadySubscribes(db::ConnectionPtr& db, long long user_id, long long feed_id)
+	{
+		auto stmt = db->prepare("SELECT count(*) FROM subscription WHERE feed_id=? AND folder_id IN (SELECT _id FROM folder WHERE user_id=?)");
+		if (!stmt) { FLOG << db->errorMessage(); return SERR_INTERNAL_ERROR; }
+		if (!stmt->bind(0, feed_id)) { FLOG << stmt->errorMessage(); return SERR_INTERNAL_ERROR; }
+		if (!stmt->bind(1, user_id)) { FLOG << stmt->errorMessage(); return SERR_INTERNAL_ERROR; }
+		auto c = stmt->query();
+		if (!c || !c->next()) { FLOG << stmt->errorMessage(); return SERR_INTERNAL_ERROR; }
+		return c->getInt(0);
+	}
+
+	static inline long long getRootFolder(db::ConnectionPtr& db, long long user_id)
+	{
+		auto select = db->prepare("SELECT root_folder FROM user WHERE _id=?");
+		if (!select || !select->bind(0, user_id)) return SERR_INTERNAL_ERROR;
+		auto c = select->query();
+		if (!c || !c->next()) { FLOG << select->errorMessage(); return SERR_INTERNAL_ERROR; }
+		return c->getLongLong(0);
+	}
+
+	static inline bool doSubscribe(db::ConnectionPtr& db, long long feed_id, long long folder_id)
+	{
+		auto max_id = db->prepare("SELECT max(ord) FROM subscription WHERE folder_id=?");
+		if (!max_id || !max_id->bind(0, folder_id))
+		{
+			FLOG << (max_id ? max_id->errorMessage() : db->errorMessage());
+			return SERR_INTERNAL_ERROR;
+		}
+
+		long ord = 0;
+		auto c = max_id->query();
+		if (c && c->next())
+		{
+			if (!c->isNull(0))
+				ord = c->getLong(0) + 1;
+		}
+
+		auto subscription = db->prepare("INSERT INTO subscription (feed_id, folder_id, ord) VALUES (?, ?, ?)");
+		if (!subscription) { FLOG << subscription->errorMessage(); return false; }
+		if (!subscription->bind(0, feed_id)) { FLOG << subscription->errorMessage(); return false; }
+		if (!subscription->bind(1, folder_id)) { FLOG << subscription->errorMessage(); return false; }
+		if (!subscription->bind(2, ord)) { FLOG << subscription->errorMessage(); return false; }
+		if (!subscription->execute()) { FLOG << subscription->errorMessage(); return false; }
+		return true;
+	}
+
+	static inline bool unreadLatest(db::ConnectionPtr& db, long long feed_id, long long user_id, int unread_count)
+	{
+		auto unread = db->prepare("SELECT _id FROM entry WHERE feed_id=? ORDER BY date DESC", 0, unread_count);
+		if (!unread || !unread->bind(0, feed_id))
+		{
+			FLOG << (unread ? unread->errorMessage() : db->errorMessage());
+			return false;
+		}
+
+		auto state = db->prepare("INSERT INTO state (user_id, type, entry_id) VALUES (?, ?, ?)");
+		if (!state)
+		{
+			FLOG << db->errorMessage();
+			return false;
+		}
+		if (!state->bind(0, user_id)) { FLOG << state->errorMessage(); return false; }
+		if (!state->bind(1, ENTRY_UNREAD)) { FLOG << state->errorMessage(); return false; }
+
+		auto c = unread->query();
+		if (!c) { FLOG << db->errorMessage(); return false; }
+		while (c->next())
+		{
+			if (!state->bind(2, c->getLongLong(0))) { FLOG << state->errorMessage(); return false; }
+			if (!state->execute()) { FLOG << state->errorMessage(); return false; }
+		}
+	}
+
 	long long Session::subscribe(db::ConnectionPtr db, const char* url, long long folder)
 	{
+		int unread_count = UNREAD_COUNT;
 		long long feed_id = 0;
 		if (!url || !*url)
 			return 0;
 
 		db::Transaction transaction(db);
+		if (!transaction.begin()) { FLOG << db->errorMessage(); return SERR_INTERNAL_ERROR; }
 
 		auto feed_query = db->prepare("SELECT _id FROM feed WHERE feed.feed=?");
 		if (!feed_query || !feed_query->bind(0, url)) return SERR_INTERNAL_ERROR;
@@ -312,51 +404,41 @@ namespace FastCGI
 
 		if (!c->next())
 		{
-			//it's a new URL
 			feed::Feed feed;
 			int result = getFeed(url, feed);
 			if (result)
 				return result;
-			createFeed(db, feed);
+			if (!createFeed(db, feed))
+				return SERR_INTERNAL_ERROR;
 			c = feed_query->query();
 			if (!c || !c->next())
 				return SERR_INTERNAL_ERROR;
 			feed_id = c->getLongLong(0);
-			createEntries(db, feed_id, feed.m_entry);
+			if (!createEntries(db, feed_id, feed.m_entry))
+				return SERR_INTERNAL_ERROR;
 		}
 		else
+		{
 			feed_id = c->getLongLong(0);
+			//could it be double subcription?
+			int result = alreadySubscribes(db, m_id, feed_id);
+			if (result < 0)
+				return result; //an error
+			if (result > 0) //already subscribes
+				return feed_id;
+		}
 
 		if (folder == 0)
 		{
-			auto select = db->prepare("SELECT root_folder FROM user WHERE _id=?");
-			if (!select || !select->bind(0, m_id)) return SERR_INTERNAL_ERROR;
-			c = select->query();
-			if (!c || !c->next()) return SERR_INTERNAL_ERROR;
-			folder = c->getLongLong(0);
+			folder = getRootFolder(db, m_id);
+			if (folder < 0)
+				return folder;
 		}
 
-		auto max_id = db->prepare("SELECT max(folder_id) FROM subscription WHERE folder_id=?");
-		if (!max_id || !max_id->bind(0, folder))
-			return SERR_INTERNAL_ERROR;
+		if (!doSubscribe(db, feed_id, folder)) return SERR_INTERNAL_ERROR;
+		if (!unreadLatest(db, feed_id, m_id)) return SERR_INTERNAL_ERROR;
 
-		long ord = 0;
-		c = max_id->query();
-		if (c && c->next())
-		{
-			if (!c->isNull(0))
-				ord = c->getLong(0) + 1;
-		}
-
-		auto subscription = db->prepare("INSERT INTO subscription (feed_id, folder_id, ord) VALUES (?, ?, ?)");
-		if (!subscription) return SERR_INTERNAL_ERROR;
-		if (!subscription->bind(0, feed_id)) return SERR_INTERNAL_ERROR;
-		if (!subscription->bind(1, folder)) return SERR_INTERNAL_ERROR;
-		if (!subscription->bind(2, ord)) return SERR_INTERNAL_ERROR;
-		if (!subscription->execute()) return SERR_INTERNAL_ERROR;
-
-		if (!transaction.commit())
-			return SERR_INTERNAL_ERROR;
+		if (!transaction.commit()) { FLOG << db->errorMessage(); return SERR_INTERNAL_ERROR; }
 
 		return feed_id;
 	}
