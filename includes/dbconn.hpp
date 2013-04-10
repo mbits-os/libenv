@@ -103,6 +103,28 @@ namespace db
 	};
 
 	template <typename Type>
+	struct TimeMemberSelector: SelectorBase
+	{
+		int m_column;
+		tyme::time_t Type::* m_member;
+		TimeMemberSelector(int column, tyme::time_t Type::* member)
+			: m_column(column)
+			, m_member(member)
+		{
+		}
+
+		bool get(const CursorPtr& c, void* context)
+		{
+			Type* ctx = (Type*)context;
+			if (!ctx)
+				return false;
+
+			ctx->*m_member = Selector<db::time_tag>::get(c, m_column);
+			return true;
+		}
+	};
+
+	template <typename Type>
 	struct CursorStruct
 	{
 		std::list<SelectorBasePtr> m_selectors;
@@ -111,6 +133,11 @@ namespace db
 		void add(int column, Member Type::* dest)
 		{
 			m_selectors.push_back(std::make_shared< MemberSelector<Type, Member> >(column, dest));
+		}
+
+		void addTime(int column, tyme::time_t Type::* dest)
+		{
+			m_selectors.push_back(std::make_shared< TimeMemberSelector<Type> >(column, dest));
 		}
 
 		bool get(const CursorPtr& c, Type& ctx)
@@ -240,5 +267,6 @@ namespace db
 	}; \
 	Struct<type>::Struct()
 #define CURSOR_ADD(column, name) add(column, &Type::name)
+#define CURSOR_TIME(column, name) addTime(column, &Type::name)
 
 #endif //__DBCONN_H__
