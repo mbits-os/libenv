@@ -29,6 +29,7 @@
 #include <locale.hpp>
 #include <mt.hpp>
 #include <fstream>
+#include <utils.hpp>
 
 #include <fast_cgi/thread.hpp>
 
@@ -162,6 +163,7 @@ namespace FastCGI
 			redirectUrl(serverUri(resource, withQuery));
 		}
 
+		void onLastModified(tyme::time_t lastModified);
 		void on400(const char* reason = nullptr);
 		void on404();
 		void on500();
