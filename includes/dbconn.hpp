@@ -53,6 +53,7 @@ namespace db
 	struct time_tag {};
 
 	template <typename Type> struct Selector;
+	template <typename Type> struct Struct;
 
 	template <>
 	struct Selector<int> { static int get(const CursorPtr& c, int column) { return c->getInt(column); } };
@@ -68,6 +69,86 @@ namespace db
 
 	template <>
 	struct Selector<const char*> { static const char* get(const CursorPtr& c, int column) { return c->getText(column); } };
+
+	template <>
+	struct Selector<std::string> { static std::string get(const CursorPtr& c, int column) { return c->getText(column); } };
+
+	struct SelectorBase
+	{
+		virtual ~SelectorBase() {}
+		virtual bool get(const CursorPtr& c, void* context) = 0;
+	};
+	typedef std::shared_ptr<SelectorBase> SelectorBasePtr;
+
+	template <typename Type, typename Member>
+	struct MemberSelector: SelectorBase
+	{
+		int m_column;
+		Member Type::* m_member;
+		MemberSelector(int column, Member Type::* member)
+			: m_column(column)
+			, m_member(member)
+		{
+		}
+
+		bool get(const CursorPtr& c, void* context)
+		{
+			Type* ctx = (Type*)context;
+			if (!ctx)
+				return false;
+
+			ctx->*m_member = Selector<Member>::get(c, m_column);
+			return true;
+		}
+	};
+
+	template <typename Type>
+	struct CursorStruct
+	{
+		std::list<SelectorBasePtr> m_selectors;
+
+		template <typename Member>
+		void add(int column, Member Type::* dest)
+		{
+			m_selectors.push_back(std::make_shared< MemberSelector<Type, Member> >(column, dest));
+		}
+
+		bool get(const CursorPtr& c, Type& ctx)
+		{
+			auto cur = m_selectors.begin(), end = m_selectors.end();
+			for (; cur != end; ++cur)
+			{
+				SelectorBasePtr& selector = *cur;
+				if (!selector->get(c, &ctx))
+					return false;
+			}
+			return true;
+		};
+
+		bool get(const CursorPtr& c, std::list<Type>& ctx)
+		{
+			while (c->next())
+			{
+				Type item;
+				if (!get(c, item))
+					return false;
+				ctx.push_back(item);
+			}
+			return true;
+		};
+	};
+
+	template <typename Type> 
+	static inline bool get(const CursorPtr& c, Type& t)
+	{
+		return Struct<Type>().get(c, t);
+	}
+
+	template <typename Type> 
+	static inline bool get(const CursorPtr& c, std::list<Type>& l)
+	{
+		return Struct<Type>().get(c, l);
+	}
 
 	struct Statement
 	{
@@ -149,5 +230,15 @@ namespace db
 		~environment();
 	};
 };
+
+#define CURSOR_RULE(type) \
+	template <> \
+	struct Struct<type>: CursorStruct<type> \
+	{ \
+		typedef type Type; \
+		Struct(); \
+	}; \
+	Struct<type>::Struct()
+#define CURSOR_ADD(column, name) add(column, &Type::name)
 
 #endif //__DBCONN_H__
