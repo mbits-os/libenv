@@ -38,7 +38,7 @@ namespace FastCGI
 	SessionPtr Session::stlSession()
 	{
 		return SessionPtr(new (std::nothrow) Session(
-			0,
+			2,
 			"stl.test",
 			"STL Test",
 			"noone@example.com",
@@ -338,7 +338,7 @@ namespace FastCGI
 		if (!max_id || !max_id->bind(0, folder_id))
 		{
 			FLOG << (max_id ? max_id->errorMessage() : db->errorMessage());
-			return SERR_INTERNAL_ERROR;
+			return false;
 		}
 
 		long ord = 0;
@@ -383,6 +383,8 @@ namespace FastCGI
 			if (!state->bind(2, c->getLongLong(0))) { FLOG << state->errorMessage(); return false; }
 			if (!state->execute()) { FLOG << state->errorMessage(); return false; }
 		}
+
+		return true;
 	}
 
 	long long Session::subscribe(db::ConnectionPtr db, const char* url, long long folder)
@@ -408,6 +410,9 @@ namespace FastCGI
 			int result = getFeed(url, feed);
 			if (result)
 				return result;
+
+			unread_count = feed.m_entry.size();
+
 			if (!createFeed(db, feed))
 				return SERR_INTERNAL_ERROR;
 			c = feed_query->query();
@@ -436,7 +441,7 @@ namespace FastCGI
 		}
 
 		if (!doSubscribe(db, feed_id, folder)) return SERR_INTERNAL_ERROR;
-		if (!unreadLatest(db, feed_id, m_id)) return SERR_INTERNAL_ERROR;
+		if (!unreadLatest(db, feed_id, m_id, unread_count)) return SERR_INTERNAL_ERROR;
 
 		if (!transaction.commit()) { FLOG << db->errorMessage(); return SERR_INTERNAL_ERROR; }
 

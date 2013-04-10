@@ -379,6 +379,7 @@ namespace FastCGI
 			msg += reason;
 			setHeader("Status", msg.c_str());
 		}
+		setHeader("Content-Type", "text/html; charset=utf-8");
 		*this
 			<< "<tt>400: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 		if (reason && *reason)
@@ -392,6 +393,7 @@ namespace FastCGI
 	void Request::on404()
 	{
 		setHeader("Status", "404 Not Found");
+		setHeader("Content-Type", "text/html; charset=utf-8");
 		*this
 			<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 #if DEBUG_CGI
@@ -403,6 +405,7 @@ namespace FastCGI
 	void Request::on500()
 	{
 		setHeader("Status", "500 Internal Error");
+		setHeader("Content-Type", "text/html; charset=utf-8");
 		*this
 			<< "<tt>500: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 #if DEBUG_CGI

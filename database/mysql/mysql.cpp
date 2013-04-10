@@ -508,7 +508,7 @@ namespace db { namespace mysql {
 		if (m_is_null[column])
 			return nullptr;
 
-		if (m_error[column]) // the field would have been truncated
+		if (m_error[column] || !m_buffers[column]) // the field would have been truncated
 		{
 			char* buffer = new (std::nothrow) char[m_lengths[column] + 1];
 			if (!buffer)
