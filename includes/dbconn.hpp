@@ -50,6 +50,25 @@ namespace db
 		virtual bool isNull(int column) = 0;
 	};
 
+	struct time_tag {};
+
+	template <typename Type> struct Selector;
+
+	template <>
+	struct Selector<int> { static int get(const CursorPtr& c, int column) { return c->getInt(column); } };
+
+	template <>
+	struct Selector<long> { static long get(const CursorPtr& c, int column) { return c->getLong(column); } };
+
+	template <>
+	struct Selector<long long> { static long long get(const CursorPtr& c, int column) { return c->getLongLong(column); } };
+
+	template <>
+	struct Selector<time_tag> { static tyme::time_t get(const CursorPtr& c, int column) { return c->getTimestamp(column); } };
+
+	template <>
+	struct Selector<const char*> { static const char* get(const CursorPtr& c, int column) { return c->getText(column); } };
+
 	struct Statement
 	{
 		virtual ~Statement() {}
