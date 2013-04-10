@@ -82,6 +82,7 @@ namespace FastCGI
 	Request::~Request()
 	{
 		readAll();
+		printHeaders();
 	}
 
 #define WS() do { while (isspace((unsigned char)*c) && c < end) ++c; } while(0)
@@ -371,25 +372,21 @@ namespace FastCGI
 
 	void Request::onLastModified(tyme::time_t lastModified)
 	{
-		bool unchanged = false;
 		param_t HTTP_IF_MODIFIED_SINCE = getParam("HTTP_IF_MODIFIED_SINCE");
 		if (HTTP_IF_MODIFIED_SINCE && *HTTP_IF_MODIFIED_SINCE)
 		{
 			tyme::tm_t tm;
 			tyme::scan(HTTP_IF_MODIFIED_SINCE, tm);
-			unchanged = lastModified <= tyme::mktime(tm);
+			if (lastModified <= tyme::mktime(tm))
+			{
+				setHeader("Status", "304 Not Modified");
+				die();
+			}
 		}
-		if (unchanged)
-			setHeader("Status", "304 Not Modified");
+
 		char lm[100];
 		tyme::strftime(lm, "%a, %d %b %Y %H:%M:%S GMT", tyme::gmtime(lastModified));
 		setHeader("Last-Modified", lm);
-		if (unchanged)
-		{
-			*this
-				<< "Resource not modified";
-			die();
-		}
 	}
 
 	void Request::on400(const char* reason)
