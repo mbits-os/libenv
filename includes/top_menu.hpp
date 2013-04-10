@@ -49,6 +49,7 @@ namespace FastCGI { namespace TopMenu {
 		std::string m_tip;
 		std::string m_url;
 		std::string m_icon;
+		std::string m_class;
 	public:
 		MenuItem(const std::string& id, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
 			: m_id(id)
@@ -66,7 +67,9 @@ namespace FastCGI { namespace TopMenu {
 
 		virtual void echoMarkup(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
 		{
-			request << "        " << pre << "<li id='" << topbarId << "-" << menuId << "-" << m_id << "'>\r\n";
+			request << "        " << pre << "<li id='" << topbarId << "-" << menuId << "-" << m_id << "'";
+			if (!m_class.empty()) request << " class='" << m_class << "'";
+			request << ">\r\n";
 			echoMarkupContent(request, topbarId, menuId, pre);
 			request << "        " << pre << "</li>\r\n";
 		}
@@ -177,6 +180,7 @@ namespace FastCGI { namespace TopMenu {
 			: MenuItem(id, iconPosition, label, tip)
 			, m_subId(subId)
 		{
+			m_class = "popup";
 		}
 
 		MenuItemPtr getItem(const std::string& id)
