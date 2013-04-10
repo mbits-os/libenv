@@ -280,7 +280,7 @@ namespace tyme
 			int i = 0;
 			for (; i < sizeof(zones)/sizeof(zones[0]); ++i)
 			{
-				if (!strncmp(from, zones[i].name, len) && strlen(zones[i].name) == len)
+				if (!strncmp(ptr, zones[i].name, len) && strlen(zones[i].name) == len)
 				{
 					tz = zones[i].offset;
 					break;
