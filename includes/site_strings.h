@@ -62,6 +62,9 @@ namespace lng
 		LNG_USER_SETTINGS_PASSWORD_MAIL_HINT = 54, // You must supply password if you want to change e-mail
 		LNG_USER_SETTINGS_SEC_SIGNIN = 55, // Signing in
 		LNG_USER_SETTINGS_TITLE = 56, // Settings
+		LNG_VIEW_ALL_ITEMS = 57, // All items
+		LNG_VIEW_HOME = 58, // Home
+		LNG_VIEW_SUBSCRIPTIONS = 59, // Subscriptions
 	};
 } // lng
 #endif // __STRINGS_INCLUDE__
