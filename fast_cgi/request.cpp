@@ -48,7 +48,7 @@ namespace FastCGI
 		if (session)
 			session->setTranslation(m_translation);
 
-		return m_translation;
+		return !!m_translation;
 	}
 
 	static const char* error(std::string& s, lng::LNG stringId)
