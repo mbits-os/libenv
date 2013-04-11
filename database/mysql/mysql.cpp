@@ -69,6 +69,7 @@ namespace db { namespace mysql {
 
 		try {
 			auto conn = std::make_shared<MySQLConnection>(ini_path);
+			conn->m_self = conn;
 
 			if (!conn->connect(data.user, data.password, data.server, data.database))
 			{
@@ -156,7 +157,8 @@ namespace db { namespace mysql {
 			return nullptr;
 
 		try {
-			auto stmt = std::make_shared<MySQLStatement>(&m_mysql, stmtptr);
+			auto stmt = std::make_shared<MySQLStatement>(&m_mysql, stmtptr, m_self.lock());
+			stmt->m_self = stmt;
 
 			if (!stmt->prepare(sql))
 				return nullptr;
@@ -307,7 +309,7 @@ namespace db { namespace mysql {
 			return false;
 
 		try {
-			auto cursor = std::make_shared<MySQLCursor>(m_mysql, m_stmt);
+			auto cursor = std::make_shared<MySQLCursor>(m_mysql, m_stmt, m_self.lock());
 
 			if (!cursor->prepare())
 				return nullptr;

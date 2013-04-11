@@ -103,6 +103,7 @@ namespace db
 			unsigned long *m_lengths;
 			my_bool	   *m_is_null;
 			my_bool	   *m_error;
+			StatementPtr m_parent;
 			bool allocBind(size_t count);
 			void deleteBind()
 			{
@@ -112,11 +113,12 @@ namespace db
 			}
 			static bool bindResult(const MYSQL_FIELD& field, MYSQL_BIND& bind, char*& buffer);
 		public:
-			MySQLCursor(MYSQL *mysql, MYSQL_STMT *stmt)
+			MySQLCursor(MYSQL *mysql, MYSQL_STMT *stmt, const StatementPtr& parent)
 				: MySQLBinding(mysql, stmt)
 				, m_lengths(nullptr)
 				, m_is_null(nullptr)
 				, m_error(nullptr)
+				, m_parent(parent)
 			{
 			}
 			~MySQLCursor()
@@ -132,13 +134,18 @@ namespace db
 			tyme::time_t getTimestamp(int column);
 			const char* getText(int column);
 			bool isNull(int column);
+			ConnectionPtr getConnection() const { return m_parent->getConnection(); }
+			StatementPtr getStatement() const { return m_parent; }
 		};
 
 		class MySQLStatement: public Statement, MySQLBinding
 		{
+			ConnectionPtr m_parent;
 		public:
-			MySQLStatement(MYSQL *mysql, MYSQL_STMT *stmt)
+			std::weak_ptr<Statement> m_self;
+			MySQLStatement(MYSQL *mysql, MYSQL_STMT *stmt, const ConnectionPtr& parent)
 				: MySQLBinding(mysql, stmt)
+				, m_parent(parent)
 			{
 			}
 			~MySQLStatement()
@@ -167,6 +174,7 @@ namespace db
 			bool execute();
 			CursorPtr query();
 			const char* errorMessage();
+			ConnectionPtr getConnection() const { return m_parent; }
 		};
 
 		class MySQLConnection: public Connection
@@ -175,6 +183,7 @@ namespace db
 			bool m_connected;
 			std::string m_path;
 		public:
+			std::weak_ptr<Connection> m_self;
 			MySQLConnection(const std::string& path);
 			~MySQLConnection();
 			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);

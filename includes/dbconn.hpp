@@ -48,6 +48,8 @@ namespace db
 		virtual tyme::time_t getTimestamp(int column) = 0;
 		virtual const char* getText(int column) = 0;
 		virtual bool isNull(int column) = 0;
+		virtual ConnectionPtr getConnection() const = 0;
+		virtual StatementPtr getStatement() const = 0;
 	};
 
 	struct time_tag {};
@@ -190,6 +192,7 @@ namespace db
 		virtual bool execute() = 0;
 		virtual CursorPtr query() = 0;
 		virtual const char* errorMessage() = 0;
+		virtual ConnectionPtr getConnection() const = 0;
 	};
 
 	struct Connection
