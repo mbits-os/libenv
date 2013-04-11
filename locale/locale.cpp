@@ -49,10 +49,6 @@ namespace lng
 
 	TranslationPtr Locale::httpAcceptLanguage(const char* header)
 	{
-		TranslationPtr candidate(new (std::nothrow) Translation());
-		if (!candidate.get())
-			return candidate; //OOM, 500 the page
-
 		std::list<std::string> langs = url::priorityList(header);
 		auto _lang = langs.begin(), _end = langs.end();
 		for (; _lang != _end; ++_lang)
@@ -61,8 +57,16 @@ namespace lng
 			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
 
 			Translations::iterator _it = m_translations.find(lang);
-			if (_it != m_translations.end() && !_it->second.expired())
-				return _it->second.lock();
+			if (_it != m_translations.end())
+			{
+				auto candidate = _it->second.lock();
+				if (candidate)
+					return candidate;
+			}
+
+			auto candidate = std::make_shared<Translation>();
+			if (!candidate)
+				return nullptr; //OOM, 500 the page
 
 			std::string path = m_fileRoot + lang + SEP + "site_strings.lng";
 			if (candidate->open(path.c_str()))
@@ -74,8 +78,16 @@ namespace lng
 
 		//falback to en
 		Translations::iterator _it = m_translations.find("en");
-		if (_it != m_translations.end() && !_it->second.expired())
-			return _it->second.lock();
+		if (_it != m_translations.end())
+		{
+			auto candidate = _it->second.lock();
+			if (candidate)
+				return candidate;
+		}
+
+		auto candidate = std::make_shared<Translation>();
+		if (!candidate)
+			return nullptr; //OOM, 500 the page
 
 		std::string path = m_fileRoot + "en" + SEP + "site_strings.lng";
 		if (candidate->open(path.c_str()))

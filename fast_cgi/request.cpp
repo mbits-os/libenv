@@ -37,18 +37,18 @@ namespace FastCGI
 {
 	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
-		if (session.get() != nullptr)
+		if (session)
 		{
 			m_translation = session->getTranslation();
-			if (m_translation.get() != nullptr)
+			if (m_translation)
 				return true;
 		}
 
 		m_translation = request.httpAcceptLanguage();
-		if (session.get() != nullptr)
+		if (session)
 			session->setTranslation(m_translation);
 
-		return m_translation.get() != nullptr;
+		return m_translation;
 	}
 
 	static const char* error(std::string& s, lng::LNG stringId)
@@ -61,7 +61,7 @@ namespace FastCGI
 
 	const char* PageTranslation::operator()(lng::LNG stringId)
 	{
-		if (m_translation.get() == nullptr)
+		if (!m_translation)
 			return error(m_badString, stringId);
 		const char* str = m_translation->tr(stringId);
 		if (!str)
