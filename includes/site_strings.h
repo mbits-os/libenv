@@ -6,6 +6,7 @@ namespace lng
 {
 	enum LNG
 	{
+		CULTURE = 0, // ISO code for the culture
 		LNG_CHNGPASS_CURRENT = 1, // Current password:
 		LNG_CHNGPASS_ERROR_CURRENT = 2, // Current password is invalid.
 		LNG_CHNGPASS_ERROR_MISMATCHED = 3, // New password and retyped password do not match.
