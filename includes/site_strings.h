@@ -66,10 +66,12 @@ namespace lng
 		LNG_USER_SETTINGS_TITLE = 57, // Settings
 		LNG_VIEW_ALL_ITEMS = 58, // All items
 		LNG_VIEW_BY = 59, // by 
-		LNG_VIEW_HOME = 60, // Home
-		LNG_VIEW_PUBLISHED_UNDER = 61, // published under:
-		LNG_VIEW_SUBSCRIPTIONS = 62, // Subscriptions
-		LNG_VIEW_TITLE_MISSING = 63, // (no title)
+		LNG_VIEW_ENCLOSURE = 60, // Attachement:
+		LNG_VIEW_ENCLOSURES = 61, // Attachements:
+		LNG_VIEW_HOME = 62, // Home
+		LNG_VIEW_PUBLISHED_UNDER = 63, // published under:
+		LNG_VIEW_SUBSCRIPTIONS = 64, // Subscriptions
+		LNG_VIEW_TITLE_MISSING = 65, // (no title)
 	};
 } // lng
 #endif // __STRINGS_INCLUDE__
