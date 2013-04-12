@@ -134,13 +134,13 @@ namespace feed
 	{
 		bool parse(dom::XmlNodePtr node, dom::Namespaces ns)
 		{
-			time_t* ctx = (time_t*)m_ctx;
+			size_t* ctx = (size_t*)m_ctx;
 			if (!ctx)
 				return false;
 
 			dom::NODE_TYPE type = node->nodeType();
 			std::string contents = node->stringValue();
-			*ctx = strtoul(contents.c_str(), nullptr, 10);
+			*ctx = (size_t)strtoul(contents.c_str(), nullptr, 10);
 
 			return true;
 		}
@@ -332,6 +332,7 @@ namespace feed
 			for (; cur != end; ++cur)
 			{
 				SelectorPtr& selector = *cur;
+				//fprintf(stderr, "%s\n", selector->name().c_str()); fflush(stderr);
 				if (!selector->parse(node, ns, m_ctx))
 					return false;
 			}
