@@ -27,6 +27,8 @@
 
 #include <memory>
 #include <utils.hpp>
+#include <list>
+#include <vector>
 
 namespace db
 {
@@ -73,7 +75,7 @@ namespace db
 	struct Selector<const char*> { static const char* get(const CursorPtr& c, int column) { return c->getText(column); } };
 
 	template <>
-	struct Selector<std::string> { static std::string get(const CursorPtr& c, int column) { return c->getText(column); } };
+	struct Selector<std::string> { static std::string get(const CursorPtr& c, int column) { return c->isNull(column) ? std::string() : c->getText(column); } };
 
 	struct SelectorBase
 	{
@@ -165,6 +167,18 @@ namespace db
 			}
 			return true;
 		};
+
+		bool get(const CursorPtr& c, std::vector<Type>& ctx)
+		{
+			while (c->next())
+			{
+				Type item;
+				if (!get(c, item))
+					return false;
+				ctx.push_back(item);
+			}
+			return true;
+		};
 	};
 
 	template <typename Type> 
@@ -175,6 +189,12 @@ namespace db
 
 	template <typename Type> 
 	static inline bool get(const CursorPtr& c, std::list<Type>& l)
+	{
+		return Struct<Type>().get(c, l);
+	}
+
+	template <typename Type> 
+	static inline bool get(const CursorPtr& c, std::vector<Type>& l)
 	{
 		return Struct<Type>().get(c, l);
 	}
