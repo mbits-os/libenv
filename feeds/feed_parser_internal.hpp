@@ -57,7 +57,7 @@
 #define FIND_ROOT \
 	bool parse(dom::XmlDocumentPtr document, Feed& feed) \
 	{ \
-		printf("%s Root: %s\n", m_name, getRoot().c_str()); \
+		/*printf("%s Root: %s\n", m_name, getRoot().c_str());*/ \
 		Parser<Feed> parser; \
 		parser.setContext(&feed); \
 		dom::Namespaces ns = getNamespaces(); \
