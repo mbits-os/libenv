@@ -111,6 +111,7 @@ namespace http
 				if (handler)
 					handler(this, handler_data);
 			}
+			bool rebuildDOM(const std::string& mimeType, const std::string& encoding);
 			bool rebuildDOM(const char* forcedType = nullptr);
 			bool parseXML(const std::string& encoding);
 
@@ -420,27 +421,27 @@ namespace http
 			};
 		}
 
-		bool XmlHttpRequest::rebuildDOM(const char* forcedType)
+		bool XmlHttpRequest::rebuildDOM(const std::string& mime, const std::string& encoding)
 		{
-			std::string forced = forcedType ? forcedType : std::string();
-			std::string mime;
-			std::string enc;
-			getMimeAndEncoding(getResponseHeader("Content-Type"), mime, enc);
-
 			if (mime == "" ||
 				mime == "text/xml" ||
 				mime == "application/xml" || 
-				(mime.length() > 4 && mime.substr(mime.length()-4) == "+xml") ||
-				forcedType != nullptr && (
-					forced == "text/xml" ||
-					forced == "application/xml" || 
-					(forced.length() > 4 && forced.substr(mime.length()-4) == "+xml")
-				))
+				(mime.length() > 4 && mime.substr(mime.length()-4) == "+xml"))
 			{
-				return parseXML(enc);
+				return parseXML(encoding);
 			}
 
 			return true;
+		}
+
+		bool XmlHttpRequest::rebuildDOM(const char* forcedType)
+		{
+			std::string mime;
+			std::string enc;
+			getMimeAndEncoding(getResponseHeader("Content-Type"), mime, enc);
+			if (forcedType)
+				return rebuildDOM(forcedType, enc);
+			return rebuildDOM(mime, enc);
 		}
 
 		class XHRParser: public xml::ExpatBase<XHRParser>
