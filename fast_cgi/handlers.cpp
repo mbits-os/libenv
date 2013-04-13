@@ -98,7 +98,6 @@ namespace FastCGI { namespace app {
 			.item("logout", -1, tr(lng::LNG_NAV_SIGNOUT));
 		menu.right()
 			.setItemUrl("search", "javascript:search();")
-			.setItemUrl("new", "javascript:subscribe();")
 			.setItemUrl("refesh", "javascript:reload();");
 		user->setItemUrl("settings", "/settings/general")
 			.setItemUrl("profile", "/settings/profile")
@@ -157,7 +156,27 @@ namespace FastCGI { namespace app {
 			"        </div><!-- #container -->\r\n"
 			"    </div><!-- #main -->\r\n"
 			"\r\n"
-			"    </div>\r\n";
+			"    </div>\r\n"
+			;
+		topbarUI(session, request, tr);
+	}
+	void PageHandler::topbarUI(SessionPtr session, Request& request, PageTranslation& tr)
+	{
+		request <<
+			"<!-- UI -->\r\n"
+			"<div id=\"mouse-catcher\"><div id=\"dimmer\"></div></div>"
+			"<div id=\"subscribe\">"
+				"<form>"
+					"<label for=\"url\">" << tr(lng::LNG_SUBSCRIBE_PROMPT) << "</label><br/>"
+					"<input type=\"url\" name=\"url\" id=\"subscribe-url\" />"
+					"<div class='subscribe-hint'>" << tr(lng::LNG_SUBSCRIBE_HINT) << "</div>"
+					"<div class='subscribe-error'></div>"
+					"<div class='buttons'>"
+					"<input name='add' type='submit' value='" << tr(lng::LNG_CMD_ADD) << "'/>"
+					"<input name='cancel' type='submit' value='" << tr(lng::LNG_CMD_CLOSE) << "'/>"
+					"</div>"
+				"</form>"
+			"</div>";
 	}
 
 }} // FastCGI::app

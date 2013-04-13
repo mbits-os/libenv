@@ -79,6 +79,7 @@ namespace FastCGI { namespace app
 		}
 		virtual void footer(SessionPtr session, Request& request, PageTranslation& tr);
 		virtual void bodyEnd(SessionPtr session, Request& request, PageTranslation& tr);
+		virtual void topbarUI(SessionPtr session, Request& request, PageTranslation& tr);
 		virtual void postrender(SessionPtr session, Request& request, PageTranslation& tr) {}
 	public:
 		void visit(Request& request);
