@@ -191,7 +191,10 @@ namespace FastCGI
 		if (!doc || !feed::parse(doc, feed))
 			return SERR_NOT_A_FEED;
 
-		feed.m_self = url;
+		if (xhr->wasRedirected())
+			feed.m_self = xhr->getFinalLocation();
+		else
+			feed.m_self = url;
 		feed.m_etag = xhr->getResponseHeader("Etag");
 		feed.m_lastModified = xhr->getResponseHeader("Last-Modified");
 		return 0;
