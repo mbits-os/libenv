@@ -42,12 +42,15 @@ namespace http
 		virtual void onError() = 0;
 		virtual void onFinish() = 0;
 		virtual size_t onData(const void* data, size_t count) = 0;
+		virtual void onFinalLocation(const std::string& location) = 0;
 		virtual void onHeaders(const std::string& reason, int http_status, const Headers& headers) = 0;
 
 		virtual void appendHeaders() = 0;
 		virtual std::string getUrl() = 0;
 		virtual void* getContent(size_t& length) = 0;
 		virtual bool getDebug() = 0;
+		virtual long getMaxRedirs() = 0;
+		virtual bool shouldFollowLocation() = 0;
 	};
 
 	typedef std::shared_ptr<HttpCallback> HttpCallbackPtr;

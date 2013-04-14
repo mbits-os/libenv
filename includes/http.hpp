@@ -51,6 +51,9 @@ namespace http
 		virtual std::string getStatusText() const = 0;
 		virtual std::string getResponseHeader(const std::string& name) const = 0;
 		virtual std::map<std::string, std::string> getResponseHeaders() const = 0;
+
+		virtual bool wasRedirected() const = 0;
+		virtual const std::string getFinalLocation() const = 0;
 	};
 
 	struct XmlHttpRequest: HttpResponse
@@ -98,6 +101,8 @@ namespace http
 		virtual dom::XmlDocumentPtr getResponseXml() = 0;
 
 		virtual void setDebug(bool debug = true) = 0;
+		virtual void setShouldFollowLocation(bool follow) = 0;
+		virtual void setMaxRedirects(size_t redirects) = 0;
 	};
 
 }

@@ -106,6 +106,12 @@ namespace http
 			bool send_flag, done_flag, debug;
 			ConnectionCallback* m_connection;
 
+			bool m_followRedirects;
+			size_t m_redirects;
+
+			bool m_wasRedirected;
+			std::string m_finalLocation;
+
 			void onReadyStateChange()
 			{
 				if (handler)
@@ -135,6 +141,9 @@ namespace http
 				, done_flag(false)
 				, debug(false)
 				, m_connection(nullptr)
+				, m_followRedirects(true)
+				, m_redirects(10)
+				, m_wasRedirected(false)
 			{
 			}
 
@@ -161,18 +170,26 @@ namespace http
 			const char* getResponseText() const;
 			dom::XmlDocumentPtr getResponseXml();
 
+			bool wasRedirected() const;
+			const std::string getFinalLocation() const;
+
 			void setDebug(bool debug);
+			void setMaxRedirects(size_t redirects);
+			void setShouldFollowLocation(bool follow);
 
 			void onStart(ConnectionCallback* cb);
 			void onError();
 			void onFinish();
 			size_t onData(const void* data, size_t count);
+			void onFinalLocation(const std::string& location);
 			void onHeaders(const std::string& reason, int http_status, const Headers& headers);
 
 			void appendHeaders();
 			std::string getUrl();
 			void* getContent(size_t& length);
 			bool getDebug();
+			bool shouldFollowLocation();
+			long getMaxRedirs();
 		};
 
 		void XmlHttpRequest::onreadystatechange(ONREADYSTATECHANGE handler, void* userdata)
@@ -180,6 +197,8 @@ namespace http
 			//Synchronize on(*this);
 			this->handler = handler;
 			this->handler_data = userdata;
+			if (ready_state != UNSENT)
+				onReadyStateChange();
 		}
 
 		http::XmlHttpRequest::READY_STATE XmlHttpRequest::getReadyState() const
@@ -321,9 +340,22 @@ namespace http
 			return doc; 
 		}
 
+		bool XmlHttpRequest::wasRedirected() const { return m_wasRedirected; }
+		const std::string XmlHttpRequest::getFinalLocation() const { return m_finalLocation; }
+
 		void XmlHttpRequest::setDebug(bool debug)
 		{
 			this->debug = debug;
+		}
+
+		void XmlHttpRequest::setMaxRedirects(size_t redirects)
+		{
+			m_redirects = redirects;
+		}
+
+		void XmlHttpRequest::setShouldFollowLocation(bool follow)
+		{
+			m_followRedirects = follow;
 		}
 
 		void XmlHttpRequest::onStart(ConnectionCallback* connection)
@@ -333,7 +365,7 @@ namespace http
 			if (!body.content || !body.content_length)
 				http_method = HTTP_GET;
 
-			onReadyStateChange();
+			//onReadyStateChange();
 		}
 
 		void XmlHttpRequest::onError()
@@ -362,6 +394,12 @@ namespace http
 			return ret;
 		}
 
+		void XmlHttpRequest::onFinalLocation(const std::string& location)
+		{
+			m_wasRedirected = true;
+			m_finalLocation = location;
+		}
+
 		void XmlHttpRequest::onHeaders(const std::string& reason, int http_status, const Headers& headers)
 		{
 			//Synchronize on(*this);
@@ -385,6 +423,8 @@ namespace http
 		std::string XmlHttpRequest::getUrl() { return url; }
 		void* XmlHttpRequest::getContent(size_t& length) { if (http_method == HTTP_POST) { length = body.content_length; return body.content; } return nullptr; }
 		bool XmlHttpRequest::getDebug() { return debug; }
+		bool XmlHttpRequest::shouldFollowLocation() { return m_followRedirects; }
+		long XmlHttpRequest::getMaxRedirs() { return m_redirects; }
 
 		static void getMimeAndEncoding(std::string ct, std::string& mime, std::string& enc)
 		{
