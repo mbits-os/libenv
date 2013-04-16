@@ -308,67 +308,76 @@ namespace http
 			ref->onError();
 	}
 
-	struct Transfer
+	namespace Transfer
 	{
 		template <bool equal>
-		static Curl::size_type onDataIf(const HttpCallbackPtr& ref, const char* data, Curl::size_type length);
+		struct Data { static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length); };
 
 		template <>
-		static Curl::size_type onDataIf<true>(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
-		{
-			return ref->onData(data, (size_t)length);
-		}
-
-		template <>
-		static Curl::size_type onDataIf<false>(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
-		{
-			Curl::size_type written = 0;
-			while (length)
+		struct Data<true> { 
+			static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
 			{
-				Curl::size_type chunk = (size_t)-1;
-				if (chunk > length) chunk = length;
-				length -= chunk;
-				size_t st_chunk = (size_t)chunk;
-				size_t ret = ref->onData(data, st_chunk);
-				data += st_chunk;
-				written += ret;
-				if (ret != st_chunk)
-					break;
+				return ref->onData(data, (size_t)length);
 			}
+		};
 
-			return written;
-		}
+		template <>
+		struct Data<false> { 
+			static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
+			{
+				Curl::size_type written = 0;
+				while (length)
+				{
+					Curl::size_type chunk = (size_t)-1;
+					if (chunk > length) chunk = length;
+					length -= chunk;
+					size_t st_chunk = (size_t)chunk;
+					size_t ret = ref->onData(data, st_chunk);
+					data += st_chunk;
+					written += ret;
+					if (ret != st_chunk)
+						break;
+				}
+
+				return written;
+			}
+		};
 
 		static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
 		{
-			return onDataIf<sizeof(Curl::size_type) <= sizeof(size_t)>(ref, data, length);
+			return Data<sizeof(Curl::size_type) <= sizeof(size_t)>::onData(ref, data, length);
 		}
 
 		template <bool equal>
-		static void appendStringIf(std::string& out, const char* data, Curl::size_type length);
+		struct String { static void append(std::string& out, const char* data, Curl::size_type length); };
 
 		template <>
-		static void appendStringIf<true>(std::string& out, const char* data, Curl::size_type length)
-		{
-			out.append(data, (size_t)length);
-		}
-
-		template <>
-		static void appendStringIf<false>(std::string& out, const char* data, Curl::size_type length)
-		{
-			while (length)
+		struct String<true> {
+			static void append(std::string& out, const char* data, Curl::size_type length)
 			{
-				Curl::size_type chunk = (std::string::size_type)-1;
-				if (chunk > length) chunk = length;
-				length -= chunk;
-				std::string::size_type st_chunk = (size_t)chunk;
-				out.append(data, st_chunk);
-				data += st_chunk;
+				out.append(data, (size_t)length);
 			}
-		}
+		};
+
+		template <>
+		struct String<false> {
+			static void append(std::string& out, const char* data, Curl::size_type length)
+			{
+				while (length)
+				{
+					Curl::size_type chunk = (std::string::size_type)-1;
+					if (chunk > length) chunk = length;
+					length -= chunk;
+					std::string::size_type st_chunk = (size_t)chunk;
+					out.append(data, st_chunk);
+					data += st_chunk;
+				}
+			}
+		};
+
 		static void appendString(std::string& out, const char* data, Curl::size_type length)
 		{
-			return appendStringIf<sizeof(Curl::size_type) <= sizeof(std::string::size_type)>(out, data, length);
+			return String<sizeof(Curl::size_type) <= sizeof(std::string::size_type)>::append(out, data, length);
 		}
 	};
 
