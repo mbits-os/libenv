@@ -47,6 +47,73 @@ namespace feed
 		FIND("@length", m_size);
 	}
 
+	std::string xmlize(const std::string& in)
+	{
+		std::string out;
+		out.reserve(in.size() * 12/10);
+		auto cur = in.begin(), end = in.end();
+		for (; cur != end; ++cur)
+		{
+			switch (*cur) {
+			case '<': out.append("&lt;"); break;
+			case '>': out.append("&gt;"); break;
+			case '&': out.append("&amp;"); break;
+			case '"': out.append("&quot;"); break;
+			default:
+				out.push_back(*cur);
+			}
+		}
+		return out;
+	}
+
+	void outerXml(const dom::XmlElementPtr& node, std::string& out);
+	void innerXml(const dom::XmlNodePtr& node, std::string& out)
+	{
+		auto children = node->childNodes();
+		size_t count = children ? children->length() : 0;
+		for (size_t i = 0; i < count; ++i)
+		{
+			auto child = children->item(i);
+			switch (child->nodeType())
+			{
+			case dom::DOCUMENT_NODE:
+				outerXml(std::static_pointer_cast<dom::XmlDocument>(child)->documentElement(), out);
+				break;
+			case dom::ELEMENT_NODE:
+				outerXml(std::static_pointer_cast<dom::XmlElement>(child), out);
+				break;
+			case dom::ATTRIBUTE_NODE:
+				break;
+			case dom::TEXT_NODE:
+				out.append(xmlize(child->nodeValue()));
+				break;
+			}
+		}
+	}
+	void outerXml(const dom::XmlElementPtr& node, std::string& out)
+	{
+		out.append("<");
+		out.append(node->nodeName());
+		auto attrs = node->getAttributes();
+		size_t count = attrs ? attrs->length() : 0;
+		for (size_t i = 0; i < count; ++i)
+		{
+			auto attr = std::static_pointer_cast<dom::XmlAttribute>(attrs->item(i));
+			if (!attr) continue;
+
+			out.append(" ");
+			out.append(attr->nodeName());
+			out.append("=\"");
+			out.append(xmlize(attr->nodeValue()));
+			out.append("\"");
+		}
+		out.append(">");
+		innerXml(node, out);
+		out.append("</");
+		out.append(node->nodeName());
+		out.append(">");
+	}
+
 	RULE(Entry)
 	{
 		FIND_NAMED("atom:title",            m_entry, m_title);
@@ -59,7 +126,16 @@ namespace feed
 		FIND_TIME("atom:updated",           m_dateTime);
 		FIND("atom:category/@term",         m_categories);
 		FIND("atom:summary",                m_description);
-		FIND("atom:content",                m_content);
+		FIND_PRED("atom:content",           m_content, [](const dom::XmlNodePtr& node, dom::Namespaces ns, std::string& ctx) -> bool
+		{
+			auto e(std::static_pointer_cast<dom::XmlElement>(node));
+			if (e && e->hasAttribute("type") && e->getAttribute("type") == "xhtml")
+			{
+				innerXml(node, ctx);
+				return true;
+			}
+			return ValueParser(node, ns, ctx);
+		});
 	}
 
 	RULE(Feed)

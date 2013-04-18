@@ -51,6 +51,7 @@
 	Parser<type>::Parser()
 
 #define FIND(xpath, dest) find(xpath, &Type::dest)
+#define FIND_PRED(xpath, dest, pred) find(xpath, &Type::dest, pred)
 #define FIND_NAMED(xpath, parent, field) find(xpath, &Type::parent, &NamedUrl::field)
 #define FIND_AUTHOR(xpath, field) find(xpath, &Type::m_author, &Author::field)
 #define FIND_TIME(xpath, dest) findTime(xpath, &Type::dest)
@@ -146,16 +147,26 @@ namespace feed
 		}
 	};
 
-	template <typename Type, typename Member>
+	template <typename Member>
+	bool ValueParser(const dom::XmlNodePtr& node, dom::Namespaces ns, Member& ctx)
+	{
+		Parser<Member> subparser;
+		subparser.setContext(&ctx);
+		return subparser.parse(node, ns);
+	};
+
+	template <typename Type, typename Member, typename Pred>
 	struct MemberSelector: Selector
 	{
 		std::string m_xpath;
 		Member Type::* m_member;
+		Pred m_pred;
 		bool m_optional;
 
-		MemberSelector(const std::string& xpath, Member Type::* member, bool optional = true)
+		MemberSelector(const std::string& xpath, Member Type::* member, Pred pred, bool optional = true)
 			: m_xpath(xpath)
 			, m_member(member)
+			, m_pred(pred)
 			, m_optional(optional)
 		{
 		}
@@ -170,11 +181,9 @@ namespace feed
 			if (!ctx)
 				return false;
 
-			Member& new_ctx = ctx->*m_member;
+			auto& new_ctx = ctx->*m_member;
 
-			Parser<Member> subparser;
-			subparser.setContext(&new_ctx);
-			return subparser.parse(data, ns);
+			return m_pred(data, ns, new_ctx);
 		}
 		std::string name() const { return "MemberSelector(" + m_xpath + ")"; }
 	};
@@ -303,10 +312,16 @@ namespace feed
 	struct StructParser: ParserBase
 	{
 		std::list<SelectorPtr> m_selectors;
+		template <typename Member, typename Pred>
+		void find(const std::string& xpath, Member Type::* dest, Pred pred)
+		{
+			m_selectors.push_back(std::make_shared< MemberSelector<Type, Member, Pred> >(xpath, dest, pred));
+		}
+
 		template <typename Member>
 		void find(const std::string& xpath, Member Type::* dest)
 		{
-			m_selectors.push_back(std::make_shared< MemberSelector<Type, Member> >(xpath, dest));
+			find(xpath, dest, ValueParser<Member>);
 		}
 
 		void findTime(const std::string& xpath, tyme::time_t Type::* dest)
