@@ -43,6 +43,33 @@
 
 namespace http
 {
+	namespace { std::string charsetPath; }
+
+	void init(const char* path)
+	{
+		charsetPath = path;
+	}
+
+	bool loadCharset(std::string encoding, int (&table)[256])
+	{
+#define DOTDAT ".dat"
+
+		std::transform(encoding.begin(), encoding.end(), encoding.begin(), [](char c) { return c == '-' ? '_' : ::tolower((unsigned char)c); } );
+
+		std::string path;
+		path.reserve(charsetPath.size() + encoding.size() + sizeof(DOTDAT)); // ".dat\0"
+		path.append(charsetPath);
+		path.append(encoding);
+		path.append(DOTDAT, sizeof(DOTDAT) - 1);
+
+		FILE* dat = fopen(path.c_str(), "rb");
+		if (!dat) return false;
+		int read = fread(table, sizeof(int), 256, dat);
+		fclose(dat);
+
+		return read == 256;
+	}
+
 	namespace impl
 	{
 		struct ContentData
@@ -452,7 +479,7 @@ namespace http
 					low = 0; hi = enc.length();
 					while (enc[low] && isspace((unsigned char)enc[low])) ++low;
 					while (hi > low && isspace((unsigned char)enc[hi-1])) --hi;
-					enc = std::toupper(enc.substr(low, hi-low));
+					enc = enc.substr(low, hi-low);
 					return;
 				}
 				pos = ct.find_first_of(';');
@@ -507,6 +534,21 @@ namespace http
 				return xml::ExpatBase<XHRParser>::create(cp);
 			}
 
+			bool onUnknownEncoding(const XML_Char* name, XML_Encoding* info)
+			{
+				info->data = nullptr;
+				info->convert = nullptr;
+				info->release = nullptr;
+
+				if (!loadCharset(name, info->map))
+				{
+					printf("Unknown encoding: %s\n", name);
+					return false;
+				}
+
+				return true;
+			}
+
 			void onStartElement(const XML_Char *name, const XML_Char **attrs)
 			{
 				addText();
@@ -542,11 +584,12 @@ namespace http
 		bool XmlHttpRequest::parseXML(const std::string& encoding)
 		{
 			const char* cp = NULL;
-			if (encoding != "") cp = encoding.c_str();
+			if (!encoding.empty()) cp = encoding.c_str();
 			XHRParser parser;
 			if (!parser.create(cp)) return false;
 			parser.enableElementHandler();
 			parser.enableCharacterDataHandler();
+			parser.enableUnknownEncodingHandler();
 			if (!parser.parse((const char*)response.content, response.content_length))
 				return false;
 			doc = parser.doc;

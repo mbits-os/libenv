@@ -121,8 +121,10 @@ namespace xml
 		}
 		void enableUnknownEncodingHandler(bool enable = true)
 		{
+			Final* pThis = static_cast<Final*>(this);
 			XML_SetUnknownEncodingHandler(m_parser,
-				enable ? unknownEncodingHandler : nullptr);
+				enable ? unknownEncodingHandler : nullptr,
+				enable ? (void*) pThis : nullptr);
 		}
 		void enableStartNamespaceDeclHandler(bool enable = true)
 		{
@@ -255,7 +257,7 @@ namespace xml
 		}
 		static int unknownEncodingHandler(void* userData, const XML_Char* name, XML_Encoding* info)
 		{
-			return USER_DATA->onUnknownEncoding(name, info) ? 1 : 0;
+			return USER_DATA->onUnknownEncoding(name, info) ? XML_STATUS_OK : XML_STATUS_ERROR;
 		}
 		static void startNamespaceDeclHandler(void* userData, const XML_Char* prefix, const XML_Char* uri)
 		{

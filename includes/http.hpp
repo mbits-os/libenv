@@ -105,6 +105,7 @@ namespace http
 		virtual void setMaxRedirects(size_t redirects) = 0;
 	};
 
+	void init(const char* charsetPath);
 }
 
 #endif //__HTTP_HPP__
