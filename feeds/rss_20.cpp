@@ -83,8 +83,8 @@ namespace feed
 		FIND("category",          m_categories);
 		FIND_TIME("pubDate",      m_dateTime);
 		FIND_TIME("dc:date",      m_dateTime);
-		FIND("content:encoded",   m_description);
 		FIND("description",       m_description);
+		FIND("content:encoded",   m_content);
 	}
 
 	RULE(Feed)
