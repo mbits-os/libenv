@@ -523,7 +523,7 @@ namespace http
 		}
 		std::string key;
 		Transfer::appendString(key, data, pos - read);
-		key = std::tolower(key);
+		std::tolower(key);
 
 		read = mark + 1;
 		data = ptr + 1;

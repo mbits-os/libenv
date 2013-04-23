@@ -124,19 +124,33 @@ namespace tyme
 
 namespace std
 {
+	static inline void tolower(std::string& inout)
+	{
+		std::transform(inout.begin(), inout.end(), inout.begin(), ::tolower);
+	}
+
+	static inline void toupper(std::string& inout)
+	{
+		std::transform(inout.begin(), inout.end(), inout.begin(), ::toupper);
+	}
 	static inline std::string tolower(const std::string& s)
 	{
 		std::string out = s;
-		std::transform(out.begin(), out.end(), out.begin(), ::tolower);
+		tolower(out);
 		return out;
 	}
 
 	static inline std::string toupper(const std::string& s)
 	{
 		std::string out = s;
-		std::transform(out.begin(), out.end(), out.begin(), ::toupper);
+		toupper(out);
 		return out;
 	}
 }
+
+#define SHAREABLE(type) \
+	class type; \
+	typedef std::shared_ptr<type> type ## Ptr; \
+	typedef std::weak_ptr<type> type ## WeakPtr;
 
 #endif //__UTILS_H__
