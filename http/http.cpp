@@ -40,34 +40,205 @@
 #include <string>
 #include "curl_http.hpp"
 #include <expat.hpp>
+#include <vector>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 
 namespace http
 {
+	struct Encoding
+	{
+		const char* m_name;
+		const int* m_table;
+		size_t m_size;
+		Encoding(const char* name, const int* table, size_t size)
+			: m_name(name)
+			, m_table(table)
+			, m_size(size)
+		{
+		}
+	};
+
+	class EncodingDB
+	{
+		typedef std::vector<Encoding> Encodings;
+
+		Encodings m_encodings;
+		std::string m_dbPath;
+		char* m_data;
+		bool m_opened;
+
+		struct File
+		{
+			FILE* m_ptr;
+			size_t m_size;
+			File(const std::string& path)
+			{
+				m_ptr = fopen(path.c_str(), "rb");
+
+				m_size = 0;
+				struct stat st;
+				if (!stat(path.c_str(), &st))
+					m_size = st.st_size;
+			}
+			~File()
+			{
+				if (*this)
+					fclose(m_ptr);
+			}
+
+			operator bool () { return m_ptr != nullptr; }
+
+			size_t read(void* dst, size_t bytes) { return fread(dst, 1, bytes, m_ptr); }
+			template <typename T> bool read(T& t) { return read(&t, sizeof(T)) == sizeof(T); }
+
+			size_t size() { return m_size; }
+		};
+
+		struct AutoCloser
+		{
+			char*& data;
+			bool close;
+			AutoCloser(char*& data): data(data), close(true) {}
+			~AutoCloser()
+			{
+				if (close)
+				{
+					free(data);
+					data = nullptr;
+				}
+			}
+			void release() { close = false; }
+		};
+
+		struct FileHeader
+		{
+			unsigned int magic, count, strings;
+		};
+
+		struct TableHeader
+		{
+			unsigned int string, table, size;
+		};
+
+		void _close()
+		{
+			if (!m_opened)
+				return;
+
+			m_encodings.clear();
+
+			free(m_data);
+			m_data = nullptr;
+		}
+
+		bool _open()
+		{
+			if (m_opened)
+				return true;
+
+			File  file(m_dbPath);
+			if (!file)
+				return false;
+
+			FileHeader header;
+			if (!file.read(header)) return false;
+
+			static const unsigned int MAGIC = 0x54455343;
+			if (header.magic != MAGIC) return false;
+			size_t stringsStart = sizeof(header) + sizeof(TableHeader)*header.count;
+			size_t minimalOffset = stringsStart + header.strings;
+			minimalOffset = ((minimalOffset + 3) >> 2) << 2;
+			if (minimalOffset > file.size())
+				return false;
+
+			size_t buffer = file.size() - stringsStart;
+			m_data = (char*)malloc(buffer);
+			if (!m_data)
+				return false;
+			AutoCloser guard(m_data);
+
+			m_encodings.reserve(header.count);
+			for (unsigned int i = 0; i < header.count; ++i)
+			{
+				TableHeader head;
+				if (!file.read(head)) return false;
+
+				if (head.table < minimalOffset)
+					return false;
+				if (head.table + head.size > file.size())
+					return false;
+				if (head.string < stringsStart || head.string >= (stringsStart + header.strings))
+					return false;
+
+				const char* name = m_data + head.string - stringsStart;
+				const int* table = (int*)(m_data + head.table - stringsStart);
+
+				m_encodings.emplace_back(name, table, head.size);
+			}
+
+			if (file.read(m_data, buffer) != buffer)
+				return false;
+
+			guard.release();
+			return m_opened = true;
+		}
+
+		static EncodingDB& get()
+		{
+			static EncodingDB db;
+			return db;
+		}
+
+		const Encoding* _find(std::string enc)
+		{
+			std::tolower(enc);
+			auto it = std::lower_bound(m_encodings.begin(), m_encodings.end(), enc,
+				[](const Encoding& enc, const std::string& key)
+				{
+					// this supposed to be equivalent of "less(enc.m_name, key)" (notice reversed arguments)
+					return key.compare(enc.m_name) > 0;
+				});
+			if (it == m_encodings.end() || enc.compare(it->m_name) != 0)
+				return nullptr;
+			return &*it;
+		}
+
+		EncodingDB()
+			: m_data(nullptr)
+			, m_opened(false)
+		{
+		}
+	public:
+		static void init(const char* path) { get().m_dbPath = path; close(); }
+		static void close() { get()._close(); }
+		static bool open() { return get()._open(); }
+		static const Encoding* find(const std::string& enc) { return get()._find(enc); }
+	};
+
 	namespace { std::string charsetPath; }
 
 	void init(const char* path)
 	{
-		charsetPath = path;
+		EncodingDB::init(path);
 	}
 
-	bool loadCharset(std::string encoding, int (&table)[256])
+	bool loadCharset(const std::string& encoding, int (&table)[256])
 	{
-#define DOTDAT ".dat"
+		if (!EncodingDB::open())
+			return false;
 
-		std::transform(encoding.begin(), encoding.end(), encoding.begin(), [](char c) { return c == '-' ? '_' : ::tolower((unsigned char)c); } );
+		auto obj = EncodingDB::find(encoding);
 
-		std::string path;
-		path.reserve(charsetPath.size() + encoding.size() + sizeof(DOTDAT)); // ".dat\0"
-		path.append(charsetPath);
-		path.append(encoding);
-		path.append(DOTDAT, sizeof(DOTDAT) - 1);
+		if (!obj)
+			return false;
 
-		FILE* dat = fopen(path.c_str(), "rb");
-		if (!dat) return false;
-		int read = fread(table, sizeof(int), 256, dat);
-		fclose(dat);
+		if (obj->m_size < sizeof(table))
+			return false;
 
-		return read == 256;
+		memcpy(table, obj->m_table, sizeof(table));
+		return true;
 	}
 
 	namespace impl
