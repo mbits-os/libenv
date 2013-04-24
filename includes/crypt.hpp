@@ -125,6 +125,7 @@ namespace Crypt
 
 	typedef PasswordHash::hash_t password_t;
 	typedef SessionHash::hash_t session_t;
+	typedef MD5Hash::hash_t md5_t;
 
 	inline bool password(const char* passphrase, password_t& hash)
 	{
@@ -134,6 +135,11 @@ namespace Crypt
 	inline bool session(const char* seedMessage, session_t& sessionId)
 	{
 		return SessionHash::crypt(seedMessage, sessionId);
+	}
+
+	inline bool md5(const char* seedMessage, md5_t& hash)
+	{
+		return MD5Hash::crypt(seedMessage, hash);
 	}
 
 	bool verify(const char* message, const char* hash);
