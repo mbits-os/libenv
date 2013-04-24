@@ -135,7 +135,11 @@ namespace filter
 	{
 		int m_fd;
 	public:
-		explicit FileDescriptor(int fd = 0): m_fd(fd) {}
+		FileDescriptor() = delete;
+		FileDescriptor(const FileDescriptor&) = delete;
+		FileDescriptor& operator = (const FileDescriptor&) = delete;
+
+		explicit FileDescriptor(int fd): m_fd(fd) {}
 		FileDescriptor(FileDescriptor&& right)
 		{
 			m_fd = right.m_fd;
@@ -157,6 +161,7 @@ namespace filter
 
 	struct Pipe
 	{
+		Pipe(): reader(0), writer(0) {}
 		FileDescriptor reader, writer;
 		bool open();
 	};
