@@ -29,7 +29,18 @@
 #include <sstream>
 #include <string>
 #include <utils.hpp>
+
+#if WIN32
 #include <io.h>
+#include <fcntl.h>
+
+static inline int pipe(int* fd) { return _pipe(fd, 2048, O_BINARY); }
+
+#else
+#include <unistd.h>
+#define _read read
+#define _close close
+#endif
 
 namespace filter
 {
@@ -115,15 +126,48 @@ namespace filter
 	};
 
 #ifdef POSIX
+#define _read read
 #define _write write
+#define _close close
 #endif
 
-	class FdFilter: public Filter
+	class FileDescriptor
 	{
 		int m_fd;
 	public:
-		FdFilter(int fd): m_fd(fd) {}
-		void onChar(char c) override { _write(m_fd, &c, 1); }
+		explicit FileDescriptor(int fd = 0): m_fd(fd) {}
+		FileDescriptor(FileDescriptor&& right)
+		{
+			m_fd = right.m_fd;
+			right.m_fd = 0;
+		}
+		~FileDescriptor() { close(); }
+
+		void set(int fd) { close(); m_fd = fd; }
+		void swap(FileDescriptor&& right)
+		{
+			int old = m_fd;
+			m_fd = right.m_fd;
+			right.m_fd = old;
+		}
+		size_t read(void* buffer, size_t len) { return ::_read(m_fd, buffer, len); }
+		size_t write(const void* buffer, size_t len) { return ::_write(m_fd, buffer, len); }
+		void close() { if (m_fd) ::_close(m_fd); m_fd = 0; }
+	};
+
+	struct Pipe
+	{
+		FileDescriptor reader, writer;
+		bool open();
+	};
+
+	class FdFilter: public Filter
+	{
+		FileDescriptor m_fd;
+	public:
+		explicit FdFilter(FileDescriptor&& fd): m_fd(std::move(fd)) {}
+		void onChar(char c) override { m_fd.write(&c, 1); }
+		void close() override { m_fd.close(); }
 	};
 
 

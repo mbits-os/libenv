@@ -153,4 +153,9 @@ namespace std
 	typedef std::shared_ptr<type> type ## Ptr; \
 	typedef std::weak_ptr<type> type ## WeakPtr;
 
+#define SHAREABLE_STRUCT(type) \
+	struct type; \
+	typedef std::shared_ptr<type> type ## Ptr; \
+	typedef std::weak_ptr<type> type ## WeakPtr;
+
 #endif //__UTILS_H__

@@ -75,4 +75,16 @@ namespace filter
 			m_line = 77;
 		}
 	}
+
+	bool Pipe::open()
+	{
+		int fd[2];
+		if (pipe(fd) == -1)
+			return false;
+
+		reader.set(fd[0]);
+		writer.set(fd[1]);
+
+		return true;
+	}
 };

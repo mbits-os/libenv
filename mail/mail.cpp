@@ -29,19 +29,18 @@
 #include <stdlib.h>
 #include <curl/curl.h>
 #include <future>
+#include <thread>
+
+#define MACHINE "reedr.net"
+#define SMTP "smtp://localhost"
+//#define SMTP_USER
+//#define SMTP_PASS
 
 #if WIN32
 #include <direct.h>
-#include <io.h>
-#include <fcntl.h>
-
-static inline int pipe(int* fd) { return _pipe(fd, 2048, O_BINARY); }
-
 #else
 #include <unistd.h>
 #define _getcwd getcwd
-#define _read read
-#define _close close
 #endif
 
 namespace mail
@@ -249,18 +248,23 @@ namespace mail
 		return std::move(out);
 	}
 
-	void Message::send(PostOffice& service)
+	void Message::post()
 	{
-		std::string to;
-
 		addHeader("Subject", Base64::header(m_subject));
 		addHeader("From", m_from.format());
+		addHeader("To", join(m_to));
 		if (!m_cc.empty()) addHeader("Cc", join(m_cc));
 		if (!m_bcc.empty()) addHeader("Bcc", join(m_bcc));
+		echo();
+		m_downstream->close();
+	}
 
-		addHeader("To", join(m_to));
+	std::string Message::getSender() const { return m_from.mail(); }
+
+	std::vector<std::string> Message::getRecipients() const
+	{
 		std::vector<std::string> tos;
-		tos.reserve(m_to.size());
+		tos.reserve(m_to.size() + m_cc.size() + m_bcc.size());
 		std::transform(
 			m_to.begin(), m_to.end(),
 			std::back_inserter(tos),
@@ -276,82 +280,127 @@ namespace mail
 			std::back_inserter(tos),
 			[](const Address& a) { return a.mail(); }
 		);
-		service.send(m_from.mail(), tos, this);
+		return tos;
 	}
 
-	PostOffice::PostOffice()
+	void PostOffice::post(const MessagePtr& ptr, bool async)
 	{
+		std::packaged_task<int()> task([ptr]()
+		{
+			return send(ptr->getSender(), ptr->getRecipients(), ptr);
+		});
+		auto future = task.get_future();
+		std::thread thread(std::move(task));
+		if (async)
+			thread.detach();
+		else
+			thread.join();
 	}
 
-	void PostOffice::connect(const std::string& machine, const std::string& user, const std::string& password)
+	class Curl
 	{
-		m_machine = machine;
-		m_user = user;
-		m_password = password;
-	}
+		CURL* m_curl;
+		curl_slist * m_recipients;
+		filter::FileDescriptor m_fd;
 
-	void PostOffice::post(const MessagePtr& ptr)
-	{
-		ptr->send(*this);
-	}
+		static size_t fread(void *buffer, size_t size, size_t count, Curl* curl)
+		{
+			return curl->m_fd.read(buffer, size * count) / size;
+		}
 
-	size_t Message_fread(void *buffer, size_t size, size_t count, void* pfile)
-	{
-		int file = (int)pfile;
-		return _read(file, buffer, size * count) / size;
-	}
+	public:
+		Curl();
+		~Curl() { close(); }
+		bool open();
+		void close();
+		void setSender(const std::string& from);
+		void setRecipients(const std::vector<std::string>& to);
+		void pipe(filter::FileDescriptor&& fd);
+		CURLcode transfer();
+	};
 
-	void PostOffice::send(const std::string& from, const std::vector<std::string>& to, Message* ptr)
+	int PostOffice::send(const std::string& from, const std::vector<std::string>& to, const MessagePtr& ptr)
 	{
 		if (to.empty())
-			return;
+			return -1;
 
-		auto curl = curl_easy_init();
-		struct curl_slist *recipients = nullptr;
+		Curl smtp;
+		if (!smtp.open())
+			return -1;
 
-		if (!curl)
-			return;
-		curl_easy_setopt(curl, CURLOPT_URL, ("smtp://" + m_machine).c_str());
-		curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-		curl_easy_setopt(curl, CURLOPT_USERNAME, m_user.c_str());
-		curl_easy_setopt(curl, CURLOPT_PASSWORD, m_password.c_str());
-		curl_easy_setopt(curl, CURLOPT_MAIL_FROM, from.c_str());
+		smtp.setSender(from);
+		smtp.setRecipients(to);
 
-		for (auto& addr: to)
-			recipients = curl_slist_append(recipients, addr.c_str());
-		curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
+		filter::Pipe pipe;
+		if (!pipe.open())
+			return -1;
 
-		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+		smtp.pipe(std::move(pipe.reader));
+		ptr->pipe(std::make_shared<filter::FdFilter>(std::move(pipe.writer)));
 
-		int fd[2];
-		if (pipe(fd) == -1)
-			return;
+		std::async(std::launch::async, [ptr]() { ptr->post(); });
 
-		ptr->pipe(std::make_shared<filter::FdFilter>(fd[1]));
-
-		auto future = std::async(std::launch::async, [&fd, ptr]()
-		{
-			ptr->echo();
-			_close(fd[1]);
-		});
-
-		curl_easy_setopt(curl, CURLOPT_READFUNCTION, Message_fread);
-		curl_easy_setopt(curl, CURLOPT_READDATA, (void*)fd[0]);
-
-		auto res = curl_easy_perform(curl);
-
-		_close(fd[0]);
+		auto res = smtp.transfer();
 
 		if(res != CURLE_OK)
 			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 
-		/* free the list of recipients and clean up */ 
-		curl_slist_free_all(recipients);
-		curl_easy_cleanup(curl);
+		return res;
+	}
 
-		future.get();
+	Curl::Curl()
+		: m_curl(nullptr)
+		, m_recipients(nullptr)
+		, m_fd(0)
+	{
+	}
+
+	bool Curl::open()
+	{
+		m_curl = curl_easy_init();
+
+		if (!m_curl)
+			return false;
+		curl_easy_setopt(m_curl, CURLOPT_URL, SMTP);
+		curl_easy_setopt(m_curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
+		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+#if defined(SMTP_USER) && defined(SMTP_PASS)
+		curl_easy_setopt(m_curl, CURLOPT_USERNAME, SMTP_USER);
+		curl_easy_setopt(m_curl, CURLOPT_PASSWORD, SMTP_PASS);
+#endif
+		return true;
+	}
+
+	void Curl::close()
+	{
+		curl_slist_free_all(m_recipients);
+		curl_easy_cleanup(m_curl);
+	}
+
+	void Curl::setSender(const std::string& from)
+	{
+		curl_easy_setopt(m_curl, CURLOPT_MAIL_FROM, from.c_str());
+	}
+
+	void Curl::setRecipients(const std::vector<std::string>& to)
+	{
+		for (auto& addr: to)
+			m_recipients = curl_slist_append(m_recipients, addr.c_str());
+		curl_easy_setopt(m_curl, CURLOPT_MAIL_RCPT, m_recipients);
+	}
+
+	void Curl::pipe(filter::FileDescriptor&& fd)
+	{
+		m_fd.swap(std::move(fd));
+		curl_easy_setopt(m_curl, CURLOPT_READFUNCTION, fread);
+		curl_easy_setopt(m_curl, CURLOPT_READDATA, this);
+	}
+
+	CURLcode Curl::transfer()
+	{
+		return curl_easy_perform(m_curl);
 	}
 
 	MessagePtr PostOffice::newMessage(const std::string& subject, const MessageProducerPtr& producer)
@@ -362,7 +411,7 @@ namespace mail
 		Crypt::md5_t boundary;
 		Crypt::md5(now, boundary);
 
-		return std::make_shared<Message>(subject, boundary, m_machine, producer);
+		return std::make_shared<Message>(subject, boundary, MACHINE, producer);
 	}
 
 }

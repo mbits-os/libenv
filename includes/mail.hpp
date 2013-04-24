@@ -246,12 +246,9 @@ namespace mail
 		MimePartPtr m_html;
 		MultipartPtr m_msg;
 
-		void send(PostOffice& service);
-		void send(const FilterPtr& downstream, PostOffice& service)
-		{
-			pipe(downstream);
-			send(service);
-		}
+		void post();
+		std::string getSender() const;
+		std::vector<std::string> getRecipients() const;
 	public:
 		Message(const std::string& subject, const std::string& boundary, const std::string& machine, const MessageProducerPtr& producer);
 		void echo() override;
@@ -268,19 +265,13 @@ namespace mail
 
 	class PostOffice
 	{
-		friend class Message;
-
-		std::string m_machine;
-		std::string m_user;
-		std::string m_password;
-
-		void send(const std::string& from, const std::vector<std::string>& to, Message* ptr);
+		static int send(const std::string& from, const std::vector<std::string>& to, const MessagePtr& ptr);
 	public:
-		PostOffice();
-		void connect(const std::string& machine, const std::string& user = std::string(), const std::string& password = std::string());
-		void post(const MessagePtr& ptr);
-		MessagePtr newMessage(const std::string& subject, const MessageProducerPtr& producer);
+		static void post(const MessagePtr& ptr, bool async);
+		static MessagePtr newMessage(const std::string& subject, const MessageProducerPtr& producer);
 	};
 }
+
+using mail::PostOffice;
 
 #endif // __MAIL_HPP__
