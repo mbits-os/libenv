@@ -134,10 +134,16 @@ namespace filter
 	class FileDescriptor
 	{
 		int m_fd;
-	public:
+#ifdef _MSC_VER
+		FileDescriptor() {}
+		FileDescriptor(const FileDescriptor&) {}
+		FileDescriptor& operator = (const FileDescriptor&) { return *this; }
+#else
 		FileDescriptor() = delete;
 		FileDescriptor(const FileDescriptor&) = delete;
 		FileDescriptor& operator = (const FileDescriptor&) = delete;
+#endif
+	public:
 
 		explicit FileDescriptor(int fd): m_fd(fd) {}
 		FileDescriptor(FileDescriptor&& right)
