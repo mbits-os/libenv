@@ -23,6 +23,8 @@
  */
 
 #include "pch.h"
+#include <utils.hpp>
+
 #include "wiki_parser.hpp"
 
 namespace wiki { namespace parser {
@@ -82,9 +84,18 @@ namespace wiki { namespace parser {
 
 	bool Parser::block(pointer start, pointer end)
 	{
-		std::cout << "( ";
-		std::for_each(start, end, [](char c) { std::cout.put(c); });
-		std::cout << " )\n" << std::flush;
+		line::Parser subparser(start, end);
+		auto tokens = subparser.parse();
+		bool first = true;
+		std::cout << "(";
+		for (auto& tok: tokens)
+		{
+			if (first) first = false;
+			else std::cout << ", ";
+			std::cout << tok;
+		}
+		std::cout << ")\n";
+
 		return true;
 	}
 
@@ -235,4 +246,113 @@ namespace wiki { namespace parser {
 
 		return text(line, end);
 	}
+
+	void line::Parser::text(size_t count)
+	{
+		if ((size_t)std::distance(m_prev, m_cur) > count)
+		{
+			auto end = m_cur - count;
+			if (std::distance(m_prev, end) > 0)
+				push(TOKEN::TEXT, m_prev, end);
+		}
+		m_prev = m_cur;
+	}
+
+	void line::Parser::repeated(char c, size_t repeats, TOKEN tok)
+	{
+		size_t count = 0;
+		while (count < repeats && m_cur != m_end && *m_cur == c) ++m_cur, ++count;
+		if (count < repeats)
+			return;
+
+		text(count);
+		push(tok);
+	}
+
+	void line::Parser::boldOrItalics()
+	{
+		auto cur = m_cur;
+		while (m_cur != m_end && *m_cur == '\'') ++m_cur;
+		static const TOKEN tokens[] = {
+			TOKEN::BAD,
+			TOKEN::BAD,
+			TOKEN::ITALIC,
+			TOKEN::BOLD,
+			TOKEN::BAD,
+			TOKEN::BI
+		};
+
+		size_t count = std::distance(cur, m_cur);
+		if (count < array_size(tokens) && tokens[count] != TOKEN::BAD)
+		{
+			text(count);
+			push(tokens[count]);
+		}
+	}
+
+	void line::Parser::htmlTag()
+	{
+		TOKEN tok = TOKEN::TAG_S;
+		auto tmp = m_cur;
+		++m_cur;
+		if (m_cur != m_end && *m_cur == '/')
+		{
+			tok = TOKEN::TAG_E;
+			++m_cur;
+		}
+
+		auto nameStart = m_cur;
+		while (m_cur != m_end && *m_cur != '>') ++m_cur;
+
+		if (m_cur == m_end) return;
+		auto nameEnd = m_cur;
+		++m_cur;
+
+		if (nameStart != nameEnd && nameEnd[-1] == '/')
+		{
+			tok = TOKEN::TAG_CLOSED;
+			--nameEnd;
+		}
+
+		text(std::distance(tmp, m_cur));
+		push(tok, nameStart, nameEnd);
+	}
+
+	line::Tokens line::Parser::parse()
+	{
+		while (m_cur != m_end)
+		{
+			switch(*m_cur)
+			{
+			case '\'': boldOrItalics(); break;
+			case '{': repeated('{', 3, TOKEN::VAR_S); break;
+			case '}': repeated('}', 3, TOKEN::VAR_E); break;
+			case '[': repeated('[', 2, TOKEN::HREF_S); in1stSEG = inHREF = true; break;
+			case ']': repeated(']', 2, TOKEN::HREF_E); in1stSEG = inHREF = true; break;
+			case ':':
+				++m_cur;
+				if (in1stSEG)
+				{
+					in1stSEG = false; // only one NS per HREF
+					text(1);
+					push(TOKEN::HREF_NS);
+				}
+				break;
+			case '|':
+				++m_cur;
+				if (inHREF)
+				{
+					in1stSEG = false;
+					text(1);
+					push(TOKEN::HREF_SEG);
+				}
+				break;
+			case '<': htmlTag(); break;
+			default: ++m_cur;
+			};
+		}
+		text(0);
+		return std::move(m_out);
+	}
+
 }}  // wiki::parser
