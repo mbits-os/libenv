@@ -38,7 +38,46 @@ namespace wiki { namespace parser {
 	{
 	}
 
-	bool Parser::parse(const std::string& text)
+	static void printBlocks(const Parser::Text& blocks, const std::string& pre = std::string())
+	{
+		for (auto& block: blocks)
+		{
+			std::cout << pre;
+
+			switch (block.type)
+			{
+			case Parser::BLOCK::UNKNOWN: std::cout << '?'; break;
+			case Parser::BLOCK::HEADER: std::cout << 'H'; break;
+			case Parser::BLOCK::PARA: std::cout << 'P'; break;
+			case Parser::BLOCK::QUOTE: std::cout << 'Q'; break;
+			case Parser::BLOCK::PRE: std::cout << 'R'; break;
+			case Parser::BLOCK::ITEM: std::cout << 'L'; break;
+			case Parser::BLOCK::SIGNATURE: std::cout << 'S'; break;
+			case Parser::BLOCK::HR: std::cout << "HR"; break;
+			case Parser::BLOCK::UL: std::cout << "UL"; break;
+			case Parser::BLOCK::OL: std::cout << "OL"; break;
+			}
+			if (block.iArg) std::cout << block.iArg;
+			if (!block.sArg.empty()) std::cout << '[' << block.sArg << ']';
+
+			if (!block.tokens.empty())
+			{
+				std::cout << ": (";
+				bool first = true;
+				for (auto& tok: block.tokens)
+				{
+					if (first) first = false;
+					else std::cout << ", ";
+					std::cout << tok;
+				}
+				std::cout << ")";
+			}
+			std::cout << "\n";
+			printBlocks(block.items, "    ");
+		}
+	}
+
+	void Parser::parse(const std::string& text)
 	{
 		auto line = text.begin();
 		auto end = text.end();
@@ -50,8 +89,7 @@ namespace wiki { namespace parser {
 			if (right != end)
 				while (right != lineEnd && isspace(*right)) --right;
 
-			if (!parseLine(line, right))
-				return false;
+			parseLine(line, right);
 
 			// move to the next line
 			line = lineEnd;
@@ -59,57 +97,17 @@ namespace wiki { namespace parser {
 		}
 		reset();
 
-		for (auto& block: m_out)
-		{
-			switch (block.type)
-			{
-			case BLOCK::UNKNOWN: std::cout << '?'; break;
-			case BLOCK::HEADER: std::cout << 'H'; break;
-			case BLOCK::PARA: std::cout << 'P'; break;
-			case BLOCK::QUOTE: std::cout << 'Q'; break;
-			case BLOCK::PRE: std::cout << 'R'; break;
-			case BLOCK::ITEM: std::cout << 'L'; break;
-			case BLOCK::SIGNATURE: std::cout << 'S'; break;
-			case BLOCK::HR: std::cout << "HR"; break;
-			}
-			if (block.iArg) std::cout << block.iArg;
-			if (!block.sArg.empty()) std::cout << '[' << block.sArg << ']';
-
-			std::cout << ": (";
-			bool first = true;
-			for (auto& tok: block.tokens)
-			{
-				if (first) first = false;
-				else std::cout << ", ";
-				std::cout << tok;
-			}
-			std::cout << ")\n";
-		}
-
-		return true;
+		printBlocks(m_out);
 	}
 
-	bool Parser::changeBlock(BLOCK newBlock)
-	{
-		if (m_cur.type != newBlock)
-		{
-			if (m_cur.type != BLOCK::UNKNOWN)
-				m_out.push_back(std::move(m_cur));
-			m_cur = Block(newBlock);
-		}
-		return true;
-	}
-
-	bool Parser::block(pointer start, pointer end)
+	void Parser::block(pointer start, pointer end)
 	{
 		line::Parser subparser(start, end);
 		auto tokens = subparser.parse();
 		m_cur.append(std::move(tokens));
-
-		return true;
 	}
 
-	bool Parser::header(pointer start, pointer end)
+	void Parser::header(pointer start, pointer end)
 	{
 #ifdef min
 #undef min
@@ -135,16 +133,13 @@ namespace wiki { namespace parser {
 		if (level == 0)
 			return para(start, end);
 
-		if (!reset())
-			return false;
-
+		reset();
 		m_cur.type = BLOCK::HEADER;
 		m_cur.iArg = level;
-
-		return block(start + level, end - level);
+		block(start + level, end - level);
 	}
 
-	bool Parser::para(pointer start, pointer end)
+	void Parser::para(pointer start, pointer end)
 	{
 		BLOCK type = BLOCK::PARA;
 		switch (m_cur.type)
@@ -154,29 +149,23 @@ namespace wiki { namespace parser {
 			type = m_cur.type; break;
 		};
 
-		if (!changeBlock(type))
-			return false;
-
-		return block(start, end);
+		changeBlock(type);
+		block(start, end);
 	}
 
-	bool Parser::quote(pointer start, pointer end)
+	void Parser::quote(pointer start, pointer end)
 	{
-		if (!changeBlock(BLOCK::QUOTE))
-			return false;
-
-		return block(start, end);
+		changeBlock(BLOCK::QUOTE);
+		block(start, end);
 	}
 
-	bool Parser::pre(pointer start, pointer end)
+	void Parser::pre(pointer start, pointer end)
 	{
-		if (!changeBlock(m_cur.type == BLOCK::ITEM ? BLOCK::ITEM: BLOCK::PRE))
-			return false;
-
-		return block(start, end);
+		changeBlock(m_cur.type == BLOCK::ITEM ? BLOCK::ITEM: BLOCK::PRE);
+		block(start, end);
 	}
 
-	bool Parser::item(pointer start, pointer end)
+	void Parser::item(pointer start, pointer end)
 	{
 		auto textStart = start;
 		while (textStart != end && (*textStart == '*' || *textStart == '#')) ++textStart;
@@ -184,42 +173,47 @@ namespace wiki { namespace parser {
 		auto markerEnd = textStart;
 		while (textStart != end && isspace((unsigned char)*textStart)) ++textStart;
 
-		if (!reset())
-			return false;
-
-		if (!changeBlock(BLOCK::ITEM))
-			return false;
+		reset();
+		changeBlock(BLOCK::ITEM);
 
 		m_cur.sArg.assign(start, markerEnd);
-		return block(textStart, end);
+		block(textStart, end);
 	}
 
-	bool Parser::hr()
+	void Parser::hr()
 	{
-		if (!reset())
-			return false;
-
+		reset();
 		m_cur.type = BLOCK::HR;
-		return true;
 	}
 
-	bool Parser::sig(pointer start, pointer end)
+	void Parser::sig(pointer start, pointer end)
 	{
-		if (!changeBlock(BLOCK::SIGNATURE))
-			return false;
-
-		return block(start, end);
+		changeBlock(BLOCK::SIGNATURE);
+		block(start, end);
 	}
 
-	bool Parser::reset()
+	void Parser::changeBlock(BLOCK newBlock)
+	{
+		if (m_cur.type != newBlock)
+			reset(newBlock);
+	}
+
+	void Parser::reset(BLOCK type)
 	{
 		if (m_cur.type != BLOCK::UNKNOWN)
-			m_out.push_back(std::move(m_cur));
-		m_cur = Block(BLOCK::UNKNOWN);
-		return true;
+			push();
+		m_cur = Block(type);
 	}
 
-	bool Parser::parseLine(std::string::const_iterator line, std::string::const_iterator end)
+	void Parser::push()
+	{
+		if (m_cur.type != BLOCK::ITEM)
+			return m_out.push_back(std::move(m_cur));
+
+		return m_out.push_back(std::move(m_cur));
+	}
+
+	void Parser::parseLine(std::string::const_iterator line, std::string::const_iterator end)
 	{
 		if (line == end)
 			return reset();
