@@ -101,39 +101,6 @@ namespace wiki { namespace parser {
 
 		return o;
 	}
-	class Parser
-	{
-		enum class BLOCK
-		{
-			UNKNOWN,
-			TEXT,
-			QUOTE,
-			PRE,
-			ITEM,
-			SIGNATURE
-		};
-
-		typedef Token::pointer pointer;
-
-		BLOCK m_blockType;
-		bool changeBlock(BLOCK newBlock);
-
-		bool block(pointer start, pointer end);
-
-		bool header(pointer start, pointer end);
-		bool text(pointer start, pointer end);
-		bool quote(pointer start, pointer end);
-		bool pre(pointer start, pointer end);
-		bool item(pointer start, pointer end);
-		bool hr();
-		bool sig(pointer start, pointer end);
-		bool reset();
-
-		bool parseLine(pointer line, pointer end);
-	public:
-		Parser();
-		bool parse(const std::string& text);
-	};
 
 	namespace line
 	{
@@ -162,6 +129,55 @@ namespace wiki { namespace parser {
 			Tokens parse();
 		};
 	}
+
+	class Parser
+	{
+		enum class BLOCK
+		{
+			UNKNOWN,
+			HEADER,
+			PARA,
+			QUOTE,
+			PRE,
+			ITEM,
+			HR,
+			SIGNATURE
+		};
+
+		struct Block
+		{
+			BLOCK type;
+			int iArg;
+			std::string sArg;
+			line::Tokens tokens;
+			Block(BLOCK type = BLOCK::UNKNOWN): type(type), iArg(0) {}
+			void append(line::Tokens&& tokens);
+		};
+
+		typedef std::vector<Block> Text;
+		typedef Token::pointer pointer;
+
+		Text m_out;
+		Block m_cur;
+
+		bool changeBlock(BLOCK newBlock);
+
+		bool block(pointer start, pointer end);
+
+		bool header(pointer start, pointer end);
+		bool para(pointer start, pointer end);
+		bool quote(pointer start, pointer end);
+		bool pre(pointer start, pointer end);
+		bool item(pointer start, pointer end);
+		bool hr();
+		bool sig(pointer start, pointer end);
+		bool reset();
+
+		bool parseLine(pointer line, pointer end);
+	public:
+		Parser();
+		bool parse(const std::string& text);
+	};
 
 }}; // wiki::parser
 

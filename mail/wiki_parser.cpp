@@ -29,8 +29,12 @@
 
 namespace wiki { namespace parser {
 
+	void Parser::Block::append(line::Tokens&& tokens)
+	{
+		this->tokens.insert(this->tokens.end(), tokens.begin(), tokens.end());
+	}
+
 	Parser::Parser()
-		: m_blockType(BLOCK::UNKNOWN)
 	{
 	}
 
@@ -53,31 +57,45 @@ namespace wiki { namespace parser {
 			line = lineEnd;
 			if (line != end) ++line;
 		}
+		reset();
+
+		for (auto& block: m_out)
+		{
+			switch (block.type)
+			{
+			case BLOCK::UNKNOWN: std::cout << '?'; break;
+			case BLOCK::HEADER: std::cout << 'H'; break;
+			case BLOCK::PARA: std::cout << 'P'; break;
+			case BLOCK::QUOTE: std::cout << 'Q'; break;
+			case BLOCK::PRE: std::cout << 'R'; break;
+			case BLOCK::ITEM: std::cout << 'L'; break;
+			case BLOCK::SIGNATURE: std::cout << 'S'; break;
+			case BLOCK::HR: std::cout << "HR"; break;
+			}
+			if (block.iArg) std::cout << block.iArg;
+			if (!block.sArg.empty()) std::cout << '[' << block.sArg << ']';
+
+			std::cout << ": (";
+			bool first = true;
+			for (auto& tok: block.tokens)
+			{
+				if (first) first = false;
+				else std::cout << ", ";
+				std::cout << tok;
+			}
+			std::cout << ")\n";
+		}
 
 		return true;
 	}
 
 	bool Parser::changeBlock(BLOCK newBlock)
 	{
-		if (m_blockType != newBlock)
+		if (m_cur.type != newBlock)
 		{
-			switch (newBlock)
-			{
-			case BLOCK::UNKNOWN: std::cout << '?'; break;
-			case BLOCK::TEXT: std::cout << 'P'; break;
-			case BLOCK::QUOTE: std::cout << 'Q'; break;
-			case BLOCK::PRE: std::cout << 'R'; break;
-			case BLOCK::ITEM: std::cout << 'L'; break;
-			case BLOCK::SIGNATURE: std::cout << 'S'; break;
-			}
-			std::cout << ":  ";
-		}
-		else
-			std::cout << "    ";
-
-		if (m_blockType != newBlock)
-		{
-			m_blockType = newBlock;
+			if (m_cur.type != BLOCK::UNKNOWN)
+				m_out.push_back(std::move(m_cur));
+			m_cur = Block(newBlock);
 		}
 		return true;
 	}
@@ -86,15 +104,7 @@ namespace wiki { namespace parser {
 	{
 		line::Parser subparser(start, end);
 		auto tokens = subparser.parse();
-		bool first = true;
-		std::cout << "(";
-		for (auto& tok: tokens)
-		{
-			if (first) first = false;
-			else std::cout << ", ";
-			std::cout << tok;
-		}
-		std::cout << ")\n";
+		m_cur.append(std::move(tokens));
 
 		return true;
 	}
@@ -123,23 +133,25 @@ namespace wiki { namespace parser {
 		}
 
 		if (level == 0)
-			return text(start, end);
+			return para(start, end);
 
 		if (!reset())
 			return false;
 
-		std::cout << "H" << level << ": ";
+		m_cur.type = BLOCK::HEADER;
+		m_cur.iArg = level;
+
 		return block(start + level, end - level);
 	}
 
-	bool Parser::text(pointer start, pointer end)
+	bool Parser::para(pointer start, pointer end)
 	{
-		BLOCK type = BLOCK::TEXT;
-		switch (m_blockType)
+		BLOCK type = BLOCK::PARA;
+		switch (m_cur.type)
 		{
 		case BLOCK::ITEM:
 		case BLOCK::SIGNATURE:
-			type = m_blockType; break;
+			type = m_cur.type; break;
 		};
 
 		if (!changeBlock(type))
@@ -158,7 +170,7 @@ namespace wiki { namespace parser {
 
 	bool Parser::pre(pointer start, pointer end)
 	{
-		if (!changeBlock(m_blockType == BLOCK::ITEM ? BLOCK::ITEM: BLOCK::PRE))
+		if (!changeBlock(m_cur.type == BLOCK::ITEM ? BLOCK::ITEM: BLOCK::PRE))
 			return false;
 
 		return block(start, end);
@@ -178,9 +190,7 @@ namespace wiki { namespace parser {
 		if (!changeBlock(BLOCK::ITEM))
 			return false;
 
-		std::for_each(start, markerEnd, [](char c) { std::cout.put(c); });
-		std::cout << " ";
-
+		m_cur.sArg.assign(start, markerEnd);
 		return block(textStart, end);
 	}
 
@@ -189,7 +199,7 @@ namespace wiki { namespace parser {
 		if (!reset())
 			return false;
 
-		std::cout << "HR\n" << std::flush;
+		m_cur.type = BLOCK::HR;
 		return true;
 	}
 
@@ -203,7 +213,9 @@ namespace wiki { namespace parser {
 
 	bool Parser::reset()
 	{
-		m_blockType = BLOCK::UNKNOWN;
+		if (m_cur.type != BLOCK::UNKNOWN)
+			m_out.push_back(std::move(m_cur));
+		m_cur = Block(BLOCK::UNKNOWN);
 		return true;
 	}
 
@@ -244,7 +256,7 @@ namespace wiki { namespace parser {
 				return sig(++tmp, end);
 		}
 
-		return text(line, end);
+		return para(line, end);
 	}
 
 	void line::Parser::text(size_t count)
