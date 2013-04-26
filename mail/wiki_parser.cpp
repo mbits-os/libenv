@@ -24,8 +24,13 @@
 
 #include "pch.h"
 #include <utils.hpp>
+#include <functional>
 
 #include "wiki_parser.hpp"
+
+#ifdef min
+#undef min
+#endif
 
 namespace wiki { namespace parser {
 
@@ -111,10 +116,6 @@ namespace wiki { namespace parser {
 
 	void Parser::header(pointer start, pointer end)
 	{
-#ifdef min
-#undef min
-#endif
-
 		auto left = start;
 		while (left != end && *left == '=') ++left;
 
@@ -370,41 +371,112 @@ namespace wiki { namespace parser {
 		}
 
 		text(std::distance(tmp, m_cur));
-		push(tok, nameStart, nameEnd);
+
+		struct TagInfo
+		{
+			typedef std::function<void(Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)> Call;
+			const char* m_name;
+			size_t m_len;
+			Call m_call;
+			TOKEN m_deny;
+			TagInfo(const char* name, TOKEN deny, Call call)
+				: m_name(name)
+				, m_len(strlen(name))
+				, m_call(call)
+				, m_deny(deny)
+			{
+			}
+
+			bool lessThan(pointer nameStart, pointer nameEnd) const
+			{
+				auto dist = std::distance(nameStart, nameEnd);
+				typedef decltype(dist) distance_t;
+				auto count = std::min((distance_t)m_len, dist);
+				int ret = strncmp(m_name, &*nameStart, count);
+
+				if (ret != 0) return ret < 0;
+				if (dist != (distance_t)m_len)
+					return (distance_t)m_len < dist;
+				return false; // equal
+			}
+		};
+
+		static auto onBold = [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)
+		{
+			_this.push(TOKEN::BOLD);
+		};
+
+		static auto onItalic = [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)
+		{
+			_this.push(TOKEN::ITALIC);
+		};
+
+		static auto onHtmlTag = [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)
+		{
+			_this.push(type, nameStart, nameEnd);
+		};
+
+		static TagInfo tags[] = {
+			TagInfo("b", TOKEN::TAG_CLOSED, onBold),
+			TagInfo("br", TOKEN::TAG_E, [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type) { _this.push(TOKEN::BREAK); }),
+			TagInfo("em", TOKEN::TAG_CLOSED, onItalic),
+			TagInfo("i", TOKEN::TAG_CLOSED, onItalic),
+			TagInfo("nowiki", TOKEN::TAG_CLOSED, [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type) { _this.inWiki = type == TOKEN::TAG_E; }),
+			TagInfo("strong", TOKEN::TAG_CLOSED, onBold),
+			TagInfo("sub", TOKEN::TAG_CLOSED, onHtmlTag),
+			TagInfo("sup", TOKEN::TAG_CLOSED, onHtmlTag),
+			TagInfo("tt", TOKEN::TAG_CLOSED, onHtmlTag),
+		};
+
+		auto pos = std::lower_bound(tags, tags + array_size(tags), Token::Arg(nameStart, nameEnd),
+			[](const TagInfo& info, const Token::Arg arg) { return info.lessThan(arg.first, arg.second); });
+		if (pos != tags + array_size(tags) && !pos->lessThan(nameStart, nameEnd))
+		{
+			pos->m_call(*this, nameStart, nameEnd, tok);
+		}
 	}
 
 	line::Tokens line::Parser::parse()
 	{
 		while (m_cur != m_end)
 		{
-			switch(*m_cur)
+			if (inWiki)
 			{
-			case '\'': boldOrItalics(); break;
-			case '{': repeated('{', 3, TOKEN::VAR_S); break;
-			case '}': repeated('}', 3, TOKEN::VAR_E); break;
-			case '[': repeated('[', 2, TOKEN::HREF_S); in1stSEG = inHREF = true; break;
-			case ']': repeated(']', 2, TOKEN::HREF_E); in1stSEG = inHREF = true; break;
-			case ':':
-				++m_cur;
-				if (in1stSEG)
+				switch(*m_cur)
 				{
-					in1stSEG = false; // only one NS per HREF
-					text(1);
-					push(TOKEN::HREF_NS);
-				}
-				break;
-			case '|':
-				++m_cur;
-				if (inHREF)
-				{
-					in1stSEG = false;
-					text(1);
-					push(TOKEN::HREF_SEG);
-				}
-				break;
-			case '<': htmlTag(); break;
-			default: ++m_cur;
-			};
+				case '\'': boldOrItalics(); break;
+				case '{': repeated('{', 3, TOKEN::VAR_S); break;
+				case '}': repeated('}', 3, TOKEN::VAR_E); break;
+				case '[': repeated('[', 2, TOKEN::HREF_S); in1stSEG = inHREF = true; break;
+				case ']': repeated(']', 2, TOKEN::HREF_E); in1stSEG = inHREF = true; break;
+				case ':':
+					++m_cur;
+					if (in1stSEG)
+					{
+						in1stSEG = false; // only one NS per HREF
+						text(1);
+						push(TOKEN::HREF_NS);
+					}
+					break;
+				case '|':
+					++m_cur;
+					if (inHREF)
+					{
+						in1stSEG = false;
+						text(1);
+						push(TOKEN::HREF_SEG);
+					}
+					break;
+				case '<': htmlTag(); break;
+				default: ++m_cur;
+				};
+			}
+			else
+			{
+				if (*m_cur == '<')
+					htmlTag();
+				else ++m_cur;
+			}
 		}
 		text(0);
 		return std::move(m_out);

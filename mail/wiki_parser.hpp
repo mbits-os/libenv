@@ -44,7 +44,8 @@ namespace wiki { namespace parser {
 		HREF_SEG,
 		TAG_S,
 		TAG_E,
-		TAG_CLOSED
+		TAG_CLOSED,
+		BREAK
 	};
 
 	inline std::ostream& operator << (std::ostream& o, TOKEN tok)
@@ -67,6 +68,7 @@ namespace wiki { namespace parser {
 		PRINT(TAG_S);
 		PRINT(TAG_E);
 		PRINT(TAG_CLOSED);
+		PRINT(BREAK);
 		};
 		return o << "unknown(" << (int)tok << ")";
 #undef PRINT
@@ -115,6 +117,7 @@ namespace wiki { namespace parser {
 			pointer m_cur;
 			pointer m_end;
 
+			bool inWiki;
 			bool inHREF;
 			bool in1stSEG;
 
@@ -125,7 +128,15 @@ namespace wiki { namespace parser {
 			void boldOrItalics();
 			void htmlTag();
 		public:
-			Parser(pointer start, pointer end): m_prev(start), m_cur(start), m_end(end), inHREF(false), in1stSEG(false) {}
+			Parser(pointer start, pointer end)
+				: m_prev(start)
+				, m_cur(start)
+				, m_end(end)
+				, inWiki(true)
+				, inHREF(false)
+				, in1stSEG(false)
+			{
+			}
 			Tokens parse();
 		};
 	}
