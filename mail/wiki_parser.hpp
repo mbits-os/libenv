@@ -165,7 +165,7 @@ namespace wiki { namespace parser {
 	private:
 		Text m_out;
 		Block m_cur;
-		Block m_itemStack;
+		Text m_itemStack;
 
 		void block(pointer start, pointer end);
 
@@ -183,7 +183,7 @@ namespace wiki { namespace parser {
 		void parseLine(pointer line, pointer end);
 	public:
 		Parser();
-		void parse(const std::string& text);
+		Text parse(const std::string& text);
 	};
 
 }}; // wiki::parser

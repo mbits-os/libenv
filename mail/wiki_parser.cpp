@@ -73,11 +73,11 @@ namespace wiki { namespace parser {
 				std::cout << ")";
 			}
 			std::cout << "\n";
-			printBlocks(block.items, "    ");
+			printBlocks(block.items, pre + "    ");
 		}
 	}
 
-	void Parser::parse(const std::string& text)
+	Parser::Text Parser::parse(const std::string& text)
 	{
 		auto line = text.begin();
 		auto end = text.end();
@@ -98,6 +98,8 @@ namespace wiki { namespace parser {
 		reset();
 
 		printBlocks(m_out);
+
+		return std::move(m_out);
 	}
 
 	void Parser::block(pointer start, pointer end)
@@ -205,12 +207,59 @@ namespace wiki { namespace parser {
 		m_cur = Block(type);
 	}
 
+	static inline Parser::Text::iterator findPos(Parser::Text& stack, const std::string& address)
+	{
+		// auto 
+		auto stackCur = stack.begin(), stackEnd = stack.end();
+		auto addCur = address.begin(), addEnd = address.end();
+		while (stackCur != stackEnd && addCur != addEnd)
+		{
+			char c = stackCur->type == Parser::BLOCK::OL ? '#' : '*';
+			if (c != *addCur)
+				break;
+
+			++stackCur;
+			++addCur;
+		}
+		return stackCur;
+	}
+
+	static inline void fold(Parser::Text& stack, Parser::Text& out,
+		std::iterator_traits<Parser::Text::iterator>::difference_type count)
+	{
+		auto pos = stack.begin() + count;
+
+		bool moved = count == 0 && pos != stack.end();
+		if (moved) ++pos;
+
+		for (auto it = pos; it != stack.end(); ++it)
+			(it - 1)->items.push_back(*it);
+
+		if (moved)
+			out.push_back(std::move(*--pos));
+
+		stack.erase(pos, stack.end());
+	}
+
 	void Parser::push()
 	{
 		if (m_cur.type != BLOCK::ITEM)
-			return m_out.push_back(std::move(m_cur));
+		{
+			if (!m_itemStack.empty())
+				fold(m_itemStack, m_out, 0);
 
-		return m_out.push_back(std::move(m_cur));
+			return m_out.push_back(std::move(m_cur));
+		}
+
+		auto count = std::distance(m_itemStack.begin(), findPos(m_itemStack, m_cur.sArg));
+
+		fold(m_itemStack, m_out, count);
+
+		for (auto it = m_cur.sArg.begin() + count; it != m_cur.sArg.end(); ++it)
+			m_itemStack.emplace_back(*it == '#' ? BLOCK::OL : BLOCK::UL);
+
+		m_cur.sArg.clear();
+		m_itemStack.back().items.push_back(std::move(m_cur));
 	}
 
 	void Parser::parseLine(std::string::const_iterator line, std::string::const_iterator end)
