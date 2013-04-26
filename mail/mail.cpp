@@ -393,7 +393,7 @@ namespace mail
 
 	void Curl::pipe(filter::FileDescriptor&& fd)
 	{
-		m_fd.swap(std::move(fd));
+		m_fd = std::move(fd);
 		curl_easy_setopt(m_curl, CURLOPT_READFUNCTION, fread);
 		curl_easy_setopt(m_curl, CURLOPT_READDATA, this);
 	}

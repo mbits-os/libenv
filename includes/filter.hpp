@@ -154,11 +154,12 @@ namespace filter
 		~FileDescriptor() { close(); }
 
 		void set(int fd) { close(); m_fd = fd; }
-		void swap(FileDescriptor&& right)
+		FileDescriptor& operator = (FileDescriptor&& rhs)
 		{
 			int old = m_fd;
-			m_fd = right.m_fd;
-			right.m_fd = old;
+			m_fd = rhs.m_fd;
+			rhs.m_fd = old;
+			return *this;
 		}
 		size_t read(void* buffer, size_t len) { return ::_read(m_fd, buffer, len); }
 		size_t write(const void* buffer, size_t len) { return ::_write(m_fd, buffer, len); }
