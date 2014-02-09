@@ -31,6 +31,7 @@
 #include <sys/utsname.h>
 #endif
 #include <string.h>
+#include <sstream>
 
 #if defined WIN32
 #define PLATFORM L"Win32"
@@ -48,31 +49,41 @@
 
 namespace http
 {
-	static std::string getOSVersion()
+	static void getOSVersion(std::ostream& s)
 	{
 #if defined WIN32
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4996) // GetVersionEx
+#endif
+
 		OSVERSIONINFO verinfo = { sizeof(OSVERSIONINFO) };
-		std::string ret = "Windows";
+		s << "Windows ";
+
 		GetVersionEx(&verinfo);
-		if (verinfo.dwPlatformId == VER_PLATFORM_WIN32_NT) ret += " NT";
-		char ver[200];
-		sprintf_s(ver, " %d.%d", verinfo.dwMajorVersion, verinfo.dwMinorVersion);
-		ret += ver;
-		return ret;
+
+		if (verinfo.dwPlatformId == VER_PLATFORM_WIN32_NT) s << "NT ";
+		s << verinfo.dwMajorVersion << "." << verinfo.dwMinorVersion;
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 #else
 		utsname name;
 		if (uname(&name))
-			return PLATFORM;
-		return name.sysname;
+			s << PLATFORM;
+		else
+			s << name.sysname;
 #endif
 	}
 
 	std::string getUserAgent()
 	{
-		std::string ret = "reedr/1.0 (";
-		ret += getOSVersion();
-		ret += ")";
-		return ret;
+		std::ostringstream ret;
+		ret << "reedr/1.0 (" << getOSVersion << ")";
+		return ret.str();
 	}
 
 	struct CurlAsyncJob: http::ConnectionCallback
