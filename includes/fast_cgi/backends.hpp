@@ -53,7 +53,7 @@ namespace FastCGI
 			bool accept() override { return FCGX_Accept_r(&m_request) == 0; }
 			void release() override { FCGX_Finish_r(&m_request); }
 			void shutdown() override { FCGX_ShutdownPending(); }
-			std::shared_ptr<RequestBackend> newRequestBackend() override { return std::shared_ptr<RequestBackend>(new (std::nothrow) LibFCGIRequest(m_request)); }
+			std::shared_ptr<RequestBackend> newRequestBackend() override { return std::make_shared<LibFCGIRequest>(m_request); }
 		};
 
 		class STLRequest: public RequestBackend
@@ -77,7 +77,7 @@ namespace FastCGI
 			bool accept() override { return false; }
 			void release() override { }
 			void shutdown() override { }
-			std::shared_ptr<RequestBackend> newRequestBackend() override { return std::shared_ptr<RequestBackend>(new (std::nothrow) STLRequest()); }
+			std::shared_ptr<RequestBackend> newRequestBackend() override { return std::make_shared<STLRequest>(); }
 		};
 	};
 }

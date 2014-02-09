@@ -78,13 +78,14 @@ namespace db
 			return get()._driver(name);
 		}
 
-		static void registerRaw(const std::string& name, Driver* rawPtr)
+		template <typename Driver>
+		static void registerRaw(const std::string& name)
 		{
-			if (!rawPtr)
+			auto driver = std::make_shared<Driver>();
+			if (!driver)
 				return;
 
-			DriverPtr ptr(rawPtr);
-			get()._register(name, ptr);
+			get()._register(name, driver);
 		}
 	};
 
@@ -93,7 +94,7 @@ namespace db
 	{
 		DriverRegistrar(const std::string& resource)
 		{
-			try { Drivers::registerRaw(resource, new DriverImpl()); } catch (std::bad_alloc) {}
+			try { Drivers::registerRaw<DriverImpl>(resource); } catch (std::bad_alloc) {}
 		}
 	};
 }

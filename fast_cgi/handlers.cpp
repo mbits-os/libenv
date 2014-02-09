@@ -83,13 +83,13 @@ namespace FastCGI { namespace app {
 		std::string display_name;
 		std::string icon;
 
-		std::shared_ptr<TopMenu::UserMenu> user(new (std::nothrow) TopMenu::UserMenu("user", "user-menu", 4, std::string(), display_name));
+		auto user = std::make_shared<TopMenu::UserMenu>("user", "user-menu", 4, std::string(), display_name);
 		menu.left().home("home", 0, tr(lng::LNG_GLOBAL_PRODUCT), tr(lng::LNG_GLOBAL_DESCRIPTION));
 		menu.right()
 			.item("search", 7, std::string(), tr(lng::LNG_NAV_SEARCH))
 			.item("new", 1, tr(lng::LNG_NAV_NEW_MENU), tr(lng::LNG_NAV_NEW_MENU_TIP))
 			.item("refesh", 3, std::string(), tr(lng::LNG_NAV_REFRESH))
-			.add(user);
+			.add_raw(user);
 		user->item("badge", -1, "Here be badger")
 			.separator()
 			.item("settings", -1, tr(lng::LNG_NAV_SETTINGS))

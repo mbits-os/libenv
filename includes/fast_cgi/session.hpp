@@ -70,6 +70,7 @@ namespace FastCGI
 		std::string m_hash;
 		tyme::time_t m_setOn;
 		lng::TranslationPtr m_tr;
+	public:
 		Session()
 		{
 		}
@@ -82,7 +83,7 @@ namespace FastCGI
 			, m_setOn(setOn)
 		{
 		}
-	public:
+
 		static SessionPtr stlSession();
 		static SessionPtr fromDB(db::ConnectionPtr db, const char* sessionId);
 		static SessionPtr startSession(db::ConnectionPtr db, const char* email);

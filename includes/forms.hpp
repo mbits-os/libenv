@@ -214,17 +214,17 @@ namespace FastCGI {
 		template <typename Class>
 		std::shared_ptr<Class> control(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			std::shared_ptr<Class> obj(new (std::nothrow) Class(name, label, hint));
+			auto obj = std::make_shared<Class>(name, label, hint);
 			if (obj.get())
-				m_controls.push_back(std::static_pointer_cast<Control>(obj));
+				m_controls.push_back(obj);
 			return obj;
 		}
 
 		TextPtr text(const std::string& name, const std::string& label = std::string(), bool pass = false, const std::string& hint = std::string())
 		{
-			TextPtr obj(new (std::nothrow) Text(name, label, pass, hint));
+			auto obj = std::make_shared<Text>(name, label, pass, hint);
 			if (obj.get())
-				m_controls.push_back(std::static_pointer_cast<Control>(obj));
+				m_controls.push_back(obj);
 			return obj;
 		}
 
@@ -264,20 +264,20 @@ namespace FastCGI {
 
 		SubmitPtr submit(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			SubmitPtr ptr(new (std::nothrow) Submit(name, label, hint));
+			auto ptr = std::make_shared<Submit>(name, label, hint);
 
 			if (ptr.get())
-				m_buttons.push_back(std::static_pointer_cast<Control>(ptr));
+				m_buttons.push_back(ptr);
 
 			return ptr;
 		}
 
 		ResetPtr reset(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			ResetPtr ptr(new (std::nothrow) Reset(name, label, hint));
+			auto ptr = std::make_shared<Reset>(name, label, hint);
 
 			if (ptr.get())
-				m_buttons.push_back(std::static_pointer_cast<Control>(ptr));
+				m_buttons.push_back(ptr);
 
 			return ptr;
 		}

@@ -205,29 +205,30 @@ namespace FastCGI { namespace TopMenu {
 			return *this;
 		}
 
-		PopupItem& add(MenuItemPtr item)
+		template <typename T, typename... Args>
+		PopupItem& add(Args&&... args)
 		{
+			auto item = std::make_shared<T>(std::forward<Args>(args)...);
 			if (item.get())
 				m_children.push_back(item);
 			return *this;
 		}
 
-		PopupItem& add(MenuItem* child)
+		PopupItem& add_raw(const MenuItemPtr& item)
 		{
-			MenuItemPtr item(child);
-			if (item.get())
-				m_children.push_back(item);
+			m_children.push_back(item);
 			return *this;
 		}
+
 
 		PopupItem& separator()
 		{
-			return add(new (std::nothrow) SeparatorItem());
+			return add<SeparatorItem>();
 		}
 
 		PopupItem& item(const std::string& id, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
 		{
-			return add(new (std::nothrow) MenuItem(id, iconPosition, label, tip));
+			return add<MenuItem>(id, iconPosition, label, tip);
 		}
 
 		void echoMarkupContent(Request& request, const std::string& topbarId, const std::string& menuId, const std::string& pre)
@@ -297,34 +298,33 @@ namespace FastCGI { namespace TopMenu {
 		{
 		}
 
-		Menu& add(MenuItemPtr child)
+		template <typename T, typename... Args>
+		Menu& add(Args&&... args)
 		{
-			if (child.get())
-				m_items.push_back(child);
+			auto item = std::make_shared<T>(std::forward<Args>(args)...);
+			m_items.push_back(item);
 			return *this;
 		}
 
-		Menu& add(MenuItem* child)
+		Menu& add_raw(const MenuItemPtr& item)
 		{
-			MenuItemPtr item(child);
-			if (item.get())
-				m_items.push_back(item);
+			m_items.push_back(item);
 			return *this;
 		}
 
 		Menu& separator()
 		{
-			return add(new (std::nothrow) SeparatorItem());
+			return add<SeparatorItem>();
 		}
 
 		Menu& home(const std::string& id, int iconPosition = -1, const std::string& product = std::string(), const std::string& description = std::string(), const std::string& tip = std::string())
 		{
-			return add(new (std::nothrow) HomeLink(id, iconPosition, product, description, tip));
+			return add<HomeLink>(id, iconPosition, product, description, tip);
 		}
 
 		Menu& item(const std::string& id, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
 		{
-			return add(new (std::nothrow) MenuItem(id, iconPosition, label, tip));
+			return add<MenuItem>(id, iconPosition, label, tip);
 		}
 
 		MenuItemPtr getItem(const std::string& id)

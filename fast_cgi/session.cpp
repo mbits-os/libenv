@@ -37,14 +37,14 @@ namespace FastCGI
 {
 	SessionPtr Session::stlSession()
 	{
-		return SessionPtr(new (std::nothrow) Session(
+		return std::make_shared<Session>(
 			2,
 			"stl.test",
 			"STL Test",
 			"noone@example.com",
 			"...",
 			tyme::now()
-			));
+			);
 	}
 
 	SessionPtr Session::fromDB(db::ConnectionPtr db, const char* sessionId)
@@ -76,16 +76,16 @@ namespace FastCGI
 			db::CursorPtr c = query->query();
 			if (c.get() && c->next())
 			{
-				return SessionPtr(new (std::nothrow) Session(
+				return std::make_shared<Session>(
 					c->getLongLong(0),
 					c->getText(1),
 					c->getText(2),
 					c->getText(3),
 					sessionId,
-					c->getTimestamp(4)));
+					c->getTimestamp(4));
 			}
 		}
-		return SessionPtr();
+		return nullptr;
 	}
 
 	SessionPtr Session::startSession(db::ConnectionPtr db, const char* email)
@@ -126,14 +126,14 @@ namespace FastCGI
 				{
 					if (query->execute())
 					{
-						return SessionPtr(new (std::nothrow) Session(
+						return std::make_shared<Session>(
 							_id,
 							login,
 							name,
 							email,
 							sessionId,
 							now
-							));
+							);
 					}
 					else
 					{
@@ -156,7 +156,7 @@ namespace FastCGI
 			if (!error) error = "";
 			FLOG << "DB error: " << SQL_USER_BY_EMAIL << " " << error << "\n";
 		}
-		return SessionPtr();
+		return nullptr;
 	}
 
 	void Session::endSession(db::ConnectionPtr db, const char* sessionId)

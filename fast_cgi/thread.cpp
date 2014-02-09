@@ -43,12 +43,12 @@
 namespace FastCGI
 {
 	Thread::Thread()
-		: m_backend(new (std::nothrow) impl::LibFCGIThread)
+		: m_backend(std::make_shared<impl::LibFCGIThread>())
 	{
 	}
 
 	Thread::Thread(const char* uri)
-		: m_backend(new (std::nothrow) impl::STLThread(uri))
+		: m_backend(std::make_shared<impl::STLThread>(uri))
 	{
 	}
 
