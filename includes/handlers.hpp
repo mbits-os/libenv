@@ -29,7 +29,7 @@
 #include <top_menu.hpp>
 
 #define STATIC_RESOURCES "http://static.reedr.net"
-//#define STATIC_RESOURCES "http://static.dnhotch.net"
+//#define STATIC_RESOURCES "http://localhost/static"
 
 namespace FastCGI { namespace app
 {
@@ -168,16 +168,18 @@ namespace FastCGI { namespace app
 			return get()._handler(request);
 		}
 
-		static void registerRaw(const std::string& resource, Handler* rawPtr
+		template <typename T, typename... Args>
+		static void registerRaw(const std::string& resource,
 #if DEBUG_CGI
-			, const char* file, size_t line
+			const char* file, size_t line,
 #endif
+			Args&&... args
 			)
 		{
-			if (!rawPtr)
+			HandlerPtr ptr = std::make_shared<T>(std::forward<Args>(args)...);
+			if (!ptr)
 				return;
 
-			HandlerPtr ptr(rawPtr);
 			get()._register(resource, ptr
 #if DEBUG_CGI
 				, file, line
@@ -191,10 +193,11 @@ namespace FastCGI { namespace app
 #endif
 			)
 		{
-			registerRaw(resource, new (std::nothrow) RedirectHandler(uri)
+			registerRaw<RedirectHandler>(resource,
 #if DEBUG_CGI
-				, file, line
+				file, line,
 #endif
+				uri
 				);
 		}
 
@@ -214,7 +217,7 @@ namespace FastCGI { namespace app
 #endif
 			)
 		{
-			Handlers::registerRaw(resource, new (std::nothrow) PageImpl()
+			Handlers::registerRaw<PageImpl>(resource
 #if DEBUG_CGI
 				, file, line
 #endif
