@@ -98,6 +98,11 @@ namespace FastCGI
 		}
 	}
 
+	void Thread::shutdown()
+	{
+		m_backend->shutdown();
+	}
+
 	void Thread::handleRequest()
 	{
 		FastCGI::Request req(*this);

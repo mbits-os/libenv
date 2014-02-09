@@ -87,6 +87,15 @@ namespace FastCGI
 		std::for_each(++first, end, [](ThreadPtr thread) { thread->stop(); });
 	}
 
+	void Application::shutdown()
+	{
+		auto first = m_threads.begin();
+		if (first == m_threads.end())
+			return;
+
+		(*first)->shutdown();
+	}
+
 #if DEBUG_CGI
 	void Application::report(char** envp)
 	{

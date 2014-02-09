@@ -39,28 +39,29 @@ namespace FastCGI
 			std::istream m_cin;
 		public:
 			LibFCGIRequest(FCGX_Request& request);
-			std::ostream& cout() { return m_cout; }
-			std::ostream& cerr() { return m_cerr; }
-			std::istream& cin() { return m_cin; }
+			std::ostream& cout() override { return m_cout; }
+			std::ostream& cerr() override { return m_cerr; }
+			std::istream& cin() override { return m_cin; }
 		};
 
 		class LibFCGIThread: public ThreadBackend
 		{
 			FCGX_Request m_request;
 		public:
-			void init() { FCGX_InitRequest(&m_request, 0, 0); }
-			const char * const* envp() const { return m_request.envp; }
-			bool accept() { return FCGX_Accept_r(&m_request) == 0; }
-			void release() { FCGX_Finish_r(&m_request); }
-			std::shared_ptr<RequestBackend> newRequestBackend() { return std::shared_ptr<RequestBackend>(new (std::nothrow) LibFCGIRequest(m_request)); }
+			void init() override { FCGX_InitRequest(&m_request, 0, 0); }
+			const char * const* envp() const override { return m_request.envp; }
+			bool accept() override { return FCGX_Accept_r(&m_request) == 0; }
+			void release() override { FCGX_Finish_r(&m_request); }
+			void shutdown() override { FCGX_ShutdownPending(); }
+			std::shared_ptr<RequestBackend> newRequestBackend() override { return std::shared_ptr<RequestBackend>(new (std::nothrow) LibFCGIRequest(m_request)); }
 		};
 
 		class STLRequest: public RequestBackend
 		{
 		public:
-			std::ostream& cout() { return std::cout; }
-			std::ostream& cerr() { return std::cerr; }
-			std::istream& cin() { return std::cin; }
+			std::ostream& cout() override { return std::cout; }
+			std::ostream& cerr() override { return std::cerr; }
+			std::istream& cin() override { return std::cin; }
 		};
 
 		class STLThread: public ThreadBackend
@@ -71,11 +72,12 @@ namespace FastCGI
 		public:
 			STLThread(const char* uri);
 			~STLThread();
-			void init() {}
-			const char * const* envp() const { return environment; }
-			bool accept() { return false; }
-			void release() { }
-			std::shared_ptr<RequestBackend> newRequestBackend() { return std::shared_ptr<RequestBackend>(new (std::nothrow) STLRequest()); }
+			void init() override {}
+			const char * const* envp() const override { return environment; }
+			bool accept() override { return false; }
+			void release() override { }
+			void shutdown() override { }
+			std::shared_ptr<RequestBackend> newRequestBackend() override { return std::shared_ptr<RequestBackend>(new (std::nothrow) STLRequest()); }
 		};
 	};
 }

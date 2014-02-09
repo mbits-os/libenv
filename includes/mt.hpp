@@ -55,6 +55,7 @@ namespace mt
 		bool stop();
 		bool shouldStop() const { return stopThread; }
 		virtual void run() = 0;
+		virtual void shutdown() = 0;
 #ifdef _WIN32
 		unsigned int threadId() const { return m_threadId; }
 #endif

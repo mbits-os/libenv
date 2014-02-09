@@ -53,6 +53,7 @@ namespace FastCGI
 			virtual const char * const* envp() const = 0;
 			virtual bool accept() = 0;
 			virtual void release() = 0;
+			virtual void shutdown() = 0;
 			virtual std::shared_ptr<RequestBackend> newRequestBackend() = 0;
 		};
 	};
@@ -85,6 +86,7 @@ namespace FastCGI
 		virtual unsigned long getLoad() const = 0;
 
 		void run();
+		void shutdown();
 	};
 }
 

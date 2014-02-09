@@ -109,6 +109,8 @@ namespace FastCGI
 			}
 			return true;
 		}
+
+		void shutdown();
 		void addStlSession();
 		int init(const char* localeRoot);
 		void run();
