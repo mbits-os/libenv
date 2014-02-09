@@ -68,6 +68,7 @@ namespace mt
 
 	class AsyncData
 	{
+	protected:
 		std::mutex m_mtx;
 	public:
 		AsyncData() {}

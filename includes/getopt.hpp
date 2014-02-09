@@ -174,7 +174,7 @@ namespace getopt
 	public:
 		arg_reader(T& ref) : ref(ref) {}
 
-		void read(CSTR arg) override
+		void read(typename reader<C>::CSTR arg) override
 		{
 			ref = conv_impl<C, T>::convert(arg);
 		}

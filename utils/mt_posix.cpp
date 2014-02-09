@@ -24,60 +24,37 @@
 
 #include "pch.h"
 #include <mt.hpp>
+#include <condition_variable>
 
-namespace mt
-{
+namespace mt {
 	unsigned long Thread::currentId()
 	{
 		return (unsigned long)pthread_self();
 	}
-
 	struct Event: public AsyncData
 	{
-		pthread_cond_t m_cond;
-		bool m_condInited;
-		bool m_alreadySignalled;
+		std::condition_variable m_cond;
+		bool m_signalled;
 	public:
-		Event(): m_condInited(false), m_alreadySignalled(false) {}
-		~Event()
-		{
-			if (m_condInited)
-				pthread_cond_destroy(&m_cond);
-		}
-		bool create()
-		{
-			m_condInited = (pthread_cond_init(&m_cond, NULL) == 0);
-			return m_condInited;
-		}
-
-		bool signal()
+		Event() : m_signalled(false) {}
+		void signal()
 		{
 			Synchronize on (*this);
-			int ret = pthread_cond_signal(&m_cond);
-			m_alreadySignalled = true;
-			return ret == 0;
+			m_signalled = true;
+			m_cond.notify_all();
 		}
-
-		bool wait()
+		void wait()
 		{
-			Synchronize on (*this);
-			if (m_alreadySignalled)
-			{
-				m_alreadySignalled = false;
-				return true;
-			}
-			bool ret = pthread_cond_wait(&m_cond, &m_mtx.m_mutex) == 0;
-			m_alreadySignalled = false;
-			return ret;
+			std::unique_lock<std::mutex> lock (m_mtx);
+			m_cond.wait(lock, [&]() { return m_signalled; });
+			m_signalled = false;
 		}
-	}; 
-
+	};
 	struct ThreadArgs
 	{
 		Thread* thread;
-		Event   posixEvent;
+		Event posixEvent;
 	};
-
 	static void* thread_run(void* ptr)
 	{
 		//printf("Thread started: 0x%08x\n", mt::Thread::currentId()); fflush(stdout);
@@ -85,32 +62,24 @@ namespace mt
 		auto thread = args->thread;
 		args->posixEvent.signal();
 		args = nullptr;
-
 		thread->run();
 		return nullptr;
 	}
-
 	void Thread::start()
 	{
 		//printf("Starting a new thread\n"); fflush(stdout);
 		ThreadArgs args = { this };
-		if (!args.posixEvent.create()) return;
-
 		if(pthread_create(&m_thread, NULL, thread_run, &args))
 			return;
-
 		args.posixEvent.wait();
 		//printf("Thread 0x%08x signalled start. Moving on.\n", m_thread); fflush(stdout);
-
 	}
-
 	void Thread::attach()
 	{
 		m_thread = pthread_self();
 		//printf("Thread %p attached. Running.\n", m_thread); fflush(stdout);
 		run();
 	}
-
 	bool Thread::stop()
 	{
 		//printf("Requesting thread 0x%08x to close\n", m_thread); fflush(stdout);
