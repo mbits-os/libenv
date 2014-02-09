@@ -26,6 +26,7 @@
 #define __MT_HPP__
 
 #include <stdexcept>
+#include <mutex>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -65,39 +66,17 @@ namespace mt
 
 	};
 
- 	struct Mutex
-	{
-#ifdef _WIN32
-		CRITICAL_SECTION m_cs;
-#endif
-#ifdef POSIX
-		pthread_mutex_t m_mutex;
-#endif
-		void init();
-		void finalize();
-		void lock();
-		void unlock();
-	};
-
 	class AsyncData
 	{
-	protected:
-		Mutex m_mtx;
+		std::mutex m_mtx;
 	public:
-		AsyncData() { m_mtx.init(); }
-		~AsyncData() { m_mtx.finalize(); }
+		AsyncData() {}
+		~AsyncData() {}
 		void lock() { m_mtx.lock(); }
 		void unlock() { m_mtx.unlock(); }
 	};
 
-	struct Synchronize
-	{
-		AsyncData& data;
-
-		Synchronize(AsyncData& d): data(d) { data.lock(); };
-		~Synchronize() { data.unlock(); };
-	};
- 
+	using Synchronize = std::lock_guard<AsyncData>;
 }
 
 using mt::Synchronize;

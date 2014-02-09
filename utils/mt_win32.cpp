@@ -86,24 +86,4 @@ namespace mt
 		//FLOG << "Thread " << m_threadId << " closed. Moving on.";
 		return ret;
 	}
-
-	void Mutex::init()
-	{
-		InitializeCriticalSection(&m_cs);
-	}
-
-	void Mutex::finalize()
-	{
-		DeleteCriticalSection(&m_cs);
-	}
-
-	void Mutex::lock()
-	{
-		EnterCriticalSection(&m_cs);
-	}
-
-	void Mutex::unlock()
-	{
-		LeaveCriticalSection(&m_cs);
-	}
 }

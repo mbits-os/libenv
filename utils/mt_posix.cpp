@@ -119,25 +119,4 @@ namespace mt
 		//printf("Thread 0x%08x closed. Moving on.\n", m_thread); fflush(stdout);
 		return ret;
 	}
-
-	void Mutex::init()
-	{
-		m_mutex = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_init(&m_mutex, NULL);
-	}
-
-	void Mutex::finalize()
-	{
-		pthread_mutex_destroy(&m_mutex);
-	}
-
-	void Mutex::lock()
-	{
-		pthread_mutex_lock(&m_mutex);
-	}
-
-	void Mutex::unlock()
-	{
-		pthread_mutex_unlock(&m_mutex);
-	}
 }
