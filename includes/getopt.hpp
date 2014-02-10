@@ -33,12 +33,12 @@
 
 namespace getopt
 {
-	template <typename C>
+	template <typename Char>
 	struct reader
 	{
-		using CSTR = const C*;
-		using STR = C*;
-		using string = std::basic_string<C, std::char_traits<C>, std::allocator<C>>;
+		using CSTR = const Char*;
+		using STR = Char*;
+		using string = std::basic_string<Char, std::char_traits<Char>, std::allocator<Char>>;
 		virtual void read(CSTR) {}
 		virtual void read() {}
 		virtual bool has_arg() const { return true; }
@@ -50,32 +50,32 @@ namespace getopt
 		reader& operator= (reader&&) = delete;
 	};
 
-	template <typename C>
-	using string_t = typename reader<C>::string;
+	template <typename Char>
+	using string_t = typename reader<Char>::string;
 
-	template <typename C>
-	using reader_ptr = std::shared_ptr<reader<C>>;
+	template <typename Char>
+	using reader_ptr = std::shared_ptr<reader<Char>>;
 
-	template <typename C>
-	using readers = std::map<string_t<C>, reader_ptr<C>>;
+	template <typename Char>
+	using readers = std::map<string_t<Char>, reader_ptr<Char>>;
 
 	namespace helpers
 	{
-		template <typename C>
-		inline const C* _begin(const C* e)
+		template <typename Char>
+		inline const Char* _begin(const Char* e)
 		{
 			return e;
 		}
 
-		template <typename C>
-		inline const C* _end(const C* e)
+		template <typename Char>
+		inline const Char* _end(const Char* e)
 		{
 			while (*e) e++;
 			return e;
 		}
 
-		template <typename C, typename _C>
-		inline void copy_strtrans(std::basic_string<_C, std::char_traits<_C>, std::allocator<_C>>& out, const C* in)
+		template <typename Char, typename CharOut>
+		inline void copy_strtrans(std::basic_string<CharOut, std::char_traits<CharOut>, std::allocator<CharOut>>& out, const Char* in)
 		{
 			if (!in)
 			{
@@ -91,33 +91,33 @@ namespace getopt
 		inline void strtrans(std::wstring& out, const char* in) { copy_strtrans(out, in); }
 	}
 
-	template <typename C, typename T>
+	template <typename Char, typename T>
 	struct conv_impl
 	{
-		static inline T convert(typename reader<C>::CSTR arg)
+		static inline T convert(typename reader<Char>::CSTR arg)
 		{
 			T out{};
-			std::basic_istringstream<C, std::char_traits<C>, std::allocator<C>> is(arg);
+			std::basic_istringstream<Char, std::char_traits<Char>, std::allocator<Char>> is(arg);
 			is >> out;
 			return out;
 		}
 	};
 
-	template <typename C, typename _C>
-	struct conv_impl<C, std::basic_string<_C, std::char_traits<_C>, std::allocator<_C>>>
+	template <typename Char, typename CharOut>
+	struct conv_impl<Char, std::basic_string<CharOut, std::char_traits<CharOut>, std::allocator<CharOut>>>
 	{
-		static inline std::basic_string<_C, std::char_traits<_C>, std::allocator<_C>> convert(typename reader<C>::CSTR arg)
+		static inline std::basic_string<CharOut, std::char_traits<CharOut>, std::allocator<CharOut>> convert(typename reader<Char>::CSTR arg)
 		{
-			std::basic_string<_C, std::char_traits<_C>, std::allocator<_C>> out;
+			std::basic_string<CharOut, std::char_traits<CharOut>, std::allocator<CharOut>> out;
 			helpers::strtrans(out, arg);
 			return out;
 		}
 	};
 
-	template <typename C, typename T>
+	template <typename Char, typename T>
 	struct conv_impl_int
 	{
-		static inline T convert(typename reader<C>::CSTR arg)
+		static inline T convert(typename reader<Char>::CSTR arg)
 		{
 			if (!arg)
 				return 0;
@@ -162,26 +162,26 @@ namespace getopt
 		}
 	};
 
-	template <typename C>
-	struct conv_impl<C, int>: conv_impl_int<C, int>{};
-	template <typename C>
-	struct conv_impl<C, unsigned short>: conv_impl_int<C, unsigned short>{};
+	template <typename Char>
+	struct conv_impl<Char, int>: conv_impl_int<Char, int>{};
+	template <typename Char>
+	struct conv_impl<Char, unsigned short>: conv_impl_int<Char, unsigned short>{};
 
-	template <typename C, typename T>
-	class arg_reader : public reader<C>
+	template <typename Char, typename T>
+	class arg_reader : public reader<Char>
 	{
 		T& ref;
 	public:
 		arg_reader(T& ref) : ref(ref) {}
 
-		void read(typename reader<C>::CSTR arg) override
+		void read(typename reader<Char>::CSTR arg) override
 		{
-			ref = conv_impl<C, T>::convert(arg);
+			ref = conv_impl<Char, T>::convert(arg);
 		}
 	};
 
-	template <typename C>
-	class bool_reader : public reader<C>
+	template <typename Char>
+	class bool_reader : public reader<Char>
 	{
 		bool& ref;
 	public:
@@ -203,21 +203,21 @@ namespace getopt
 		MISSING
 	};
 
-	template <typename C>
+	template <typename Char>
 	class options_base
 	{
-		using CSTR = typename reader<C>::CSTR;
-		using STR = typename reader<C>::STR;
-		using string = typename reader<C>::string;
+		using CSTR = typename reader<Char>::CSTR;
+		using STR = typename reader<Char>::STR;
+		using string = typename reader<Char>::string;
 
 		using free_args_t = std::vector<STR>;
-		readers<C> m_readers;
+		readers<Char> m_readers;
 		free_args_t m_free_args;
 		CAUSE m_cause = OK;
 		bool m_empty = true;
 		string m_cause_arg;
 
-		void add(const string& fmt, const reader_ptr<C>& reader)
+		void add(const string& fmt, const reader_ptr<Char>& reader)
 		{
 			m_readers[fmt] = std::move(reader);
 		}
@@ -277,15 +277,15 @@ namespace getopt
 
 	public:
 		template <typename T>
-		options_base<C>& add_arg(CSTR fmt, T& ref)
+		options_base<Char>& add_arg(CSTR fmt, T& ref)
 		{
-			add(fmt, std::make_shared<arg_reader<C, T>>(std::ref(ref)));
+			add(fmt, std::make_shared<arg_reader<Char, T>>(std::ref(ref)));
 			return *this;
 		}
 
-		options_base<C>& add(CSTR fmt, bool& ref)
+		options_base<Char>& add(CSTR fmt, bool& ref)
 		{
-			add(fmt, std::make_shared<bool_reader<C>>(std::ref(ref)));
+			add(fmt, std::make_shared<bool_reader<Char>>(std::ref(ref)));
 			return *this;
 		}
 
