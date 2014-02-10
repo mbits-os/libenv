@@ -219,10 +219,10 @@ namespace dom { namespace xpath {
 			auto& query = *from;
 
 			std::list<XmlNodePtr> list;
-			std::for_each(parent.begin(), parent.end(), [&](XmlNodePtr ctx)
+			for (auto&& ctx: parent)
 			{
 				query.select(ctx, list);
-			});
+			};
 			parent = list;
 			++from;
 		}
@@ -247,7 +247,7 @@ namespace dom { namespace xpath {
 	{
 		std::list<XmlNodePtr> local;
 		m_selector.select(context, local);
-		std::for_each(local.begin(), local.end(), [&](XmlNodePtr node)
+		for (auto&& node: local)
 		{
 			auto it = std::find_if(m_preds.begin(), m_preds.end(), [&](Predicate& pred) -> bool
 			{
@@ -255,7 +255,7 @@ namespace dom { namespace xpath {
 			});
 			if (it == m_preds.end())
 				list.push_back(node);
-		});
+		};
 	}
 
 	XmlNodePtr XPath::find(XmlNodePtr context)

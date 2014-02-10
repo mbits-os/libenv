@@ -344,9 +344,8 @@ namespace feed
 		bool parse(dom::XmlNodePtr node, dom::Namespaces ns)
 		{
 			auto cur = m_selectors.begin(), end = m_selectors.end();
-			for (; cur != end; ++cur)
+			for (auto&& selector : m_selectors)
 			{
-				SelectorPtr& selector = *cur;
 				//fprintf(stderr, "%s\n", selector->name().c_str()); fflush(stderr);
 				if (!selector->parse(node, ns, m_ctx))
 					return false;

@@ -117,10 +117,10 @@ namespace FastCGI
 		tyme::time_t treshold = tyme::now() - 30 * 60;
 
 		Sessions copy;
-		std::for_each(m_sessions.begin(), m_sessions.end(), [&copy](const Sessions::value_type& pair)
+		for (auto&& pair: m_sessions)
 		{
 			copy.insert(pair);
-		});
+		};
 
 		m_sessions = copy;
 	}

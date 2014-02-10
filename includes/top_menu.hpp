@@ -243,10 +243,10 @@ namespace FastCGI { namespace TopMenu {
 				"          " << pre << "<div class=\"tb-sub-wrapper\">\r\n"
 				"            " << pre << "<ul id=\"" << menuId << "-item-menu\" class=\"tb-submenu\">\r\n";
 			std::string _pre = pre + "    ";
-			std::for_each(m_children.begin(), m_children.end(), [&](MenuItemPtr ptr)
+			for (auto&& ptr: m_children)
 			{
 				ptr->echoMarkup(request, topbarId, getId(), _pre);
-			});
+			};
 			request <<
 				"            " << pre << "</ul>\r\n"
 				"          " << pre << "</div>\r\n";
@@ -255,10 +255,10 @@ namespace FastCGI { namespace TopMenu {
 		void echoCSS(Request& request, const std::string& topbarId, const std::string& menuId)
 		{
 			MenuItem::echoCSS(request, topbarId, menuId);
-			std::for_each(m_children.begin(), m_children.end(), [&](MenuItemPtr ptr)
+			for (auto&& ptr: m_children)
 			{
 				ptr->echoCSS(request, topbarId, getId());
-			});
+			};
 		}
 	};
 
@@ -351,19 +351,19 @@ namespace FastCGI { namespace TopMenu {
 		virtual void echoMarkup(Request& request, const std::string& menuPre, const std::string& topbarId, const std::string& klass)
 		{
 			request << "        <ul id=\"" << menuPre << "-" << m_id << "\" class=\"" << klass << "\">\r\n";
-			std::for_each(m_items.begin(), m_items.end(), [&](MenuItemPtr ptr)
+			for (auto&& ptr: m_items)
 			{
 				ptr->echoMarkup(request, topbarId, m_id, std::string());
-			});
+			};
 			request << "        </ul>\r\n";
 		}
 
 		virtual void echoCSS(Request& request, const std::string& topbarId)
 		{
-			std::for_each(m_items.begin(), m_items.end(), [&](MenuItemPtr ptr)
+			for (auto&& ptr: m_items)
 			{
 				ptr->echoCSS(request, topbarId, m_id);
-			});
+			};
 		}
 	};
 

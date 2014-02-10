@@ -57,9 +57,9 @@ namespace FastCGI {
 
 	void Control::getAttributes(Request& request)
 	{
-		std::for_each(m_attrs.begin(), m_attrs.end(), [&request](const Strings::value_type& pair) {
+		for (auto&& pair: m_attrs) {
 			request << " " << pair.first << "='" << url::htmlQuotes(pair.second) << "'";
-		});
+		};
 	}
 
 	void Control::getElement(Request& request, const std::string& name, const std::string& content)
@@ -149,20 +149,20 @@ namespace FastCGI {
 
 	void Section::bind(Request& request, const Strings& data)
 	{
-		std::for_each(m_controls.begin(), m_controls.end(), [&request, &data](ControlPtr& ctrl)
+		for (auto&& ctrl: m_controls)
 		{
 			ctrl->bind(request, data);
-		});
+		};
 	}
 
 	void Section::render(Request& request, size_t pageId)
 	{
 		if (!m_name.empty())
 			request << "<tr><td colspan='2' class='header'><h3 name='page" << pageId << "' id='page" << pageId <<"'>" << m_name << "</h3></td></tr>\r\n";
-		std::for_each(m_controls.begin(), m_controls.end(), [&request](ControlPtr& ctrl)
+		for (auto&& ctrl: m_controls)
 		{
 			ctrl->render(request);
-		});
+		};
 	}
 
 	Form::Form(const std::string& title, const std::string& method, const std::string& action, const std::string& mime)
@@ -180,11 +180,11 @@ namespace FastCGI {
 		if (!m_mime.empty()) request << " enctype='" << m_mime << "'";
 		request << ">\r\n<input type='hidden' name='posted' value='1' />\r\n";
 
-		std::for_each(m_hidden.begin(), m_hidden.end(), [&request](const std::string& hidden) {
+		for (auto&& hidden: m_hidden) {
 			param_t var = request.getVariable(hidden.c_str());
 			if (var != nullptr)
 				request << "<input type='hidden' name='" << hidden << "' value='" << url::htmlQuotes(var) << "' />\r\n";
-		});
+		};
 
 		request << "\r\n"
 			"<div class='form'>\r\n"
@@ -195,19 +195,19 @@ namespace FastCGI {
 				<< "      <tr><td colspan='2' class='error'>" << m_error << "</td></tr>\r\n";
 
 		size_t pageId = 0;
-		std::for_each(m_sections.begin(), m_sections.end(), [&request, &pageId](Section& s) {
+		for (auto&& s: m_sections) {
 			s.render(request, ++pageId);
-		});
+		};
 
 		if (!m_buttons.empty())
 		{
 			request << "\r\n"
 				"<tr><td colspan='2' class='buttons'>\r\n";
 
-			std::for_each(m_buttons.begin(), m_buttons.end(), [&request](ControlPtr& ctrl)
+			for (auto&& ctrl: m_buttons)
 			{
 				ctrl->renderSimple(request);
-			});
+			};
 			request << "\r\n</td></tr>\r\n";
 		}
 		request << "\r\n"
@@ -237,14 +237,14 @@ namespace FastCGI {
 
 	void Form::bind(Request& request, const Strings& data)
 	{
-		std::for_each(m_sections.begin(), m_sections.end(), [&request, &data](Section& section)
+		for (auto&& section: m_sections)
 		{
 			section.bind(request, data);
-		});
+		};
 
-		std::for_each(m_buttons.begin(), m_buttons.end(), [&request, &data](ControlPtr& ctrl)
+		for (auto&& ctrl: m_buttons)
 		{
 			ctrl->bind(request, data);
-		});
+		};
 	}
 } // FastCGI

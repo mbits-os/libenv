@@ -202,8 +202,7 @@ namespace FastCGI { namespace app
 		}
 
 #if DEBUG_CGI
-		static HandlerMap::const_iterator begin() { return get().m_handlers.begin(); }
-		static HandlerMap::const_iterator end() { return get().m_handlers.end(); }
+		static const HandlerMap& handlers() { return get().m_handlers; }
 #endif
 
 	};

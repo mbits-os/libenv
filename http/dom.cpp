@@ -281,12 +281,9 @@ namespace dom
 			void enumTagNames(const std::string& tagName, std::vector< dom::XmlNodePtr >& out)
 			{
 				if (tagName == _name) out.push_back(self.lock());
-				std::vector< dom::XmlNodePtr >::const_iterator
-					_cur = children.begin(), _end = children.end();
 
-				for (; _cur != _end; ++_cur)
+				for (auto&& node: children)
 				{
-					const dom::XmlNodePtr& node = *_cur;
 					if (node->nodeType() == ELEMENT_NODE)
 						((XmlElement*)node.get())->enumTagNames(tagName, out);
 				}
@@ -314,12 +311,8 @@ namespace dom
 
 				std::string out;
 
-				std::vector< dom::XmlNodePtr >::const_iterator
-					_cur = children.begin(), _end = children.end();
-
-				for (; _cur != _end; ++_cur)
+				for (auto&& node: children)
 				{
-					auto node = *_cur;
 					if (node.get())
 						switch(node->nodeType())
 						{
@@ -337,7 +330,7 @@ namespace dom
 			{
 				XmlNodeImpl<XmlElement, dom::XmlElement>::fixQName(forElem);
 				if (!forElem) return;
-				std::for_each(lookup.begin(), lookup.end(), [&](std::pair< std::string, dom::XmlAttributePtr > pair)
+				for (auto&& pair: lookup)
 				{
 					if (strncmp(pair.first.c_str(), "xmlns", 5) == 0 &&
 						(pair.first.length() == 5 || pair.first[5] == ':'))
@@ -347,7 +340,7 @@ namespace dom
 					XmlNodeImplInit* p = (XmlNodeImplInit*)pair.second->internalData();
 					if (!p) return;
 					p->fixQName(false);
-				});
+				};
 			}
 
 			void fixQName(QName& qname, const std::string& ns, const std::string& localName)
@@ -356,13 +349,13 @@ namespace dom
 				{
 					nsRebuilt = true;
 					namespaces.clear();
-					std::for_each(lookup.begin(), lookup.end(), [&](std::pair< std::string, dom::XmlAttributePtr > pair)
+					for (auto&& pair: lookup)
 					{
 						if (strncmp(pair.first.c_str(), "xmlns", 5) != 0) return;
 						if (pair.first.length() != 5 && pair.first[5] != ':') return;
 						if (pair.first.length() == 5) namespaces[""] = pair.second->value();
 						else namespaces[std::string(pair.first.c_str() + 6)] = pair.second->value();
-					});
+					};
 				}
 				InternalNamespaces::const_iterator _it = namespaces.find(ns);
 				if (_it != namespaces.end())

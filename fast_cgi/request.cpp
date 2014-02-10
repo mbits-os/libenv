@@ -251,7 +251,7 @@ namespace FastCGI
 		domAndPath += "; Path=/; HttpOnly";
 
 		bool first = true;
-		std::for_each(m_respCookies.begin(), m_respCookies.end(), [&first, &domAndPath, &cookies](const ResponseCookies::value_type& cookie)
+		for (auto&& cookie: m_respCookies)
 		{
 			if (first) first = false;
 			else cookies += ", ";
@@ -270,7 +270,7 @@ namespace FastCGI
 				cookies += "; Expires=";
 				cookies += buffer;
 			}
-		});
+		};
 
 		if (!cookies.empty())
 			m_headers["set-cookie"] = "Set-Cookie: " + cookies;
@@ -287,10 +287,10 @@ namespace FastCGI
 
 		buildCookieHeader();
 
-		std::for_each(m_headers.begin(), m_headers.end(), [this](const Headers::value_type& header)
+		for (auto&& header: m_headers)
 		{
 			*this << header.second << "\r\n";
-		});
+		};
 
 		*this << "\r\n";
 	}

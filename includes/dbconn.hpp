@@ -146,10 +146,8 @@ namespace db
 
 		bool get(const CursorPtr& c, Type& ctx)
 		{
-			auto cur = m_selectors.begin(), end = m_selectors.end();
-			for (; cur != end; ++cur)
+			for (auto&& selector : m_selectors)
 			{
-				SelectorBasePtr& selector = *cur;
 				if (!selector->get(c, &ctx))
 					return false;
 			}

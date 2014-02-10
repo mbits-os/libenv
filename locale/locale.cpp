@@ -50,10 +50,8 @@ namespace lng
 	TranslationPtr Locale::httpAcceptLanguage(const char* header)
 	{
 		std::list<std::string> langs = url::priorityList(header);
-		auto _lang = langs.begin(), _end = langs.end();
-		for (; _lang != _end; ++_lang)
+		for (auto& lang: langs)
 		{
-			std::string& lang = *_lang;
 			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
 
 			Translations::iterator _it = m_translations.find(lang);
@@ -103,10 +101,8 @@ namespace lng
 	{
 		struct _stat st;
 		std::list<std::string> langs = url::priorityList(header);
-		auto _lang = langs.begin(), _end = langs.end();
-		for (; _lang != _end; ++_lang)
+		for (auto& lang : langs)
 		{
-			std::string& lang = *_lang;
 			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
 			std::string path = m_fileRoot + lang + SEP + filename;
 			if (!_stat(path.c_str(), &st))

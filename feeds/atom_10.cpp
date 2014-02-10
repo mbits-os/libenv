@@ -51,16 +51,15 @@ namespace feed
 	{
 		std::string out;
 		out.reserve(in.size() * 12/10);
-		auto cur = in.begin(), end = in.end();
-		for (; cur != end; ++cur)
+		for (char c: in)
 		{
-			switch (*cur) {
+			switch (c) {
 			case '<': out.append("&lt;"); break;
 			case '>': out.append("&gt;"); break;
 			case '&': out.append("&amp;"); break;
 			case '"': out.append("&quot;"); break;
 			default:
-				out.push_back(*cur);
+				out.push_back(c);
 			}
 		}
 		return out;
