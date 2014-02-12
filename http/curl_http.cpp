@@ -47,6 +47,15 @@
 #include <http.hpp>
 #include <utils.hpp>
 
+namespace std
+{
+	ostream& operator<<(ostream& o, void(*fn)(ostream&))
+	{
+		fn(o);
+		return o;
+	}
+}
+
 namespace http
 {
 	static void getOSVersion(std::ostream& s)

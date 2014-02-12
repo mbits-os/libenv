@@ -69,7 +69,7 @@ namespace mt
 		args->posixEvent.signal();
 		args = nullptr;
 
-		thread->run();
+		thread->__run();
 		return nullptr;
 	}
 

@@ -29,6 +29,8 @@
 
 namespace http
 {
+	std::string getUserAgent();
+
 	struct HttpResponse;
 	struct XmlHttpRequest;
 	typedef std::shared_ptr<HttpResponse> HttpResponsePtr;

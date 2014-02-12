@@ -47,7 +47,7 @@ namespace mt
 		SetEvent(args->hEvent);
 		args = nullptr;
 
-		thread->run();
+		thread->__run();
 
 		_endthreadex(0);
 		return 0;

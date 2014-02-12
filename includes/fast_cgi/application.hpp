@@ -66,6 +66,8 @@ namespace FastCGI
 			m_log << t;
 			return *this;
 		}
+
+		std::ostream& log() { return m_log; }
 	};
 #define FLOG FastCGI::ApplicationLog(__FILE__, __LINE__)
 
