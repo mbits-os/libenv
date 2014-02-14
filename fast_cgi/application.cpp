@@ -46,10 +46,16 @@ namespace FastCGI
 		FLogSource* g_log = nullptr;
 	}
 
-	FLogSource::FLogSource(const char* path)
-		: m_log(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app)
+	FLogSource::FLogSource()
 	{
 		g_log = this;
+	}
+
+	bool FLogSource::open(const std::string& path)
+	{
+		m_log.close();
+		m_log.open(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+		return m_log.is_open();
 	}
 
 	Application::Application()

@@ -75,8 +75,9 @@ namespace FastCGI
 	{
 		std::ofstream m_log;
 	public:
-		FLogSource(const char* path);
-		std::ofstream& log() { return m_log; }
+		FLogSource();
+		bool open(const std::string& path);
+		std::ostream& log() { return m_log; }
 	};
 
 	inline FLOGBlock::FLOGBlock(const char* tag, const char* file, int line)
