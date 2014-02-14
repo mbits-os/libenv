@@ -33,6 +33,8 @@
 
 #define MAX_FORM_BUFFER 10240
 
+FastCGI::static_resources_t static_web{};
+
 namespace FastCGI
 {
 	bool PageTranslation::init(SessionPtr session, Request& request)
@@ -435,6 +437,11 @@ namespace FastCGI
 		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
 #endif
 		die();
+	}
+
+	const std::string& Request::getStaticResources()
+	{
+		return app().getStaticResources();
 	}
 
 	SessionPtr Request::getSession(bool require)

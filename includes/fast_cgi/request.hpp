@@ -85,6 +85,7 @@ namespace FastCGI
 	};
 	typedef std::shared_ptr<Content> ContentPtr;
 
+	class static_resources_t {};
 	class Request
 	{
 		typedef std::map<std::string, std::string> Headers;
@@ -170,6 +171,8 @@ namespace FastCGI
 		void on404();
 		void __on500(const char* file, int line, const std::string& log);
 
+		const std::string& getStaticResources();
+
 		SessionPtr getSession(bool require = true);
 		SessionPtr startSession(bool long_session, const char* email);
 		void endSession(const std::string& sessionId);
@@ -184,6 +187,11 @@ namespace FastCGI
 		void setContent(ContentPtr content) { m_content = content; }
 		template <typename T>
 		void setContent(std::shared_ptr<T> content) { m_content = std::static_pointer_cast<Content>(content); }
+
+		Request& operator << (static_resources_t)
+		{
+			return *this << getStaticResources();
+		}
 
 		template <typename T>
 		Request& operator << (const T& obj)
@@ -239,5 +247,7 @@ namespace FastCGI
 #endif
 	};
 }
+
+extern FastCGI::static_resources_t static_web;
 
 #endif //__REQUEST_HPP__

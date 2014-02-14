@@ -91,6 +91,7 @@ namespace FastCGI
 		typedef std::list<ThreadPtr> Threads;
 
 		long m_pid;
+		std::string m_staticWeb;
 		Sessions m_sessions;
 		Threads m_threads;
 		lng::Locale m_locale;
@@ -123,6 +124,9 @@ namespace FastCGI
 		void endSession(Request& request, const std::string& sessionId);
 		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
 		std::string getLocalizedFilename(const char* header, const char* filename) { return m_locale.getFilename(header, filename); }
+
+		void setStaticResources(const std::string& url) { m_staticWeb = url; }
+		const std::string& getStaticResources() const { return m_staticWeb; }
 
 #if DEBUG_CGI
 		struct ReqInfo

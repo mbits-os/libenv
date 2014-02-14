@@ -28,9 +28,6 @@
 #include <fast_cgi.hpp>
 #include <top_menu.hpp>
 
-#define STATIC_RESOURCES "http://static.reedr.net"
-//#define STATIC_RESOURCES "http://localhost/static"
-
 namespace FastCGI { namespace app
 {
 	class Handler

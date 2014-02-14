@@ -110,11 +110,11 @@ namespace FastCGI { namespace app {
 		request <<
 			"    <title>" << getTitle(request, tr) << "</title>\r\n"
 			"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>\r\n"
-			"    <style type=\"text/css\">@import url(\"" STATIC_RESOURCES "/css/site.css\");</style>\r\n"
-			"    <style type=\"text/css\">@import url(\"" STATIC_RESOURCES "/css/topbar.css\");</style>\r\n"
-			"    <script type=\"text/javascript\" src=\"" STATIC_RESOURCES "/code/jquery-1.9.1.js\"></script>\r\n"
-			"    <script type=\"text/javascript\" src=\"" STATIC_RESOURCES "/code/topbar.js\"></script>\r\n"
-			//"    <style type=\"text/css\">@import url(\"" STATIC_RESOURCES "/css/topbar_icons.css\");</style>\r\n"
+			"    <style type=\"text/css\">@import url(\"" << static_web << "css/site.css\");</style>\r\n"
+			"    <style type=\"text/css\">@import url(\"" << static_web << "css/topbar.css\");</style>\r\n"
+			"    <script type=\"text/javascript\" src=\"" << static_web << "code/jquery-1.9.1.js\"></script>\r\n"
+			"    <script type=\"text/javascript\" src=\"" << static_web << "code/topbar.js\"></script>\r\n"
+			//"    <style type=\"text/css\">@import url(\"" << static_web << "css/topbar_icons.css\");</style>\r\n"
 			;
 	}
 
