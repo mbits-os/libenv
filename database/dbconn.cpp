@@ -26,6 +26,7 @@
 #include <dbconn.hpp>
 #include <dbconn_driver.hpp>
 #include <utils.hpp>
+#include <fast_cgi/application.hpp>
 
 namespace db
 {
@@ -51,21 +52,21 @@ namespace db
 		Driver::Props props;
 		if (!Driver::readProps(path, props))
 		{
-			std::cerr << "Cannot open " << path << std::endl;
+			FLOG << "Cannot open " << path;
 			return nullptr;
 		}
 
 		std::string driver_id;
 		if (!Driver::getProp(props, "driver", driver_id))
 		{
-			std::cerr << "Connection configuration is missing the `driver' key\n";
+			FLOG << "Connection configuration is missing the `driver' key";
 			return nullptr;
 		}
 
 		DriverPtr driver = Drivers::driver(driver_id);
 		if (driver.get() == nullptr)
 		{
-			std::cerr << "Cannot find `" << driver_id << "' database driver\n";
+			FLOG << "Cannot find `" << driver_id << "' database driver";
 			return nullptr;
 		}
 

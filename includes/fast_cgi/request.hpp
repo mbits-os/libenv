@@ -40,6 +40,8 @@ namespace lng
 	enum LNG;
 };
 
+#define on500(log) __on500(__FILE__, __LINE__, log)
+
 namespace FastCGI
 {
 	class Application;
@@ -166,7 +168,7 @@ namespace FastCGI
 		void onLastModified(tyme::time_t lastModified);
 		void on400(const char* reason = nullptr);
 		void on404();
-		void on500(const std::string& log);
+		void __on500(const char* file, int line, const std::string& log);
 
 		SessionPtr getSession(bool require = true);
 		SessionPtr startSession(bool long_session, const char* email);
