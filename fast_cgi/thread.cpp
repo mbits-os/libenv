@@ -33,7 +33,7 @@
 #endif
 
 #ifdef POSIX
-#define INI "../conn.ini"
+#define INI "/usr/share/reedr/conn.ini"
 #endif
 
 #ifndef INI
