@@ -48,7 +48,7 @@ namespace FastCGI { namespace app {
 		SessionPtr session = request.getSession(restrictedPage());
 		PageTranslation tr;
 		if (!tr.init(session, request))
-			request.on500();
+			request.on500("No translation found for the PageHandler");
 
 		prerender(session, request, tr);
 		header(session, request, tr);

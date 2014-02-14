@@ -422,8 +422,11 @@ namespace FastCGI
 		die();
 	}
 
-	void Request::on500()
+	void Request::on500(const std::string& log)
 	{
+		if (!log.empty())
+			FLOG << "on500: " << log;
+
 		setHeader("Status", "500 Internal Error");
 		setHeader("Content-Type", "text/html; charset=utf-8");
 		*this

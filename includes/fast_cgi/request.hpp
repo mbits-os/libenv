@@ -132,7 +132,7 @@ namespace FastCGI
 		Application& app()
 		{
 			Application* ptr = m_thread.app();
-			if (!ptr) on500();
+			if (!ptr) on500("No application attached to the thead.");
 			return *ptr;
 		}
 		db::ConnectionPtr dbConn() { return m_thread.dbConn(*this); }
@@ -166,7 +166,7 @@ namespace FastCGI
 		void onLastModified(tyme::time_t lastModified);
 		void on400(const char* reason = nullptr);
 		void on404();
-		void on500();
+		void on500(const std::string& log);
 
 		SessionPtr getSession(bool require = true);
 		SessionPtr startSession(bool long_session, const char* email);

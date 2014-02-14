@@ -122,7 +122,7 @@ namespace FastCGI
 			m_dbConn->reconnect();
 
 		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
-			request.on500();
+			request.on500("DB connection lost");
 
 		return m_dbConn;
 	}
