@@ -235,23 +235,106 @@ namespace getopt
 			return true;
 		}
 
-		bool read_arg(STR arg, int& next, int argc, STR argv[])
+		class action
+		{
+			int _argc;
+			STR* _argv;
+
+		protected:
+			options_base<Char>& parent;
+
+		public:
+			action(options_base<Char>& parent, int argc, STR argv[]) : _argc(argc), _argv(argv), parent(parent) {}
+
+			int argc() const { return _argc; }
+			STR argv(int id) const { return _argv[id]; }
+
+			virtual bool error(CAUSE cause, const string& arg = string())
+			{
+				return parent.error(cause, arg);
+			}
+
+			virtual bool free_arg(STR arg) = 0;
+			virtual void value(const string& name, STR value, reader_ptr<Char>& reader) = 0;
+			virtual void non_value(const string& name, reader_ptr<Char>& reader) = 0;
+		};
+
+		class action_read : public action
+		{
+		public:
+			using action::action;
+
+			bool free_arg(STR arg) override
+			{
+				action::parent.m_free_args.push_back(arg);
+				return true;
+			}
+			void value(const string& name, STR value, reader_ptr<Char>& reader) override { reader->read(value); }
+			void non_value(const string& name, reader_ptr<Char>& reader) override { reader->read(); }
+
+			bool act() { return all(*this); }
+		};
+
+		class action_sieve : public action
+		{
+			std::vector<string>& args;
+			CSTR ignorable;
+
+			static bool in(Char c, CSTR ignorable)
+			{
+				for (; *ignorable; ++ignorable)
+				{
+					if (*ignorable == c)
+						return true;
+				}
+
+				return false;
+			}
+
+		public:
+			action_sieve(options_base<Char>& parent, int argc, STR argv[], std::vector<string>& args, CSTR ignorable) : action(parent, argc, argv), args(args), ignorable(ignorable) {}
+
+			bool free_arg(STR arg) override
+			{
+				args.push_back(arg);
+				return true;
+			}
+			void value(const string& name, STR value, reader_ptr<Char>& reader) override
+			{
+				if (!in(name[0], ignorable))
+				{
+					Char minus[2] = { '-' };
+					args.push_back(minus + name);
+					args.push_back(value);
+				}
+			}
+			void non_value(const string& name, reader_ptr<Char>& reader) override
+			{
+				if (!in(name[0], ignorable))
+				{
+					Char minus[2] = { '-' };
+					args.push_back(minus + name);
+				}
+			}
+		};
+
+		bool next(STR arg, int& next, action& act)
 		{
 			if (!arg)
-				return error(UNEXPECTED);
+				return act.error(UNEXPECTED);
 			if (arg[0] != '-') // also - empty strings
-				return free_arg(arg);
+				return act.free_arg(arg);
 
 			arg++;
 			if (*arg == '-') // long opt
-				return error(UNKNOWN, arg - 1); // not supported...
+				return act.error(UNKNOWN, arg - 1); // not supported...
 
 			while (*arg)
 			{
 				string name(1, *arg);
 				auto it = m_readers.find(name);
 				if (it == m_readers.end() || !it->second)
-					return error(UNKNOWN, string(1, *arg));
+					return act.error(UNKNOWN, name);
 
 				auto reader = it->second;
 				if (reader->has_arg())
@@ -259,15 +342,15 @@ namespace getopt
 					STR value = arg + 1;
 					if (!*value)
 					{
-						if (next >= argc)
-							return error(NO_ARGUMENT, string(1, *arg));
-						value = argv[next++];
+						if (next >= act.argc())
+							return act.error(NO_ARGUMENT, name);
+						value = act.argv(next++);
 					}
-					reader->read(value);
+					act.value(name, value, reader);
 					return true;
 				}
 				else
-					reader->read();
+					act.non_value(name, reader);
 
 				++arg;
 			}
@@ -275,7 +358,21 @@ namespace getopt
 			return true;
 		}
 
-	public:
+		bool all(action& act)
+		{
+			int index = 1;
+			while (index < act.argc())
+			{
+				m_empty = false;
+
+				auto tmp = index++;
+				if (!next(act.argv(tmp), index, act))
+					return false;
+			}
+			return true;
+
+		}
+
 		template <typename T>
 		options_base<Char>& add_arg(CSTR fmt, T& ref)
 		{
@@ -289,24 +386,55 @@ namespace getopt
 			return *this;
 		}
 
-		bool read(int argc, STR argv[])
-		{
-			int index = 1;
-			while (index < argc)
-			{
-				m_empty = false;
-
-				auto tmp = index++;
-				if (!read_arg(argv[tmp], index, argc, argv))
-					return false;
-			}
-			return true;
-		}
-
 		CAUSE cause() const { return m_cause; }
 		const string& cause_arg() const { return m_cause_arg; }
 		const free_args_t& free_args() const { return m_free_args; }
 		bool empty() const { return m_empty; }
+
+	public:
+		template <typename Action>
+		class active_options
+		{
+			Action m_action;
+			options_base m_options;
+		public:
+			template <typename... Args>
+			active_options(Args&&... args) : m_action(m_options, std::forward<Args>(args)...) {}
+			template <typename T>
+			active_options<Action>& add_arg(CSTR fmt, T& ref)
+			{
+				m_options.add_arg(fmt, std::forward<T&>(ref));
+				return *this;
+			}
+
+			active_options<Action>& add(CSTR fmt, bool& ref)
+			{
+				m_options.add(fmt, std::forward<bool&>(ref));
+				return *this;
+			}
+
+			bool act()
+			{
+				return m_options.all(m_action);
+			}
+
+			CAUSE cause() const { return m_options.cause(); }
+			const string& cause_arg() const { return m_options.cause_arg(); }
+			const free_args_t& free_args() const { return m_options.free_args(); }
+			bool empty() const { return m_options.empty(); }
+		};
+
+		template <typename Action, typename... Args>
+		static active_options<Action> make_active_options(Args&&... args) { return active_options<Action>(std::forward<Args>(args)...); }
+		static active_options<action_read> read(int argc, STR argv[])
+		{
+			return make_active_options<action_read>(argc, argv);
+		}
+
+		static active_options<action_sieve> sieve(int argc, STR argv[], std::vector<string>& args, CSTR ignorable)
+		{
+			return make_active_options<action_sieve>(argc, argv, args, ignorable);
+		}
 	};
 
 	using options = options_base<char>;
