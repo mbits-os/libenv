@@ -24,10 +24,11 @@
 
 #include "pch.h"
 #include <map>
-#include <regex>
 #include <typeinfo>
 #include <string.h>
 #include <config.hpp>
+#include <cctype>
+#include <tuple>
 
 namespace config
 {
@@ -56,9 +57,9 @@ namespace config
 			std::shared_ptr<any_holder> holder;
 		public:
 			template <typename T>
-			any& operator=(const T& val)
+			any& operator=(T&& val)
 			{
-				holder = std::make_shared<holder_t<T>>(val);
+				holder = std::make_shared<holder_t<T>>(std::forward<T>(val));
 				return *this;
 			}
 			const std::type_info& type() const
@@ -250,6 +251,44 @@ namespace config
 				ptr->store();
 		}
 
+		static std::tuple<bool, std::string, std::string> break_nv(const std::string& line)
+		{
+			std::tuple<bool, std::string, std::string> out;
+
+			std::get<0>(out) = false;
+
+			auto eq = line.find('=');
+			if (eq == std::string::npos)
+				return out;
+
+			std::get<0>(out) = true;
+
+			auto length = eq - 1;
+			while (length && std::isspace((unsigned char)line[length]))
+				--length;
+
+			std::get<1>(out) = line.substr(0, length); // name
+
+			length = line.length();
+			++eq;
+			while (eq < length && std::isspace((unsigned char)line[eq]))
+				++eq;
+
+			std::get<2>(out) = line.substr(eq); // value
+
+			return out;
+		}
+
+		bool digits_only(const std::string& val)
+		{
+			for (auto&& c : val)
+			{
+				if (!std::isdigit((unsigned char)c))
+					return false;
+			}
+			return true;
+		}
+
 		bool config::open(const std::string& path)
 		{
 			m_sections.clear();
@@ -261,41 +300,49 @@ namespace config
 
 			file_section_ptr curr;
 			std::string line;
-			std::regex header(R"(^\s*\[(.*)\]\s*$)");
-			std::regex number(R"(^\s*([^=]+?)\s*=\s*(\d+)\s*$)");
-			std::regex boolean(R"(^\s*([^=]+?)\s*=\s*(true|false|yes|no)\s*$)");
-			std::regex text(R"(^\s*([^=]+?)\s*=\s*(.*?)\s*$)");
 
 			while (std::getline(in, line))
 			{
-				std::smatch match;
-				if (std::regex_match(line, match, header))
+				auto length = line.length();
+				while (length && std::isspace((unsigned char)line[length - 1]))
+					--length;
+				decltype(length) start = 0;
+				while (start < length && std::isspace((unsigned char)line[start]))
+					++start;
+				length -= start;
+				line = line.substr(start, length);
+
+				if (!line.empty() && line[0] == '[' && line[length - 1] == ']')
 				{
-					curr = std::static_pointer_cast<section>(get_section(match[1]));
+					line = line.substr(1, length - 2);
+					curr = std::static_pointer_cast<section>(get_section(line));
 					continue;
 				}
 
 				if (!curr) // default section not supported
 					return false;
 
-				if (std::regex_match(line, match, number))
+				std::string name, value;
+				bool succeeded = false;
+				std::tie(succeeded, name, value) = break_nv(line);
+
+				if (!succeeded)
+					continue;
+
+				if (digits_only(value))
 				{
-					int val = atoi(match[2].str().c_str());
-					curr->m_values[match[1]] = val;
+					int val = atoi(value.c_str());
+					curr->m_values[name] = val;
 					continue;
 				}
 
-				if (std::regex_match(line, match, boolean))
+				if ((value == "true") || (value == "false") || (value == "yes") || (value == "no"))
 				{
-					curr->m_values[match[1]] = match[2] == "true" || match[2] == "yes";
+					curr->m_values[name] = (value == "true") || (value == "yes");
 					continue;
 				}
 
-				if (std::regex_match(line, match, text))
-				{
-					curr->m_values[match[1]] = match[2].str();
-					continue;
-				}
+				curr->m_values[name] = std::move(value);
 			}
 
 			return true;
