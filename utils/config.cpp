@@ -383,16 +383,16 @@ namespace config
 
 	namespace base
 	{
-		config_ptr file_config(const std::string& path, bool must_exist)
+		config_ptr file_config(const filesystem::path& path, bool must_exist)
 		{
 			auto cfg = std::make_shared<file::config>();
 			if (must_exist)
 			{
-				if (cfg && !cfg->open(path))
+				if (cfg && !cfg->open(path.native()))
 					return nullptr;
 			}
 			else if (cfg)
-				cfg->open(path);
+				cfg->open(path.native());
 			return cfg;
 		}
 	}

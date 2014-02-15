@@ -26,6 +26,7 @@
 
 #include <string>
 #include <memory>
+#include <filesystem.hpp>
 
 namespace config
 {
@@ -51,7 +52,7 @@ namespace config
 		};
 		typedef std::shared_ptr<config> config_ptr;
 
-		config_ptr file_config(const std::string&, bool);
+		config_ptr file_config(const filesystem::path&, bool);
 	}
 
 	namespace wrapper
