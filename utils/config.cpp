@@ -266,6 +266,7 @@ namespace config
 			auto length = eq - 1;
 			while (length && std::isspace((unsigned char)line[length]))
 				--length;
+			++length;
 
 			std::get<1>(out) = line.substr(0, length); // name
 
