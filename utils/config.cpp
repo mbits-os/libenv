@@ -57,9 +57,9 @@ namespace config
 			std::shared_ptr<any_holder> holder;
 		public:
 			template <typename T>
-			any& operator=(T&& val)
+			any& operator=(const T& val)
 			{
-				holder = std::make_shared<holder_t<T>>(std::forward<T>(val));
+				holder = std::make_shared<holder_t<T>>(val);
 				return *this;
 			}
 			const std::type_info& type() const
@@ -76,7 +76,7 @@ namespace config
 				if (!holder || holder->type() != typeid(T))
 					throw std::bad_cast();
 
-				auto ptr = (holder_t<T>*)holder.get();
+				auto ptr = std::static_pointer_cast<holder_t<T>>(holder);
 				return ptr->val;
 			}
 		};
@@ -238,10 +238,12 @@ namespace config
 			typedef std::map<std::string, file_section_ptr> map_t;
 			map_t m_sections;
 			std::string m_path;
+			bool m_read_only = false;
 
 			bool open(const std::string& path);
 			void store();
 			base::section_ptr get_section(const std::string& name) override;
+			void set_read_only(bool read_only) override { m_read_only = read_only; }
 		};
 
 		void section::store()
@@ -351,6 +353,9 @@ namespace config
 
 		void config::store()
 		{
+			if (m_read_only)
+				return;
+
 			std::ofstream out{m_path};
 			for (auto&& sec : m_sections)
 			{

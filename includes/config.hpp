@@ -49,6 +49,7 @@ namespace config
 		{
 			virtual ~config() {}
 			virtual section_ptr get_section(const std::string& name) = 0;
+			virtual void set_read_only(bool read_only) = 0;
 		};
 		typedef std::shared_ptr<config> config_ptr;
 
