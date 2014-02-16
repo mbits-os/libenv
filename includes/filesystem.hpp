@@ -37,7 +37,7 @@ namespace filesystem
 	class path;
 
 	class path_iterator
-		: public std::iterator< std::bidirectional_iterator_tag, std::string, ptrdiff_t, std::string*, std::string&>
+		: public std::iterator< std::bidirectional_iterator_tag, std::string, std::ptrdiff_t, std::string*, std::string&>
 	{
 	public:
 		typedef const std::string *pointer;
