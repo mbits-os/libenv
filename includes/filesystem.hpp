@@ -399,6 +399,10 @@ namespace filesystem
 	path current_path();
 	inline void current_path(path& p) { p = current_path(); }
 
+#ifdef WIN32
+	path app_directory();
+#endif
+
 	path absolute(const path& p, const path& base = current_path());
 	path canonical(const path& p, const path& base = current_path());
 

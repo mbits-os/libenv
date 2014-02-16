@@ -65,6 +65,13 @@ namespace filesystem
 		return buffer;
 	}
 
+	path app_directory()
+	{
+		char buffer[2048];
+		GetModuleFileNameA(nullptr, buffer, sizeof(buffer));
+		return path(buffer).parent_path();
+	}
+
 	status::status(const path& p)
 	{
 		auto native = p.native();

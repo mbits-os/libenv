@@ -92,6 +92,9 @@ namespace FastCGI
 
 		long m_pid;
 		std::string m_staticWeb;
+		std::string m_dbConf;
+		std::string m_smtpConf;
+		std::string m_accessLog;
 		Sessions m_sessions;
 		Threads m_threads;
 		lng::Locale m_locale;
@@ -127,6 +130,15 @@ namespace FastCGI
 
 		void setStaticResources(const std::string& url) { m_staticWeb = url; }
 		const std::string& getStaticResources() const { return m_staticWeb; }
+
+		void setDBConn(const std::string& conf) { m_dbConf = conf; }
+		const std::string& getDBConn() const { return m_dbConf; }
+
+		void setSMTPConn(const std::string& conf) { m_smtpConf = conf; }
+		const std::string& getSMTPConn() const { return m_smtpConf; }
+
+		void setAccessLog(const std::string& log) { m_accessLog = log; }
+		const std::string& getAccessLog() const { return m_accessLog; }
 
 #if DEBUG_CGI
 		struct ReqInfo

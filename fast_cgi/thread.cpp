@@ -28,18 +28,6 @@
 #include <fast_cgi/request.hpp>
 #include <fast_cgi/backends.hpp>
 
-#ifdef _WIN32
-#define INI "..\\conn.ini"
-#endif
-
-#ifdef POSIX
-#define INI "/usr/share/reedr/conn.ini"
-#endif
-
-#ifndef INI
-#error There is no path to conn.ini defined...
-#endif
-
 namespace FastCGI
 {
 	Thread::Thread()
@@ -117,7 +105,11 @@ namespace FastCGI
 
 		//restart if needed
 		if (!m_dbConn.get())
-			m_dbConn = db::Connection::open(INI);
+		{
+			if (!m_app)
+				request.on500("No application to get DB config from");
+			m_dbConn = db::Connection::open(m_app->getDBConn().c_str());
+		}
 		else if (!m_dbConn->isStillAlive())
 			m_dbConn->reconnect();
 
