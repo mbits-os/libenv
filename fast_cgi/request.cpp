@@ -407,7 +407,12 @@ namespace FastCGI
 		if (reason && *reason)
 			*this << "<br/>" << reason;
 #if DEBUG_CGI
-		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
+		*this << "<br/>\n<a href='/debug/'>Debug</a>";
+		if (!m_icicle.empty())
+		{
+			*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
+		}
+		*this << ".";
 #endif
 		die();
 	}
@@ -419,7 +424,12 @@ namespace FastCGI
 		*this
 			<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 #if DEBUG_CGI
-		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
+		*this << "<br/>\n<a href='/debug/'>Debug</a>";
+		if (!m_icicle.empty())
+		{
+			*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
+		}
+		*this << ".";
 #endif
 		die();
 	}
@@ -434,7 +444,12 @@ namespace FastCGI
 		*this
 			<< "<tt>500: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
 #if DEBUG_CGI
-		*this << "<br/>\n<a href='/debug/'>Debug</a>.";
+		*this << "<br/>\n<a href='/debug/'>Debug</a>";
+		if (!m_icicle.empty())
+		{
+			*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
+		}
+		*this << ".";
 #endif
 		die();
 	}
@@ -458,6 +473,14 @@ namespace FastCGI
 
 		//if require and session two weeks old: /auth/login?continue=<this-url>&user=<email>
 
+#if DEBUG_CGI
+		if (!m_icicle.empty())
+		{
+			auto ptr = app().frozen(m_icicle);
+			if (ptr && out)
+				ptr->session_user(out->getLogin());
+		}
+#endif
 		return out;
 	}
 
@@ -470,6 +493,15 @@ namespace FastCGI
 				setCookie("reader.login", session->getSessionId(), tyme::now() + 30 * 24 * 60 * 60);
 			else
 				setCookie("reader.login", session->getSessionId());
+
+#if DEBUG_CGI
+			if (!m_icicle.empty())
+			{
+				auto ptr = app().frozen(m_icicle);
+				if (ptr)
+					ptr->session_user(session->getLogin());
+			}
+#endif
 		}
 		return session;
 	}

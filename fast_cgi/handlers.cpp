@@ -82,6 +82,15 @@ namespace FastCGI { namespace app {
 	{
 		std::string display_name;
 		std::string icon;
+#ifdef DEBUG_CGI
+		std::string icicle = request.getIcicle();
+		if (!icicle.empty())
+		{
+			menu.right()
+				.item("frozen", -1, "[F]")
+				.setItemUrl("frozen", "/debug/?frozen=" + url::encode(icicle));
+		}
+#endif
 
 		auto user = std::make_shared<TopMenu::UserMenu>("user", "user-menu", 4, std::string(), display_name);
 		menu.left().home("home", 0, tr(lng::LNG_GLOBAL_PRODUCT), tr(lng::LNG_GLOBAL_DESCRIPTION));

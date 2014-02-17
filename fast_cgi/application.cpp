@@ -29,6 +29,7 @@
 #include <fast_cgi/session.hpp>
 #include <fast_cgi/request.hpp>
 #include <string.h>
+#include <crypt.hpp>
 
 #ifdef _WIN32
 #define LOGFILE "..\\error-%u.log"
@@ -103,17 +104,81 @@ namespace FastCGI
 	}
 
 #if DEBUG_CGI
-	void Application::report(char** envp)
+	FrozenState::FrozenState(char** envp, const Request& req, const std::string& icicle)
+		: m_icicle(icicle)
+		, m_get(req.varDebugData())
+		, m_cookies(req.cookieDebugData())
+		, m_resource(FCGX_GetParam("REQUEST_URI", envp))
+		, m_server(FCGX_GetParam("SERVER_NAME", envp))
+		, m_remote_addr(FCGX_GetParam("REMOTE_ADDR", envp))
+		, m_remote_port(FCGX_GetParam("REMOTE_PORT", envp))
+		, m_now(tyme::now())
 	{
-		if (false) //turned off for now
+		for (; *envp; ++envp)
+		{
+			const char* eq = strchr(*envp, '=');
+			std::string key, value;
+			if (!eq)
+				key = *envp;
+			else if (eq != *envp)
+				key.assign(*envp, eq);
+
+			if (eq)
+			{
+				if (eq != *envp)
+					++eq;
+
+				value = eq;
+			}
+
+			m_environment[key] = std::move(value);
+		}
+	}
+
+	FrozenStatePtr Application::frozen(const std::string& icicle)
+	{
+		auto it = m_iceberg.find(icicle);
+		if (it == m_iceberg.end())
+			return nullptr;
+
+		return it->second;
+	}
+
+	std::string Application::freeze(char** envp, const Request& req)
+	{
+		constexpr size_t length = (Crypt::SessionHash::HASH_SIZE * 8 + 5) / 6 + 1;
+
+		char seed[20];
+		char base64[length];
+		Crypt::session_t sessionId;
+		Crypt::newSalt(seed);
+		Crypt::session(seed, sessionId);
+		Crypt::base64_encode(sessionId, sizeof(sessionId), base64);
+		base64[length - 1] = 0;
+
+		std::string icicle{ base64 };
+		auto ptr = std::make_shared<FrozenState>(envp, std::ref(req), icicle);
+
+		if (!ptr)
+			return std::string();
+
+		m_iceberg[icicle] = std::move(ptr);
+
+		return icicle;
+	}
+
+	void Application::report(char** envp, const std::string& icicle)
+	{
+		if (true) //turned off for now
 		{
 			ReqInfo info;
+			info.icicle      = icicle;
 			info.resource    = FCGX_GetParam("REQUEST_URI", envp);
 			info.server      = FCGX_GetParam("SERVER_NAME", envp);
 			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", envp);
 			info.remote_port = FCGX_GetParam("REMOTE_PORT", envp);
 			info.now = tyme::now();
-			//m_requs.push_back(info);
+			m_requs.push_back(info);
 		}
 	}
 #endif

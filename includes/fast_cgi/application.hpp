@@ -84,6 +84,46 @@ namespace FastCGI
 		: tag(tag), file(file), line(line) { ApplicationLog(file, line) << "[in] " << tag; }
 	inline FLOGBlock::~FLOGBlock() { ApplicationLog(file, line) << "[out] " << tag; }
 
+#ifdef DEBUG_CGI
+	class FrozenState
+	{
+	public:
+		typedef std::map<std::string, std::string> string_map;
+
+		FrozenState(char** envp, const Request& req, const std::string& icicle);
+
+		const std::string& icicle() const { return m_icicle; }
+		const string_map& environment() const { return m_environment; }
+		const string_map& get() const { return m_get; }
+		const string_map& cookies() const { return m_cookies; }
+		const std::string& resource() const { return m_resource; }
+		const std::string& server() const { return m_server; }
+		const std::string& remote_addr() const { return m_remote_addr; }
+		const std::string& remote_port() const { return m_remote_port; }
+		const std::string& session_user() const { return m_session_user; }
+		void session_user(const std::string& user) { m_session_user = user; }
+
+		tyme::time_t now() const { return m_now; }
+	private:
+		std::string m_icicle;
+
+		string_map m_environment;
+		string_map m_get;
+		string_map m_cookies;
+
+		std::string m_resource;
+		std::string m_server;
+		std::string m_remote_addr;
+		std::string m_remote_port;
+		std::string m_session_user;
+
+		tyme::time_t m_now;
+	};
+
+	using FrozenStatePtr = std::shared_ptr<FrozenState>;
+	using Iceberg = std::map<std::string, FrozenStatePtr>;
+#endif
+
 	class Application: public mt::AsyncData
 	{
 		typedef std::pair<tyme::time_t, SessionPtr> SessionCacheItem;
@@ -143,6 +183,7 @@ namespace FastCGI
 #if DEBUG_CGI
 		struct ReqInfo
 		{
+			std::string icicle;
 			std::string resource;
 			std::string server;
 			std::string remote_addr;
@@ -151,10 +192,13 @@ namespace FastCGI
 		};
 		typedef std::list<ReqInfo> ReqList;
 		const ReqList& requs() const { return m_requs; }
-		void report(char** envp);
+		FrozenStatePtr frozen(const std::string&);
+		std::string freeze(char** envp, const Request& req);
+		void report(char** envp, const std::string& icicle);
 		std::list<ThreadPtr> getThreads() const { return m_threads; }
 	private:
 		ReqList m_requs;
+		Iceberg m_iceberg;
 #endif
 	};
 }

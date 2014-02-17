@@ -117,6 +117,9 @@ namespace FastCGI
 		RequestStatePtr m_requestState;
 		ContentPtr m_content;
 		std::shared_ptr<impl::RequestBackend> m_backend;
+#ifdef DEBUG_CGI
+		std::string m_icicle;
+#endif
 
 		void unpackCookies();
 		void unpackVariables(const char* data, size_t len);
@@ -244,6 +247,9 @@ namespace FastCGI
 		const std::map<std::string, std::string>& varDebugData() const {
 			return m_reqVars;
 		}
+
+		void setIcicle(const std::string& icicle) { m_icicle = icicle; }
+		const std::string& getIcicle() const { return m_icicle; }
 #endif
 	};
 }

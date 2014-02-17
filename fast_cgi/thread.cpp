@@ -61,12 +61,8 @@ namespace FastCGI
 
 			Synchronize the(accept_guard);
 
-			bool ret = m_backend->accept();
-#if DEBUG_CGI
-			if (ret)
-				m_app->report((char**)envp());
-#endif
-			return ret;
+			return m_backend->accept();
+
 		} catch (std::runtime_error) {
 			return false;
 		}
@@ -94,6 +90,12 @@ namespace FastCGI
 	void Thread::handleRequest()
 	{
 		FastCGI::Request req(*this);
+
+#if DEBUG_CGI
+		std::string icicle = m_app->freeze((char**)envp(), req);
+		req.setIcicle(icicle);
+		m_app->report((char**)envp(), icicle);
+#endif
 
 		try { onRequest(req); }
 		catch(FastCGI::FinishResponse) {} // die() lands here
