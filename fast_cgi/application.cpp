@@ -126,7 +126,7 @@ namespace FastCGI
 			if (!eq)
 				key = *envp;
 			else if (eq != *envp)
-				key.assign(*envp, eq);
+				key.assign(*envp, eq - *envp);
 
 			if (eq)
 			{
