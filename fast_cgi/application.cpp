@@ -30,6 +30,11 @@
 #include <fast_cgi/request.hpp>
 #include <string.h>
 #include <crypt.hpp>
+#ifdef WIN32
+#include <__file__.win32.hpp>
+#else
+#define BUILD_DIR_LEN 6
+#endif
 
 #ifdef _WIN32
 #define LOGFILE "..\\error-%u.log"
@@ -262,7 +267,7 @@ namespace FastCGI
 	{
 		// lock
 		g_log->lock();
-		m_log << file << ":" << line << " [" << _getpid() << "] @" << mt::Thread::currentId() << " ";
+		m_log << (file + BUILD_DIR_LEN) << ":" << line << " [" << _getpid() << "] @" << mt::Thread::currentId() << " ";
 	}
 
 	ApplicationLog::~ApplicationLog()

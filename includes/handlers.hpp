@@ -27,6 +27,9 @@
 
 #include <fast_cgi.hpp>
 #include <top_menu.hpp>
+#ifdef WIN32
+#include <__file__.win32.hpp>
+#endif
 
 namespace FastCGI { namespace app
 {
@@ -155,7 +158,7 @@ namespace FastCGI { namespace app
 #ifdef POSIX
 			info.file = file + 6; // skip "../../"
 #else
-			info.file = file;
+			info.file = file + BUILD_DIR_LEN;
 #endif
 			info.line = line;
 			m_handlers[resource] = info;
