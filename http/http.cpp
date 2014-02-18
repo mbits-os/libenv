@@ -44,7 +44,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-
 namespace http
 {
 	struct Encoding
@@ -65,7 +64,7 @@ namespace http
 		typedef std::vector<Encoding> Encodings;
 
 		Encodings m_encodings;
-		std::string m_dbPath;
+		filesystem::path m_dbPath;
 		char* m_data;
 		bool m_opened;
 
@@ -73,15 +72,12 @@ namespace http
 		{
 			FILE* m_ptr;
 			size_t m_size;
-			File(const std::string& path)
+			File(const filesystem::path& path)
 			{
-				m_ptr = fopen(path.c_str(), "rb");
-
-				m_size = 0;
-				struct stat st;
-				if (!stat(path.c_str(), &st))
-					m_size = st.st_size;
+				m_ptr = fopen(path.native().c_str(), "rb");
+				m_size = (size_t)filesystem::file_size(path);
 			}
+
 			~File()
 			{
 				if (*this)
@@ -138,7 +134,7 @@ namespace http
 			if (m_opened)
 				return true;
 
-			File  file(m_dbPath);
+			File file(m_dbPath);
 			if (!file)
 				return false;
 
@@ -211,7 +207,7 @@ namespace http
 		{
 		}
 	public:
-		static void init(const char* path) { get().m_dbPath = path; close(); }
+		static void init(const filesystem::path& path) { get().m_dbPath = path; close(); }
 		static void close() { get()._close(); }
 		static bool open() { return get()._open(); }
 		static const Encoding* find(const std::string& enc) { return get()._find(enc); }
@@ -219,7 +215,7 @@ namespace http
 
 	namespace { std::string charsetPath; }
 
-	void init(const char* path)
+	void init(const filesystem::path& path)
 	{
 		EncodingDB::init(path);
 	}

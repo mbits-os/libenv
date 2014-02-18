@@ -26,6 +26,7 @@
 #define __HTTP_HPP__
 
 #include <dom.hpp>
+#include <filesystem.hpp>
 
 namespace http
 {
@@ -107,7 +108,7 @@ namespace http
 		virtual void setMaxRedirects(size_t redirects) = 0;
 	};
 
-	void init(const char* charsetPath);
+	void init(const filesystem::path& charsetPath);
 }
 
 #endif //__HTTP_HPP__
