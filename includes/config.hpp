@@ -58,13 +58,13 @@ namespace config
 
 	namespace wrapper
 	{
-		template <typename T> struct get_value;
-		template <typename Value> struct setting;
+		template <typename Value> struct get_value;
+		template <typename Value> struct set_value;
 
 		struct section
 		{
 			template <typename Value> friend struct get_value;
-			template <typename Value> friend struct setting;
+			template <typename Value> friend struct set_value;
 
 			base::config_ptr m_impl;
 			mutable base::section_ptr m_section;
@@ -148,6 +148,15 @@ namespace config
 		};
 
 		template <typename Value>
+		struct set_value
+		{
+			static void helper(section& sec, const std::string& name, const Value& val)
+			{
+				return sec.set_value(name, val);
+			}
+		};
+
+		template <typename Value>
 		struct setting
 		{
 			typedef setting<Value> my_type;
@@ -173,7 +182,7 @@ namespace config
 
 			my_type& operator = (const Value& v)
 			{
-				m_parent.set_value(m_name, v);
+				set_value<Value>::helper(m_parent, m_name, v);
 				return *this;
 			}
 		};
