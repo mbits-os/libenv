@@ -30,6 +30,7 @@
 #include <fast_cgi/request.hpp>
 #include <string.h>
 #include <crypt.hpp>
+#include <fstream>
 #ifdef WIN32
 #include <__file__.win32.hpp>
 #else
@@ -59,9 +60,17 @@ namespace FastCGI
 
 	bool FLogSource::open(const std::string& path)
 	{
-		m_log.close();
-		m_log.open(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-		return m_log.is_open();
+		Synchronize on(*this);
+		m_path = path;
+		std::fstream log{ m_path, std::ios_base::out | std::ios_base::app };
+		return log.is_open();
+	}
+
+	void FLogSource::log(const std::string& line)
+	{
+		Synchronize on(*this);
+		std::fstream log{ m_path, std::ios_base::out | std::ios_base::app };
+		log << line << std::endl;
 	}
 
 	Application::Application()
@@ -74,7 +83,7 @@ namespace FastCGI
 	{
 	}
 
-	int Application::init(const char* localeRoot)
+	int Application::init(const filesystem::path& localeRoot)
 	{
 		int ret = FCGX_Init();
 		if (ret != 0)
@@ -263,19 +272,13 @@ namespace FastCGI
 	}
 
 	ApplicationLog::ApplicationLog(const char* file, int line)
-		: m_log(g_log->log())
 	{
-		// lock
-		g_log->lock();
 		m_log << (file + BUILD_DIR_LEN) << ":" << line << " [" << _getpid() << "] @" << mt::Thread::currentId() << " ";
 	}
 
 	ApplicationLog::~ApplicationLog()
 	{
-		m_log << std::endl;
-		m_log.flush();
-		g_log->unlock();
-		// unlock
+		g_log->log(m_log.str());
 	}
 }
 

@@ -28,7 +28,7 @@
 #include <dbconn.hpp>
 #include <locale.hpp>
 #include <mt.hpp>
-#include <fstream>
+#include <sstream>
 
 #define LINED_2(name, line) name ## _ ## line
 #define LINED_1(name, line) LINED_2(name, line)
@@ -56,7 +56,7 @@ namespace FastCGI
 
 	class ApplicationLog
 	{
-		std::ostream& m_log;
+		std::ostringstream m_log;
 	public:
 		ApplicationLog(const char* file, int line);
 		~ApplicationLog();
@@ -73,11 +73,11 @@ namespace FastCGI
 
 	class FLogSource: public mt::AsyncData
 	{
-		std::ofstream m_log;
+		std::string m_path;
 	public:
 		FLogSource();
 		bool open(const std::string& path);
-		std::ostream& log() { return m_log; }
+		void log(const std::string& line);
 	};
 
 	inline FLOGBlock::FLOGBlock(const char* tag, const char* file, int line)
@@ -159,14 +159,14 @@ namespace FastCGI
 
 		void shutdown();
 		void addStlSession();
-		int init(const char* localeRoot);
+		int init(const filesystem::path& localeRoot);
 		void run();
 		int pid() const { return m_pid; }
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
 		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
-		std::string getLocalizedFilename(const char* header, const char* filename) { return m_locale.getFilename(header, filename); }
+		filesystem::path getLocalizedFilename(const char* header, const filesystem::path& filename) { return m_locale.getFilename(header, filename); }
 
 		void setStaticResources(const std::string& url) { m_staticWeb = url; }
 		const std::string& getStaticResources() const { return m_staticWeb; }
