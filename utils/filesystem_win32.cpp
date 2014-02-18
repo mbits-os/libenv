@@ -25,10 +25,10 @@
 #include "pch.h"
 #include <filesystem.hpp>
 #include <sys/stat.h>
+#include <fast_cgi/application.hpp>
 
 namespace filesystem
 {
-
 	void path::make_universal(std::string& s)
 	{
 		for (char& c : s)
@@ -82,13 +82,15 @@ namespace filesystem
 			return;
 		}
 
-		if (atts && FILE_ATTRIBUTE_DIRECTORY)
+		if (atts & FILE_ATTRIBUTE_DIRECTORY)
 			m_type = file_type::directory;
 		else
 			m_type = file_type::regular;
 
 		struct stat st;
-		if (stat(native.c_str(), &st))
+		if (!stat(native.c_str(), &st))
 			m_file_size = st.st_size;
+		else
+			m_type = file_type::not_found;
 	}
 }

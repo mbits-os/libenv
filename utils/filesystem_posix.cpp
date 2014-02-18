@@ -39,7 +39,7 @@ namespace filesystem
 	status::status(const path& p)
 	{
 		struct stat st;
-		if (stat(p.native().c_str(), &st))
+		if (!stat(p.native().c_str(), &st))
 		{
 			m_file_size = st.st_size;
 			if (S_ISBLK(st.st_mode)) m_type = file_type::block;
