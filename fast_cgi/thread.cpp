@@ -110,7 +110,7 @@ namespace FastCGI
 		{
 			if (!m_app)
 				request.on500("No application to get DB config from");
-			m_dbConn = db::Connection::open(m_app->getDBConn().c_str());
+			m_dbConn = db::Connection::open(m_app->getDBConn());
 		}
 		else if (!m_dbConn->isStillAlive())
 			m_dbConn->reconnect();

@@ -27,6 +27,7 @@
 
 #include <dbconn.hpp>
 #include <dbconn_driver.hpp>
+#include <filesystem.hpp>
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -181,10 +182,10 @@ namespace db
 		{
 			MYSQL m_mysql;
 			bool m_connected;
-			std::string m_path;
+			filesystem::path m_path;
 		public:
 			std::weak_ptr<Connection> m_self;
-			MySQLConnection(const std::string& path);
+			MySQLConnection(const filesystem::path& path);
 			~MySQLConnection();
 			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);
 			bool isStillAlive();
@@ -200,7 +201,7 @@ namespace db
 
 		class MySQLDriver: public Driver
 		{
-			ConnectionPtr open(const std::string& ini_path, const Props& props);
+			ConnectionPtr open(const filesystem::path& ini_path, const Props& props);
 		};
 	}
 }

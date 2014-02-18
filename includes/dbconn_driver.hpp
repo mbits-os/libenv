@@ -44,10 +44,10 @@ namespace db
 			value = _it->second;
 			return true;
 		}
-		static bool readProps(const std::string& path, Props& props);
+		static bool readProps(const filesystem::path& path, Props& props);
 
 		virtual ~Driver() {}
-		virtual ConnectionPtr open(const std::string& ini_path, const Props& props) = 0;
+		virtual ConnectionPtr open(const filesystem::path& ini_path, const Props& props) = 0;
 	};
 
 	typedef std::shared_ptr<Driver> DriverPtr;

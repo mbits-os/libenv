@@ -56,7 +56,7 @@ namespace db { namespace mysql {
 		}
 	};
 
-	ConnectionPtr MySQLDriver::open(const std::string& ini_path, const Props& props)
+	ConnectionPtr MySQLDriver::open(const filesystem::path& ini_path, const Props& props)
 	{
 		DriverData data;
 		if (!data.read(props))
@@ -81,7 +81,7 @@ namespace db { namespace mysql {
 		} catch(std::bad_alloc) { return nullptr; }
 	}
 
-	MySQLConnection::MySQLConnection(const std::string& path)
+	MySQLConnection::MySQLConnection(const filesystem::path& path)
 		: m_connected(false)
 		, m_path(path)
 	{

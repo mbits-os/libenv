@@ -30,9 +30,9 @@
 
 namespace db
 {
-	bool Driver::readProps(const std::string& path, Driver::Props& props)
+	bool Driver::readProps(const filesystem::path& path, Driver::Props& props)
 	{
-		std::ifstream ini(path);
+		std::ifstream ini(path.native());
 		if (!ini.is_open())
 			return false;
 
@@ -47,7 +47,7 @@ namespace db
 		return true;
 	}
 
-	ConnectionPtr Connection::open(const char* path)
+	ConnectionPtr Connection::open(const filesystem::path& path)
 	{
 		Driver::Props props;
 		if (!Driver::readProps(path, props))
