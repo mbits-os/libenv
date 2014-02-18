@@ -26,6 +26,7 @@
 #define __LOCALE_H__
 
 #include "site_strings.h"
+#include <filesystem.hpp>
 
 namespace lng
 {
@@ -50,7 +51,7 @@ namespace lng
 		typedef unsigned int offset_t;
 		LangFile();
 		~LangFile() { close(); }
-		ERR open(const char* path);
+		ERR open(const filesystem::path& path);
 		void close();
 		const char* getString(unsigned int i);
 		offset_t size() const { return m_count; }
@@ -65,7 +66,7 @@ namespace lng
 	{
 		LangFile m_file;
 	public:
-		bool open(const char* path) { return m_file.open(path) == ERR_OK; }
+		bool open(const filesystem::path& path) { return m_file.open(path) == ERR_OK; }
 		const char* tr(LNG stringId) { return m_file.getString(stringId); }
 	};
 
@@ -75,12 +76,12 @@ namespace lng
 	class Locale
 	{
 		typedef std::map<std::string, TranslationWeakPtr> Translations;
-		std::string m_fileRoot;
+		filesystem::path m_fileRoot;
 		Translations m_translations;
 	public:
-		void init(const char* fileRoot);
+		void init(const filesystem::path& fileRoot);
 		TranslationPtr httpAcceptLanguage(const char* header);
-		std::string getFilename(const char* header, const char* filename);
+		filesystem::path getFilename(const char* header, const filesystem::path& filename);
 	};
 }
 

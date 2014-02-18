@@ -523,6 +523,6 @@ namespace FastCGI
 	{
 		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
 		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		std::string path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
+		auto path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
 	}
 }

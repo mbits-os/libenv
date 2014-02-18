@@ -40,11 +40,9 @@
 
 namespace lng
 {
-	void Locale::init(const char* fileRoot)
+	void Locale::init(const filesystem::path& fileRoot)
 	{
 		m_fileRoot = fileRoot;
-		if (!m_fileRoot.empty() && m_fileRoot[m_fileRoot.length() - 1] != SEP)
-			m_fileRoot.push_back(SEP);
 	}
 
 	TranslationPtr Locale::httpAcceptLanguage(const char* header)
@@ -66,8 +64,7 @@ namespace lng
 			if (!candidate)
 				return nullptr; //OOM, 500 the page
 
-			std::string path = m_fileRoot + lang + SEP + "site_strings.lng";
-			if (candidate->open(path.c_str()))
+			if (candidate->open(m_fileRoot / lang / "site_strings.lng"))
 			{
 				m_translations[lang] = candidate;
 				return candidate;
@@ -87,8 +84,7 @@ namespace lng
 		if (!candidate)
 			return nullptr; //OOM, 500 the page
 
-		std::string path = m_fileRoot + "en" + SEP + "site_strings.lng";
-		if (candidate->open(path.c_str()))
+		if (candidate->open(m_fileRoot / "en/site_strings.lng"))
 		{
 			m_translations["en"] = candidate;
 			return candidate;
@@ -97,21 +93,21 @@ namespace lng
 		return TranslationPtr();
 	}
 
-	std::string Locale::getFilename(const char* header, const char* filename)
+	filesystem::path Locale::getFilename(const char* header, const filesystem::path& filename)
 	{
 		struct _stat st;
 		std::list<std::string> langs = url::priorityList(header);
 		for (auto& lang : langs)
 		{
 			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
-			std::string path = m_fileRoot + lang + SEP + filename;
-			if (!_stat(path.c_str(), &st))
+			auto path = m_fileRoot / lang / filename;
+			if (filesystem::exists(path))
 				return path;
 		}
-		std::string path = m_fileRoot + "en" + SEP + filename;
-		if (!_stat(path.c_str(), &st))
+		auto path = m_fileRoot / "en" / filename;
+		if (filesystem::exists(path))
 			return path;
 
-		return std::string();
+		return filesystem::path();
 	}
 }

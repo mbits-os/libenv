@@ -26,6 +26,7 @@
 #include <locale.hpp>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fast_cgi/application.hpp>
 
 #ifndef _WIN32
 #define _stat stat
@@ -68,24 +69,29 @@ namespace lng
 		}
 	};
 
-	ERR LangFile::open(const char* path)
+	ERR LangFile::open(const filesystem::path& path)
 	{
-		struct _stat st;
-		if (_stat(path, &st))
+		filesystem::status st{ path };
+		if (!st.exists())
 			return ERR_NO_FILE;
+		size_t length = (size_t)st.file_size();
 
 		close();
-		m_content = (char*)malloc(st.st_size);
+		m_content = (char*)malloc(length);
 		if (!m_content)
 			return ERR_OOM;
 
 		auto_close anchor(*this);
 
-		FILE* f = fopen(path, "rb");
+		auto nat = path.native();
+		FILE* f = fopen(nat.c_str(), "rb");
 		if (!f)
+		{
+			FLOG << "Could not open " << nat << ", errno: " << errno;
 			return ERR_NO_FILE;
+		}
 
-		bool read = fread(m_content, st.st_size, 1, f) == 1;
+		bool read = fread(m_content, length, 1, f) == 1;
 		fclose(f);
 		if (!read)
 			return ERR_NO_FILE;
@@ -94,7 +100,7 @@ namespace lng
 		offset_t* ptr = (offset_t*)m_content;
 
 		//header?
-		if (st.st_size < sizeof(offset_t)*3 ||
+		if (length < sizeof(offset_t)* 3 ||
 			ptr[0] != LANGTEXT_TAG ||
 			ptr[1] != 0x00000000u)
 		{
@@ -111,7 +117,7 @@ namespace lng
 
 		// offsets?
 		offset_t string_start = sizeof(offset_t)*(3 + 2*m_count);
-		if ((offset_t)st.st_size < string_start)
+		if (length < string_start)
 			return ERR_OFFSETS_TRUNCATED;
 
 		m_offsets = ptr + 3;
@@ -126,7 +132,7 @@ namespace lng
 			m_offsets[i*2] -= string_start;
 			expected += m_offsets[i*2 + 1] + 1;
 
-			if (expected > (offset_t)st.st_size)
+			if (expected > length)
 				return ERR_STRING_TRUNCATED;
 
 			if (m_content[expected - 1] != 0)
