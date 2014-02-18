@@ -58,10 +58,10 @@ namespace FastCGI
 		g_log = this;
 	}
 
-	bool FLogSource::open(const std::string& path)
+	bool FLogSource::open(const filesystem::path& path)
 	{
 		Synchronize on(*this);
-		m_path = path;
+		m_path = path.native();
 		std::fstream log{ m_path, std::ios_base::out | std::ios_base::app };
 		return log.is_open();
 	}

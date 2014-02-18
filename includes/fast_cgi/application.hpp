@@ -76,7 +76,7 @@ namespace FastCGI
 		std::string m_path;
 	public:
 		FLogSource();
-		bool open(const std::string& path);
+		bool open(const filesystem::path& path);
 		void log(const std::string& line);
 	};
 
@@ -132,9 +132,9 @@ namespace FastCGI
 
 		long m_pid;
 		std::string m_staticWeb;
-		std::string m_dbConf;
-		std::string m_smtpConf;
-		std::string m_accessLog;
+		filesystem::path m_dbConf;
+		filesystem::path m_smtpConf;
+		filesystem::path m_accessLog;
 		Sessions m_sessions;
 		Threads m_threads;
 		lng::Locale m_locale;
@@ -171,14 +171,14 @@ namespace FastCGI
 		void setStaticResources(const std::string& url) { m_staticWeb = url; }
 		const std::string& getStaticResources() const { return m_staticWeb; }
 
-		void setDBConn(const std::string& conf) { m_dbConf = conf; }
-		const std::string& getDBConn() const { return m_dbConf; }
+		void setDBConn(const filesystem::path& conf) { m_dbConf = conf; }
+		const filesystem::path& getDBConn() const { return m_dbConf; }
 
-		void setSMTPConn(const std::string& conf) { m_smtpConf = conf; }
-		const std::string& getSMTPConn() const { return m_smtpConf; }
+		void setSMTPConn(const filesystem::path& conf) { m_smtpConf = conf; }
+		const filesystem::path& getSMTPConn() const { return m_smtpConf; }
 
-		void setAccessLog(const std::string& log) { m_accessLog = log; }
-		const std::string& getAccessLog() const { return m_accessLog; }
+		void setAccessLog(const filesystem::path& log) { m_accessLog = log; }
+		const filesystem::path& getAccessLog() const { return m_accessLog; }
 
 #if DEBUG_CGI
 		struct ReqInfo
