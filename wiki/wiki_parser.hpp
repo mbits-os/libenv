@@ -77,7 +77,14 @@ namespace wiki { namespace parser {
 	struct Token
 	{
 		typedef std::string::const_iterator pointer;
-		typedef std::pair<pointer, pointer> Arg;
+		struct Arg : std::pair<pointer, pointer>
+		{
+			using Parent = std::pair<pointer, pointer>;
+			using Parent::Parent;
+
+			pointer begin() const { return first; }
+			pointer end() const { return second; }
+		};
 		TOKEN type;
 		Arg arg;
 
@@ -89,7 +96,8 @@ namespace wiki { namespace parser {
 		if (tok.type == TOKEN::TEXT)
 		{
 			o << '"';
-			std::for_each(tok.arg.first, tok.arg.second, [&o](char c) { o.put(c); });
+			for (auto&& c : tok.arg)
+				o.put(c);
 			return o << '"';
 		}
 
@@ -97,7 +105,8 @@ namespace wiki { namespace parser {
 		if (tok.arg.first != tok.arg.second)
 		{
 			o << " {";
-			std::for_each(tok.arg.first, tok.arg.second, [&o](char c) { o.put(c); });
+			for (auto&& c : tok.arg)
+				o.put(c);
 			o << "}";
 		}
 
