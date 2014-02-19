@@ -45,7 +45,8 @@ namespace wiki { namespace parser {
 		TAG_S,
 		TAG_E,
 		TAG_CLOSED,
-		BREAK
+		BREAK,
+		LINE
 	};
 
 	inline std::ostream& operator << (std::ostream& o, TOKEN tok)
@@ -69,6 +70,7 @@ namespace wiki { namespace parser {
 		PRINT(TAG_E);
 		PRINT(TAG_CLOSED);
 		PRINT(BREAK);
+		PRINT(LINE);
 		};
 		return o << "unknown(" << (int)tok << ")";
 #undef PRINT
@@ -133,6 +135,7 @@ namespace wiki { namespace parser {
 			void push(TOKEN token, pointer start, pointer end) { m_out.emplace_back(token, start, end); }
 			void push(TOKEN token) { m_out.emplace_back(token, m_end, m_end); }
 			void text(size_t count); //push [m_prev, m_cur - count) as a TOKEN::TEXT
+			std::string get_text(size_t count); //return [m_prev, m_cur - count)
 			void repeated(char c, size_t repeats, TOKEN tok);
 			void boldOrItalics();
 			void htmlTag();
@@ -180,6 +183,7 @@ namespace wiki { namespace parser {
 			Text items;
 			Block(BLOCK type = BLOCK::UNKNOWN): type(type), iArg(0) {}
 			void append(line::Tokens&& tokens);
+			void append(Token&& token);
 		};
 
 	private:
@@ -196,7 +200,7 @@ namespace wiki { namespace parser {
 		void item(pointer start, pointer end);
 		void hr();
 		void sig(pointer start, pointer end);
-		void changeBlock(BLOCK newBlock);
+		void changeBlock(BLOCK newBlock, pointer here);
 		void reset(BLOCK type = BLOCK::UNKNOWN);
 		void push();
 

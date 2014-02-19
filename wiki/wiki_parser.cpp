@@ -39,6 +39,11 @@ namespace wiki { namespace parser {
 		this->tokens.insert(this->tokens.end(), tokens.begin(), tokens.end());
 	}
 
+	void Parser::Block::append(Token&& token)
+	{
+		tokens.push_back(std::forward<Token>(token));
+	}
+
 	Parser::Parser()
 	{
 	}
@@ -152,19 +157,19 @@ namespace wiki { namespace parser {
 			type = m_cur.type; break;
 		};
 
-		changeBlock(type);
+		changeBlock(type, start);
 		block(start, end);
 	}
 
 	void Parser::quote(pointer start, pointer end)
 	{
-		changeBlock(BLOCK::QUOTE);
+		changeBlock(BLOCK::QUOTE, start);
 		block(start, end);
 	}
 
 	void Parser::pre(pointer start, pointer end)
 	{
-		changeBlock(m_cur.type == BLOCK::ITEM ? BLOCK::ITEM: BLOCK::PRE);
+		changeBlock(m_cur.type == BLOCK::ITEM ? BLOCK::ITEM: BLOCK::PRE, start);
 		block(start, end);
 	}
 
@@ -177,7 +182,7 @@ namespace wiki { namespace parser {
 		while (textStart != end && isspace((unsigned char)*textStart)) ++textStart;
 
 		reset();
-		changeBlock(BLOCK::ITEM);
+		changeBlock(BLOCK::ITEM, start);
 
 		m_cur.sArg.assign(start, markerEnd);
 		block(textStart, end);
@@ -191,14 +196,21 @@ namespace wiki { namespace parser {
 
 	void Parser::sig(pointer start, pointer end)
 	{
-		changeBlock(BLOCK::SIGNATURE);
+		changeBlock(BLOCK::SIGNATURE, start);
 		block(start, end);
 	}
 
-	void Parser::changeBlock(BLOCK newBlock)
+	void Parser::changeBlock(BLOCK newBlock, pointer here)
 	{
 		if (m_cur.type != newBlock)
 			reset(newBlock);
+		else if (newBlock == BLOCK::PRE)
+			m_cur.append(Token(TOKEN::LINE, here, here));
+		else
+		{
+			static constexpr std::string space{ " " };
+			m_cur.append(Token(TOKEN::TEXT, space.begin(), space.end()));
+		}
 	}
 
 	void Parser::reset(BLOCK type)
@@ -314,6 +326,17 @@ namespace wiki { namespace parser {
 		m_prev = m_cur;
 	}
 
+	std::string line::Parser::get_text(size_t count)
+	{
+		if ((size_t)std::distance(m_prev, m_cur) > count)
+		{
+			auto end = m_cur - count;
+			if (std::distance(m_prev, end) > 0)
+				return std::string(m_prev, end);
+		}
+		return std::string();
+	}
+
 	void line::Parser::repeated(char c, size_t repeats, TOKEN tok)
 	{
 		size_t count = 0;
@@ -397,7 +420,20 @@ namespace wiki { namespace parser {
 				if (ret != 0) return ret < 0;
 				if (dist != (distance_t)m_len)
 					return (distance_t)m_len < dist;
-				return false; // equal
+				return false; // equal or greater
+			}
+
+			bool equals(pointer nameStart, pointer nameEnd) const
+			{
+				auto dist = std::distance(nameStart, nameEnd);
+				typedef decltype(dist) distance_t;
+				auto count = std::min((distance_t)m_len, dist);
+				int ret = strncmp(m_name, &*nameStart, count);
+
+				if (ret != 0) return false;
+				if (dist != (distance_t)m_len)
+					return false;
+				return true; // equal
 			}
 		};
 
@@ -430,7 +466,7 @@ namespace wiki { namespace parser {
 
 		auto pos = std::lower_bound(tags, tags + array_size(tags), Token::Arg(nameStart, nameEnd),
 			[](const TagInfo& info, const Token::Arg arg) { return info.lessThan(arg.first, arg.second); });
-		if (pos != tags + array_size(tags) && !pos->lessThan(nameStart, nameEnd))
+		if (pos != tags + array_size(tags) && pos->equals(nameStart, nameEnd))
 		{
 			pos->m_call(*this, nameStart, nameEnd, tok);
 		}
@@ -454,8 +490,15 @@ namespace wiki { namespace parser {
 					if (in1stSEG)
 					{
 						in1stSEG = false; // only one NS per HREF
-						text(1);
-						push(TOKEN::HREF_NS);
+						auto proto = std::tolower(get_text(1));
+						if (proto != "http" &&
+							proto != "https" &&
+							proto != "ftp" &&
+							proto != "mailto")
+						{
+							text(1);
+							push(TOKEN::HREF_NS);
+						}
 					}
 					break;
 				case '|':
