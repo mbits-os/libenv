@@ -50,7 +50,7 @@ namespace filesystem
 		from = skip_drive(from, to);
 #endif
 		bool has_left_slash = !empty() && (*--m_path.end() == slash::value);
-		bool has_right_slash = from != to && (*from == directory_separator::value) || (*from == preferred_separator::value);
+		bool has_right_slash = from != to && ((*from == directory_separator::value) || (*from == preferred_separator::value));
 
 		if (has_left_slash && has_right_slash)
 			++from;
