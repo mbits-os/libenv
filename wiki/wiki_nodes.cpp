@@ -34,10 +34,27 @@ namespace wiki
 	{
 	}
 
+	Node::Node(TOKEN token, const std::string& tag, const Nodes& children)
+		: m_token(token)
+		, m_tag(tag)
+		, m_children(children)
+	{
+	}
+
 	void Node::normalizeChildren()
 	{
 		for (auto& child : m_children)
 			child->normalize();
+	}
+
+	std::string Node::debug() const
+	{
+		std::ostringstream o;
+		o << "<" << m_tag << ">";
+		for (auto&& child : m_children)
+			o << child->debug();
+		o << "</" << m_tag << ">";
+		return o.str();
 	}
 
 	std::string Node::text(const variables_t& vars, list_ctx& ctx) const
@@ -58,14 +75,11 @@ namespace wiki
 
 	namespace inline_elem
 	{
-		void Variable::normalize()
+		std::string Token::debug() const
 		{
-			if (!m_children.empty())
-			{
-				list_ctx ctx;
-				m_name = m_children[0]->text(variables_t(), ctx);
-				m_children.clear();
-			}
+			std::ostringstream o;
+			o << m_token;
+			return o.str();
 		}
 
 		std::string Variable::text(const variables_t& vars, list_ctx&) const
@@ -84,50 +98,65 @@ namespace wiki
 
 		namespace link
 		{
-			std::string Url::text(const std::string& href, const std::string& part, const segments_t& segments, const variables_t&) const
+			std::string Url::debug(const std::string& href, const segments_t& segments) const
+			{
+				std::ostringstream o;
+				o << "url:" << href;
+				for (auto&& seg : segments)
+					o << "|" << seg;
+
+				return o.str();
+			}
+
+			std::string Url::text(const std::string& href, const segments_t& segments, const variables_t&) const
 			{
 				if (!segments.empty())
 					return segments[0];
 
-				auto out = "<" + href;
-				if (!part.empty())
-					out += "#" + part;
-				return out + ">";
+				return "<" + href + ">";
 			}
-			std::string Url::markup(const std::string& href, const std::string& part, const segments_t& segments, const variables_t&, const styler_ptr&) const
-			{
-				auto url = href;
-				if (!part.empty())
-					url += "#" + part;
 
-				auto contents = url;
+			std::string Url::markup(const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr&) const
+			{
+				auto contents = href;
 				if (!segments.empty())
 					contents = segments[0];
 
 				std::ostringstream o;
-				o << "<a href=\"" << url::htmlQuotes(url) << "\">" << url::htmlQuotes(contents) << "</a>";
+				o << "<a href=\"" << url::htmlQuotes(href) << "\">" << url::htmlQuotes(contents) << "</a>";
 				return o.str();
 			}
 		
-			std::string Image::text(const std::string&, const std::string&, const segments_t&, const variables_t&) const
+			std::string Image::debug(const std::string& href, const segments_t& segments) const
+			{
+				return "Image:" + href;
+			}
+
+			std::string Image::text(const std::string&, const segments_t&, const variables_t&) const
 			{
 				return std::string();
 			}
 
-			std::string Image::markup(const std::string& href, const std::string& part, const segments_t& segments, const variables_t&, const styler_ptr& styler) const
+			std::string Image::markup(const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr& styler) const
 			{
-				auto url = href;
-				if (!part.empty())
-					url += "#" + part;
-
-				auto alt = url;
+				std::string alt;
 				if (!segments.empty())
 					alt = " alt=\"" + segments[0] + "\"";
 
 				if (styler)
-					return styler->image(url, std::string(), alt);
+					return styler->image(href, std::string(), alt);
 
-				return "<img src=\"" + url::htmlQuotes(url) + "\"" + alt + "/>";
+				return "<img src=\"" + url::htmlQuotes(href) + "\"" + alt + "/>";
+			}
+
+			std::string Unknown::debug(const std::string& href, const segments_t& segments) const
+			{
+				std::ostringstream o;
+				o << name() << "?" << href;
+				for (auto&& seg : segments)
+					o << "|" << seg;
+
+				return o.str();
 			}
 		}
 
@@ -143,16 +172,39 @@ namespace wiki
 			return o.str();
 		}
 
+		std::string Link::debug(const Nodes& collection)
+		{
+			if (collection.empty())
+				return std::string();
+
+			list_ctx ctx;
+			std::ostringstream o;
+			for (auto&& node : collection)
+				o << node->debug();
+			return o.str();
+		}
+
+		std::string Link::debug() const
+		{
+			if (!m_ns)
+				return "<LINK:nullptr>";
+
+			std::string href;
+			link::segments_t segs;
+			debug(href, segs);
+
+			return "<LINK:" + m_ns->debug(href, segs) + ">";
+		}
+
 		std::string Link::text(const variables_t& vars, list_ctx&) const
 		{
 			if (!m_ns)
 				return std::string();
 
 			std::string href;
-			std::string part;
 			link::segments_t segs;
-			produce(href, part, segs, vars);
-			return m_ns->text(href, part, segs, vars);
+			produce(href, segs, vars);
+			return m_ns->text(href, segs, vars);
 		}
 
 		std::string Link::markup(const variables_t& vars, const styler_ptr& styler, list_ctx&) const
@@ -161,10 +213,9 @@ namespace wiki
 				return std::string();
 
 			std::string href;
-			std::string part;
 			link::segments_t segs;
-			produce(href, part, segs, vars);
-			return m_ns->markup(href, part, segs, vars, styler);
+			produce(href, segs, vars);
+			return m_ns->markup(href, segs, vars, styler);
 		}
 
 		void Link::normalize()
@@ -192,22 +243,10 @@ namespace wiki
 			auto seg = base;
 			while (seg < len && !is_token(seg, TOKEN::HREF_SEG)) ++seg;
 
-			auto partid = base;
-			while (partid < seg && !is_token(partid, TOKEN::HREF_PART)) ++partid;
-
-			for (auto i = base; i < partid; ++i)
+			for (auto i = base; i < seg; ++i)
 				m_href.push_back(m_children[i]);
 
 			new_children.push_back(std::make_shared<Node>("HREF", m_href));
-			partid++;
-
-			if (partid < seg)
-			{
-				for (auto i = partid; i < seg; ++i)
-					m_part.push_back(m_children[i]);
-
-				new_children.push_back(std::make_shared<Node>("PART", m_part));
-			}
 
 			m_segs.clear();
 			seg++;

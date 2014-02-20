@@ -26,55 +26,9 @@
 #define __WIKI_PARSER_HPP__
 
 #include <vector>
+#include "wiki_base.hpp"
 
 namespace wiki { namespace parser {
-
-	enum class TOKEN {
-		BAD = -2,
-		NOP,
-		TEXT,
-		ITALIC,
-		BOLD, 
-		BI,
-		VAR_S,
-		VAR_E,
-		HREF_S,
-		HREF_E,
-		HREF_NS,
-		HREF_SEG,
-		TAG_S,
-		TAG_E,
-		TAG_CLOSED,
-		BREAK,
-		LINE
-	};
-
-	inline std::ostream& operator << (std::ostream& o, TOKEN tok)
-	{
-#define PRINT(x) case TOKEN::x: return o << #x;
-		switch (tok)
-		{
-		PRINT(BAD);
-		PRINT(NOP);
-		PRINT(TEXT);
-		PRINT(ITALIC);
-		PRINT(BOLD);
-		PRINT(BI);
-		PRINT(VAR_S);
-		PRINT(VAR_E);
-		PRINT(HREF_S);
-		PRINT(HREF_E);
-		PRINT(HREF_NS);
-		PRINT(HREF_SEG);
-		PRINT(TAG_S);
-		PRINT(TAG_E);
-		PRINT(TAG_CLOSED);
-		PRINT(BREAK);
-		PRINT(LINE);
-		};
-		return o << "unknown(" << (int)tok << ")";
-#undef PRINT
-	}
 
 	struct Token
 	{
@@ -86,6 +40,7 @@ namespace wiki { namespace parser {
 
 			pointer begin() const { return first; }
 			pointer end() const { return second; }
+			std::string str() const { return{first, second}; }
 		};
 		TOKEN type;
 		Arg arg;

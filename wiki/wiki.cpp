@@ -23,17 +23,133 @@
  */
 
 #include "pch.h"
+#include <sstream>
 #include <wiki.hpp>
 #include <filesystem.hpp>
 #include "wiki_parser.hpp"
+#include "wiki_nodes.hpp"
 
 namespace wiki
 {
+	struct compiler
+	{
+		using Token = parser::Token;
+		using Tokens = parser::line::Tokens;
+		using Block = parser::Parser::Block;
+		using Blocks = parser::Parser::Text;
+
+		struct by_token
+		{
+			TOKEN end_tok;
+			by_token(TOKEN end_tok)
+				: end_tok(end_tok)
+			{}
+
+			bool reached(Tokens::const_iterator cur)
+			{
+				return cur->type == end_tok;
+			}
+		};
+
+		struct by_argument
+		{
+			TOKEN end_tok;
+			std::string arg;
+			by_argument(TOKEN end_tok, std::string&& arg)
+				: end_tok(end_tok)
+				, arg(std::move(arg))
+			{}
+
+			bool reached(Tokens::const_iterator cur)
+			{
+				return cur->type == end_tok && arg == cur->arg.str();
+			}
+		};
+
+		template <typename Final, typename Right = by_token>
+		struct scanner: Right
+		{
+			Tokens::const_iterator from, to;
+
+			template <typename... Args>
+			scanner(Tokens::const_iterator from, Tokens::const_iterator to, Args&&... args)
+				: Right(std::forward<Args>(args)...)
+				, from(from)
+				, to(to)
+			{}
+
+			Tokens::const_iterator scan()
+			{
+				Nodes children;
+
+				++from;
+				from = compile(children, from, to, end_tok, false);
+				if (from != to && Right::reached(from))
+					static_cast<Final*>(this)->visit(children);
+
+				return from;
+			}
+		};
+
+		template <typename Final>
+		using arg_scanner = scanner<Final, by_argument>;
+
+		struct items
+		{
+			Nodes& m_items;
+
+			items(Nodes& _items) : m_items(_items) {}
+		};
+
+		struct variable : scanner<variable>, items
+		{
+			variable(Nodes& _items, Tokens::const_iterator from, Tokens::const_iterator to) : scanner<variable>(from, to, TOKEN::VAR_E), items(_items) {}
+			void visit(Nodes& children)
+			{
+				make_node<inline_elem::Variable>(m_items, text(children));
+			}
+		};
+
+		struct link : scanner<link>, items
+		{
+			link(Nodes& _items, Tokens::const_iterator from, Tokens::const_iterator to) : scanner<link>(from, to, TOKEN::HREF_E), items(_items) {}
+			void visit(Nodes& children)
+			{
+				make_node<inline_elem::Link>(m_items, children)->normalize();
+			}
+		};
+
+		struct element : arg_scanner<element>, items
+		{
+			element(Nodes& _items, Tokens::const_iterator from, Tokens::const_iterator to, std::string&& arg) : arg_scanner<element>(from, to, TOKEN::TAG_E, std::move(arg)), items(_items) {}
+			void visit(Nodes& children)
+			{
+				make_node<Node>(m_items, arg, children);
+			}
+		};
+
+		static inline Nodes compile(const Tokens& tokens, bool pre);
+		static inline Tokens::const_iterator compile(Nodes& children, Tokens::const_iterator begin, Tokens::const_iterator end, TOKEN endtok, bool pre);
+		static inline NodePtr compile(const Block& block, bool pre);
+		static inline void compile(Nodes& children, const Blocks& blocks, bool pre);
+		static inline std::string text(const Nodes& nodes);
+		template <typename Class, typename... Args>
+		static inline std::shared_ptr<Class> make_node(Nodes& items, Args&&... args)
+		{
+			auto elem = std::make_shared<Class>(std::forward<Args>(args)...);
+			items.push_back(elem);
+			return elem;
+		}
+	};
+
+	/* public: */
 	document_ptr compile(const filesystem::path& file)
 	{
 		filesystem::status st{ file };
 		if (!st.exists())
 			return nullptr;
+
+		std::cout << "WIKI: " << file << std::endl;
 
 		// TODO: branch here for pre-compiled WIKI file
 
@@ -52,14 +168,129 @@ namespace wiki
 
 		text[size] = 0;
 
-		return compile(text);
-		// TODO: stroe binary version of the document here
+		auto out = compile(text);
+		// TODO: store binary version of the document here
+		return out;
 	}
 
 	document_ptr compile(const std::string& text)
 	{
-		auto out = parser::Parser{}.parse(text);
+		auto blocks = parser::Parser{}.parse(text);
+
+		Nodes children;
+		compiler::compile(children, blocks, false);
 
 		return nullptr;
+	}
+
+	/* private: */
+	Nodes compiler::compile(const parser::line::Tokens& tokens, bool pre)
+	{
+		Nodes list;
+		compile(list, tokens.begin(), tokens.end(), TOKEN::BAD, pre);
+		return list;
+	}
+
+	compiler::Tokens::const_iterator compiler::compile(Nodes& items, Tokens::const_iterator begin, Tokens::const_iterator end, TOKEN endtok, bool pre)
+	{
+		std::shared_ptr<inline_elem::Text> text;
+		std::shared_ptr<Node> elem;
+
+		auto cur = begin;
+		for (; cur != end; ++cur)
+		{
+			if (cur->type == endtok)
+				return cur;
+
+			if (cur->type != TOKEN::TEXT)
+				text = nullptr;
+
+			Nodes children;
+
+			auto&& token = *cur;
+			switch (token.type)
+			{
+			case TOKEN::TEXT:
+				if (text)
+					text->append(token.arg.begin(), token.arg.end());
+				else
+					text = make_node<inline_elem::Text>(items, token.arg.str());
+
+				break;
+
+			case TOKEN::BREAK:
+				make_node<inline_elem::Break>(items);
+				break;
+
+			case TOKEN::LINE:
+				make_node<inline_elem::Line>(items);
+				break;
+
+			case TOKEN::TAG_S:
+				cur = element{ items, cur, end, token.arg.str() }.scan();
+				break;
+
+			case TOKEN::VAR_S:
+				cur = variable{ items, cur, end }.scan();
+				break;
+
+			case TOKEN::HREF_S:
+				cur = link{ items, cur, end }.scan();
+				break;
+
+			case TOKEN::HREF_NS:
+			case TOKEN::HREF_SEG:
+				make_node<inline_elem::Token>(items, token.type);
+				break;
+			}
+
+			if (cur == end)
+				break;
+		}
+
+		return cur;
+	}
+
+	void compiler::compile(Nodes& children, const parser::Parser::Text& blocks, bool pre)
+	{
+		for (auto&& block : blocks)
+		{
+			auto child = compile(block, pre);
+			if (child)
+				children.push_back(child);
+		}
+	}
+
+	NodePtr compiler::compile(const parser::Parser::Block& block, bool pre)
+	{
+		if (!pre)
+			pre = block.type == parser::Parser::BLOCK::PRE;
+		auto children = compile(block.tokens, pre);
+		compile(children, block.items, pre);
+
+		variables_t vars;
+		list_ctx ctx;
+
+		for (auto&& child : children)
+		{
+			if (!child)
+				std::cout << "(nullptr)";
+			else
+				std::cout << child->debug();
+		}
+
+		std::cout << std::endl;
+
+		return nullptr;
+	}
+
+	std::string compiler::text(const Nodes& nodes)
+	{
+		std::ostringstream o;
+		variables_t vars;
+		list_ctx ctx;
+		for (auto&& node : nodes)
+			o << node->text(vars, ctx);
+		return o.str();
 	}
 }

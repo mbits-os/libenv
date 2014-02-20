@@ -208,6 +208,12 @@ namespace wiki { namespace parser {
 			m_cur.append(Token(TOKEN::LINE, here, here));
 		else
 		{
+			if (m_cur.tokens.empty())
+				return;
+
+			if (m_cur.tokens.back().type == TOKEN::BREAK)
+				return;
+
 			static constexpr std::string space{ " " };
 			m_cur.append(Token(TOKEN::TEXT, space.begin(), space.end()));
 		}
@@ -466,7 +472,7 @@ namespace wiki { namespace parser {
 
 		auto pos = std::lower_bound(tags, tags + array_size(tags), Token::Arg(nameStart, nameEnd),
 			[](const TagInfo& info, const Token::Arg arg) { return info.lessThan(arg.first, arg.second); });
-		if (pos != tags + array_size(tags) && pos->equals(nameStart, nameEnd))
+		if (pos != tags + array_size(tags) && pos->equals(nameStart, nameEnd) && pos->m_deny != tok)
 		{
 			pos->m_call(*this, nameStart, nameEnd, tok);
 		}

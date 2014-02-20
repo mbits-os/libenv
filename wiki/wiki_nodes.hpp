@@ -33,6 +33,7 @@
 #include <utils.hpp>
 #include <wiki.hpp>
 #include "wiki_base.hpp"
+#include "wiki_parser.hpp"
 
 namespace wiki
 {
@@ -44,50 +45,77 @@ namespace wiki
 	class Node
 	{
 	protected:
+		TOKEN m_token = TOKEN::NOP;
 		std::string m_tag;
 		Nodes m_children;
 	public:
 		Node(const std::string& tag = std::string(), const Nodes& children = Nodes());
+		Node(TOKEN token, const std::string& tag = std::string(), const Nodes& children = Nodes());
 		virtual ~Node() {}
 
 		virtual void normalize() { normalizeChildren(); }
 		virtual void normalizeChildren();
 
+		virtual std::string debug() const;
 		virtual std::string text(const variables_t& vars, list_ctx& ctx) const;
 		virtual std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const;
-		virtual TOKEN getToken() const { return TOKEN::NOP; }
+		virtual TOKEN getToken() const { return m_token; }
 		virtual bool isText() const { return false; }
+		virtual std::string getText() const { return std::string(); }
 	};
 
 	namespace inline_elem
 	{
-		class Text: public Node
+		class Token : public Node
+		{
+		public:
+			Token(TOKEN token) : Node(token) {}
+
+			virtual std::string text(const variables_t&, list_ctx&) const override { return std::string(); }
+			virtual std::string markup(const variables_t&, const styler_ptr&, list_ctx&) const override { return std::string(); }
+			virtual std::string debug() const override;
+		};
+
+		class Text : public Node
 		{
 			std::string m_text;
 		public:
-			Text(const std::string& Text) : m_text(Text) {}
+			Text(const std::string& text) : m_text(text) {}
+			void append(std::string::const_iterator begin, std::string::const_iterator end) { m_text.append(begin, end); }
 			std::string text(const variables_t&, list_ctx&) const override { return m_text; }
 			std::string markup(const variables_t&, const styler_ptr&, list_ctx&) const override { return url::htmlQuotes(m_text); }
+			std::string debug() const override { return m_text; }
 			bool isText() const override { return true; }
+			std::string getText() const override { return m_text; }
 		};
 
-		class Break: public Node
+		class Break : public Node
 		{
 		public:
-			Break() : Node("br") {}
+			Break() : Node(TOKEN::BREAK, "br") {}
 			std::string text(const variables_t&, list_ctx& ctx) const override { return "\n" + ctx.indentStr(); }
 			std::string markup(const variables_t&, const styler_ptr&, list_ctx& ctx) const override { return ctx.indentStr() + "<br />\n"; }
+			std::string debug() const override { return "<br/>\n"; }
 		};
 
-		class Variable: public Node
+		class Line : public Node
+		{
+		public:
+			Line() {}
+			std::string text(const variables_t&, list_ctx& ctx) const override { return "\n" + ctx.indentStr(); }
+			std::string markup(const variables_t&, const styler_ptr&, list_ctx& ctx) const override { return "\n"; }
+			std::string debug() const override { return "\\CR\\LF\n"; }
+		};
+
+		class Variable : public Node
 		{
 			std::string m_name;
 		public:
-			Variable(const Nodes& children = Nodes()) : Node("VAR", children) {}
+			Variable(const std::string& name) : Node("VAR"), m_name(name) {}
 
-			void normalize() override;
 			std::string text(const variables_t& vars, list_ctx&) const override;
 			std::string markup(const variables_t& vars, const styler_ptr&, list_ctx&) const override;
+			std::string debug() const override { return "[" + m_name + "]"; }
 		};
 
 		namespace link
@@ -101,8 +129,9 @@ namespace wiki
 				Namespace(const std::string& name): m_name(name) {}
 				virtual ~Namespace() {}
 				virtual const std::string& name() const { return m_name; }
-				virtual std::string text(const std::string& href, const std::string& part, const segments_t& segments, const variables_t& vars) const = 0;
-				virtual std::string markup(const std::string& href, const std::string& part, const segments_t& segments, const variables_t& vars, const styler_ptr& styler) const = 0;
+				virtual std::string text(const std::string& href, const segments_t& segments, const variables_t& vars) const = 0;
+				virtual std::string markup(const std::string& href, const segments_t& segments, const variables_t& vars, const styler_ptr& styler) const = 0;
+				virtual std::string debug(const std::string& href, const segments_t& segments) const = 0;
 			private:
 				std::string m_name;
 			};
@@ -110,29 +139,32 @@ namespace wiki
 			struct Url : Namespace
 			{
 				Url() : Namespace("url") {}
-				std::string text(const std::string& href, const std::string& part, const segments_t& segments, const variables_t&) const override;
-				std::string markup(const std::string& href, const std::string& part, const segments_t& segments, const variables_t&, const styler_ptr&) const override;
+				std::string text(const std::string& href, const segments_t& segments, const variables_t&) const override;
+				std::string markup(const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr&) const override;
+				std::string debug(const std::string& href, const segments_t& segments) const override;
 			};
 
 			struct Image : Namespace
 			{
 				Image() : Namespace("Image") {}
-				std::string text(const std::string&, const std::string&, const segments_t&, const variables_t&) const override;
-				std::string markup(const std::string& href, const std::string& part, const segments_t& segments, const variables_t&, const styler_ptr& styler) const override;
+				std::string text(const std::string& href, const segments_t&, const variables_t&) const override;
+				std::string markup(const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr& styler) const override;
+				std::string debug(const std::string& href, const segments_t& segments) const override;
 			};
 
 			struct Unknown : Namespace
 			{
 				Unknown(const std::string& ns) : Namespace(ns) {}
-				std::string text(const std::string&, const std::string&, const segments_t&, const variables_t&) const override
+				std::string text(const std::string&, const segments_t&, const variables_t&) const override
 				{
 					return "(Unknown link type: " + name() + ")";
 				}
 
-				std::string markup(const std::string&, const std::string&, const segments_t&, const variables_t&, const styler_ptr&) const override
+				std::string markup(const std::string&, const segments_t&, const variables_t&, const styler_ptr&) const override
 				{
 					return "<em>Unknown link type: <strong>" + name() + "</strong>.</em>";
 				}
+				std::string debug(const std::string& href, const segments_t& segments) const override;
 			};
 		}
 
@@ -140,19 +172,27 @@ namespace wiki
 		{
 			link::NamespacePtr m_ns;
 			Nodes m_href;
-			Nodes m_part;
 			std::vector<Nodes> m_segs;
 
-			void produce(std::string& href, std::string& part, link::segments_t& segs, const variables_t& vars) const
+			void produce(std::string& href, link::segments_t& segs, const variables_t& vars) const
 			{
 				href = produce(m_href, vars);
-				part = produce(m_part, vars);
 				segs.clear();
-				for (auto&& seg: m_segs)
+				for (auto&& seg : m_segs)
 					segs.push_back(produce(seg, vars));
 			}
 
 			static std::string produce(const Nodes& collection, const variables_t& vars);
+
+			void debug(std::string& href, link::segments_t& segs) const
+			{
+				href = debug(m_href);
+				segs.clear();
+				for (auto&& seg : m_segs)
+					segs.push_back(debug(seg));
+			}
+
+			static std::string debug(const Nodes& collection);
 
 			bool is_text(size_t child) const
 			{
@@ -168,6 +208,7 @@ namespace wiki
 
 			std::string text(const variables_t& vars, list_ctx&) const override;
 			std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx&) const override;
+			std::string debug() const override;
 
 			void normalize() override;
 		};
