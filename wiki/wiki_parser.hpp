@@ -78,10 +78,26 @@ namespace wiki { namespace parser {
 		{
 			typedef Token::pointer pointer;
 
+			class BoldItalicStack
+			{
+				APOS m_value[2];
+				size_t m_size;
+			public:
+				BoldItalicStack() : m_size(0) {}
+				void push(APOS apos) { m_value[m_size++] = apos; }
+				void pop() { --m_size; }
+				bool empty() const { return m_size == 0; }
+				APOS top() const { return m_value[m_size - 1]; }
+				size_t size() const { return m_size; }
+				APOS operator[](size_t id) const { return m_value[id]; }
+				APOS& operator[](size_t id) { return m_value[id]; }
+			};
+
 			Tokens m_out;
 			pointer m_prev;
 			pointer m_cur;
 			pointer m_end;
+			BoldItalicStack m_bi_stack;
 
 			bool inWiki;
 			bool inHREF;
@@ -93,6 +109,9 @@ namespace wiki { namespace parser {
 			std::string get_text(size_t count); //return [m_prev, m_cur - count)
 			void repeated(char c, size_t repeats, TOKEN tok);
 			void boldOrItalics();
+			void switchBoth();
+			void switchBoldItalic(APOS type);
+			void switchBoldItalic(TOKEN startEnd, APOS boldItalic);
 			void htmlTag();
 		public:
 			Parser(pointer start, pointer end)

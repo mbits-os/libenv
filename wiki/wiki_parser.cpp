@@ -34,6 +34,10 @@
 
 namespace wiki { namespace parser {
 
+	static constexpr std::string bold{ "b" };
+	static constexpr std::string italic{ "i" };
+	static constexpr std::string space{ " " };
+
 	void Parser::Block::append(line::Tokens&& tokens)
 	{
 		this->tokens.insert(this->tokens.end(), tokens.begin(), tokens.end());
@@ -214,7 +218,6 @@ namespace wiki { namespace parser {
 			if (m_cur.tokens.back().type == TOKEN::BREAK)
 				return;
 
-			static constexpr std::string space{ " " };
 			m_cur.append(Token(TOKEN::TEXT, space.begin(), space.end()));
 		}
 	}
@@ -358,21 +361,87 @@ namespace wiki { namespace parser {
 	{
 		auto cur = m_cur;
 		while (m_cur != m_end && *m_cur == '\'') ++m_cur;
-		static const TOKEN tokens[] = {
-			TOKEN::BAD,
-			TOKEN::BAD,
-			TOKEN::ITALIC,
-			TOKEN::BOLD,
-			TOKEN::BAD,
-			TOKEN::BI
+		static const APOS tokens[] = {
+			APOS::BAD,
+			APOS::BAD,
+			APOS::ITALIC,
+			APOS::BOLD,
+			APOS::BAD,
+			APOS::BOTH
 		};
 
 		size_t count = std::distance(cur, m_cur);
-		if (count < array_size(tokens) && tokens[count] != TOKEN::BAD)
+		if (count < array_size(tokens) && tokens[count] != APOS::BAD)
 		{
 			text(count);
-			push(tokens[count]);
+			if (tokens[count] == APOS::BOTH)
+				switchBoth();
+			else
+				switchBoldItalic(tokens[count]);
 		}
+	}
+
+	void line::Parser::switchBoth()
+	{
+		APOS first, second;
+		if (m_bi_stack.empty())
+		{
+			first = APOS::BOLD;
+			second = APOS::ITALIC;
+		}
+		else if (m_bi_stack.size() == 1)
+		{
+			first = m_bi_stack[0];
+			second = first == APOS::BOLD ? APOS::ITALIC : APOS::BOLD;
+		}
+		else
+		{
+			first = m_bi_stack[1];
+			second = m_bi_stack[0];
+		}
+
+		//std::cout << "BOTH -> " << first << " " << second << std::endl;
+		switchBoldItalic(first);
+		switchBoldItalic(second);
+	}
+
+	void line::Parser::switchBoldItalic(APOS type)
+	{
+		//std::cout << type << " -> ";
+		if (m_bi_stack.empty() ||
+			(m_bi_stack.size() == 1 && m_bi_stack.top() != type))
+		{
+			m_bi_stack.push(type);
+			//std::cout << TOKEN::TAG_S << "{" << type << "}" << std::endl;
+			switchBoldItalic(TOKEN::TAG_S, type);
+		}
+		else if (m_bi_stack.top() == type)
+		{
+			m_bi_stack.pop();
+			//std::cout << TOKEN::TAG_E << "{" << type << "}" << std::endl;
+			switchBoldItalic(TOKEN::TAG_E, type);
+		}
+		else
+		{
+			auto tmp = m_bi_stack.top();
+			m_bi_stack.pop();
+
+			//std::cout
+			//	<< TOKEN::TAG_E << "{" << tmp << "} "
+			//	<< TOKEN::TAG_E << "{" << type << "} "
+			//	<< TOKEN::TAG_S << "{" << tmp << "}" << std::endl;
+
+			switchBoldItalic(TOKEN::TAG_E, tmp);
+			switchBoldItalic(TOKEN::TAG_E, type);
+			switchBoldItalic(TOKEN::TAG_S, tmp);
+			m_bi_stack[0] = tmp; // pop the deeper one and push the tmp again...
+		}
+	}
+
+	void line::Parser::switchBoldItalic(TOKEN startEnd, APOS boldItalic)
+	{
+		const std::string& tag = boldItalic == APOS::BOLD ? bold : italic;
+		push(startEnd, tag.begin(), tag.end());
 	}
 
 	void line::Parser::htmlTag()
@@ -445,12 +514,12 @@ namespace wiki { namespace parser {
 
 		static auto onBold = [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)
 		{
-			_this.push(TOKEN::BOLD);
+			_this.push(type, bold.begin(), bold.end());
 		};
 
 		static auto onItalic = [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)
 		{
-			_this.push(TOKEN::ITALIC);
+			_this.push(type, italic.begin(), italic.end());
 		};
 
 		static auto onHtmlTag = [](Parser& _this, pointer nameStart, pointer nameEnd, TOKEN type)

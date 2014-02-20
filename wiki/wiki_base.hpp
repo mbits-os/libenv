@@ -35,9 +35,6 @@ namespace wiki
 		BAD = -2,
 		NOP,
 		TEXT,
-		ITALIC,
-		BOLD,
-		BI,
 		VAR_S,
 		VAR_E,
 		HREF_S,
@@ -51,6 +48,14 @@ namespace wiki
 		LINE
 	};
 
+	enum class APOS
+	{
+		BAD,
+		BOLD,
+		ITALIC,
+		BOTH
+	};
+
 	inline std::ostream& operator << (std::ostream& o, TOKEN tok)
 	{
 #define PRINT(x) case TOKEN::x: return o << #x;
@@ -59,9 +64,6 @@ namespace wiki
 			PRINT(BAD);
 			PRINT(NOP);
 			PRINT(TEXT);
-			PRINT(ITALIC);
-			PRINT(BOLD);
-			PRINT(BI);
 			PRINT(VAR_S);
 			PRINT(VAR_E);
 			PRINT(HREF_S);
@@ -73,6 +75,20 @@ namespace wiki
 			PRINT(TAG_CLOSED);
 			PRINT(BREAK);
 			PRINT(LINE);
+		};
+		return o << "unknown(" << (int)tok << ")";
+#undef PRINT
+	}
+
+	inline std::ostream& operator << (std::ostream& o, APOS tok)
+	{
+#define PRINT(x) case APOS::x: return o << #x;
+		switch (tok)
+		{
+			PRINT(BAD);
+			PRINT(ITALIC);
+			PRINT(BOLD);
+			PRINT(BOTH);
 		};
 		return o << "unknown(" << (int)tok << ")";
 #undef PRINT
