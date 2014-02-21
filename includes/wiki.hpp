@@ -62,6 +62,8 @@ namespace wiki
 	{
 		virtual ~styler() {}
 		virtual std::string image(const std::string& path, const std::string& styles, const std::string& alt) const = 0;
+		virtual std::string begin_block(const std::string& tag) = 0;
+		virtual std::string end_block(const std::string& tag) = 0;
 	};
 
 	struct document

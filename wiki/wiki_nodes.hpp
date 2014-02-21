@@ -216,6 +216,19 @@ namespace wiki
 
 	namespace block_elem
 	{
+		class Block : public Node
+		{
+			std::string m_sep;
+		public:
+			Block(const std::string& tag, const Nodes& children = Nodes(), const std::string& sep = " ")
+				: Node(tag, children)
+				, m_sep(sep)
+			{
+			}
+
+			std::string text(const variables_t& vars, list_ctx&) const override;
+			std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx&) const override;
+		};
 	}
 }
 

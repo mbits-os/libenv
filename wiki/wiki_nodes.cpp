@@ -273,5 +273,19 @@ namespace wiki
 
 	namespace block_elem
 	{
+		std::string Block::text(const variables_t& vars, list_ctx& ctx) const
+		{
+			return Node::text(vars, ctx) + "\n\n";
+		}
+
+		std::string Block::markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const
+		{
+			std::ostringstream o;
+			o << styler->begin_block(m_tag);
+			for (auto& child : m_children)
+				o << child->markup(vars, styler, ctx);
+			o << styler->end_block(m_tag);
+			return o.str();
+		}
 	}
 }
