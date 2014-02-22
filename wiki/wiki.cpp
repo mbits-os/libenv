@@ -147,6 +147,30 @@ namespace wiki
 		}
 	};
 
+	class Document : public document
+	{
+		Nodes m_children;
+	public:
+		Document(const Nodes& children) : m_children(children) {}
+		std::string text(const variables_t& vars, list_ctx& ctx) const override
+		{
+			std::string out;
+			for (auto& child : m_children)
+				out += child->text(vars, ctx);
+			return out;
+		}
+
+		std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override
+		{
+			std::ostringstream o;
+			o << styler->begin_document();
+			for (auto& child : m_children)
+				o << child->markup(vars, styler, ctx);
+			o << styler->end_document();
+			return o.str();
+		}
+	};
+
 	/* public: */
 	document_ptr compile(const filesystem::path& file)
 	{
@@ -198,7 +222,7 @@ namespace wiki
 
 		std::cout << std::endl;
 
-		return nullptr;
+		return std::make_shared<Document>(children);
 	}
 
 	/* private: */

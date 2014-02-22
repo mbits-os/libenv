@@ -61,6 +61,8 @@ namespace wiki
 	struct styler
 	{
 		virtual ~styler() {}
+		virtual std::string begin_document() = 0;
+		virtual std::string end_document() = 0;
 		virtual std::string image(const std::string& path, const std::string& styles, const std::string& alt) const = 0;
 		virtual std::string begin_block(const std::string& tag) = 0;
 		virtual std::string end_block(const std::string& tag) = 0;
