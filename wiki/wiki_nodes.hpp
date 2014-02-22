@@ -42,8 +42,14 @@ namespace wiki
 
 	using Nodes = std::vector<NodePtr>;
 
+	namespace inline_elem
+	{
+		class Link;
+	}
+
 	class Node
 	{
+		friend class inline_elem::Link;
 	protected:
 		TOKEN m_token = TOKEN::NOP;
 		std::string m_tag;
@@ -59,9 +65,18 @@ namespace wiki
 		virtual void debug(stream& o) const;
 		virtual void text(stream& o, const variables_t& vars, list_ctx& ctx) const;
 		virtual void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const;
+		virtual bool store(binary::Writer& w) const = 0;
 		virtual TOKEN getToken() const { return m_token; }
 		virtual bool isText() const { return false; }
 		virtual std::string getText() const { return std::string(); }
+	};
+
+	template<binary::TAG bin>
+	class SimpleNode : public Node
+	{
+	public:
+		using Node::Node;
+		bool store(binary::Writer& w) const override { return w.store(bin, std::string(), m_children); }
 	};
 
 	namespace inline_elem
@@ -74,6 +89,7 @@ namespace wiki
 			virtual void text(stream&, const variables_t&, list_ctx&) const override {}
 			virtual void markup(stream&, const variables_t&, const styler_ptr&, list_ctx&) const override {}
 			virtual void debug(stream& o) const override;
+			bool store(binary::Writer& w) const override { return true; }
 		};
 
 		class Text : public Node
@@ -87,18 +103,19 @@ namespace wiki
 			void debug(stream& o) const override { o << m_text; }
 			bool isText() const override { return true; }
 			std::string getText() const override { return m_text; }
+			bool store(binary::Writer& w) const override { return w.store(binary::TAG::TEXT, m_text, Nodes()); }
 		};
 
-		class Break : public Node
+		class Break : public SimpleNode<binary::TAG::BREAK>
 		{
 		public:
-			Break() : Node(TOKEN::BREAK, "br") {}
+			Break() : SimpleNode<binary::TAG::BREAK>(TOKEN::BREAK, "br") {}
 			void text(stream& o, const variables_t&, list_ctx& ctx) const override { o << '\n' << ctx.indentStr(); }
 			void markup(stream& o, const variables_t&, const styler_ptr&, list_ctx& ctx) const override { o << ctx.indentStr() << "<br />\n"; }
 			void debug(stream& o) const override { o << "<br/>\n"; }
 		};
 
-		class Line : public Node
+		class Line : public SimpleNode<binary::TAG::LINE>
 		{
 		public:
 			Line() {}
@@ -116,6 +133,14 @@ namespace wiki
 			void text(stream& o, const variables_t& vars, list_ctx&) const override;
 			void markup(stream& o, const variables_t& vars, const styler_ptr&, list_ctx&) const override;
 			void debug(stream& o) const override { o << '[' << m_name << ']'; }
+			bool store(binary::Writer& w) const override { return w.store(binary::TAG::VARIABLE, m_name, Nodes()); }
+		};
+
+		class Element : public Node
+		{
+		public:
+			using Node::Node;
+			bool store(binary::Writer& w) const override { return w.store(binary::TAG::ELEMENT, m_tag, m_children); }
 		};
 
 		namespace link
@@ -209,8 +234,11 @@ namespace wiki
 			void text(stream& o, const variables_t& vars, list_ctx&) const override;
 			void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx&) const override;
 			void debug(stream& o) const override;
+			bool store(binary::Writer& w) const override;
 
 			void normalize() override;
+
+			static NodePtr make(const std::string& ns, const Nodes& children);
 		};
 	}
 
@@ -231,66 +259,75 @@ namespace wiki
 			void debug(stream& o) const override;
 		};
 
+		template<binary::TAG bin>
+		class SimpleBlock : public Block
+		{
+		public:
+			using Block::Block;
+			bool store(binary::Writer& w) const override { return w.store(bin, std::string(), m_children); }
+		};
+
 		class Header : public Block
 		{
 			int m_level;
 		public:
 			Header(int level, const Nodes& children);
+			bool store(binary::Writer& w) const override;
 		};
 
-		class Para : public Block
+		class Para : public SimpleBlock<binary::TAG::PARA>
 		{
 		public:
-			Para(const Nodes& children) : Block("p", children) {}
+			Para(const Nodes& children) : SimpleBlock<binary::TAG::PARA>("p", children) {}
 		};
 
-		class Pre : public Block
+		class Pre : public SimpleBlock<binary::TAG::PRE>
 		{
 		public:
-			Pre(const Nodes& children) : Block("pre", children, "\n") {}
+			Pre(const Nodes& children) : SimpleBlock<binary::TAG::PRE>("pre", children, "\n") {}
 		};
 
-		class Quote : public Block
+		class Quote : public SimpleBlock<binary::TAG::QUOTE>
 		{
 		public:
-			Quote(const Nodes& children) : Block("quote", children) {}
+			Quote(const Nodes& children) : SimpleBlock<binary::TAG::QUOTE>("quote", children) {}
 
 			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};
 
-		class OList : public Block
+		class OList : public SimpleBlock<binary::TAG::OLIST>
 		{
 		public:
-			OList(const Nodes& children) : Block("ol", children) {}
+			OList(const Nodes& children) : SimpleBlock<binary::TAG::OLIST>("ol", children) {}
 		};
 
-		class UList : public Block
+		class UList : public SimpleBlock<binary::TAG::ULIST>
 		{
 		public:
-			UList(const Nodes& children) : Block("ul", children) {}
+			UList(const Nodes& children) : SimpleBlock<binary::TAG::ULIST>("ul", children) {}
 		};
 
-		class Item : public Block
+		class Item : public SimpleBlock<binary::TAG::ITEM>
 		{
 		public:
-			Item(const Nodes& children) : Block("li", children) {}
+			Item(const Nodes& children) : SimpleBlock<binary::TAG::ITEM>("li", children) {}
 
 			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};
 
-		class HR : public Block
+		class HR : public SimpleBlock<binary::TAG::HR>
 		{
 		public:
-			HR() : Block("hr", Nodes()) {}
+			HR() : SimpleBlock<binary::TAG::HR>("hr", Nodes()) {}
 
 			void text(stream& o, const variables_t&, list_ctx&) const override {}
 			void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override { styler->hr(o); }
 		};
 
-		class Signature : public Block
+		class Signature : public SimpleBlock<binary::TAG::SIGNATURE>
 		{
 		public:
-			Signature(const Nodes& children) : Block("sign", children) {}
+			Signature(const Nodes& children) : SimpleBlock<binary::TAG::SIGNATURE>("sign", children) {}
 
 			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};

@@ -245,6 +245,17 @@ namespace wiki
 			m_ns->markup(o, href, segs, vars, styler);
 		}
 
+		bool Link::store(binary::Writer& w) const
+		{
+			Nodes children;
+			auto name = m_ns ? m_ns->name() : "";
+			children.reserve(m_segs.size() + 1);
+			children.push_back(std::make_shared<SimpleNode<binary::TAG::HREF>>("HREF", m_href));
+			for (auto&& seg: m_segs)
+				children.push_back(std::make_shared<SimpleNode<binary::TAG::SEG>>("SEG", seg));
+			return w.store(binary::TAG::HEADER, name, children);
+		}
+
 		void Link::normalize()
 		{
 			auto len = m_children.size();
@@ -276,7 +287,7 @@ namespace wiki
 			for (auto i = base; i < seg; ++i)
 				m_href.push_back(m_children[i]);
 
-			new_children.push_back(std::make_shared<Node>("HREF", m_href));
+			new_children.push_back(std::make_shared<SimpleNode<binary::TAG::HREF>>("HREF", m_href));
 
 			m_segs.clear();
 			seg++;
@@ -290,7 +301,7 @@ namespace wiki
 					nodes.push_back(m_children[i]);
 
 				m_segs.push_back(nodes);
-				new_children.push_back(std::make_shared<Node>("SEG", nodes));
+				new_children.push_back(std::make_shared<SimpleNode<binary::TAG::SEG>>("SEG", nodes));
 				seg = segend + 1;
 			}
 
@@ -298,6 +309,29 @@ namespace wiki
 			m_children.swap(new_children);
 			normalizeChildren();
 			m_children.swap(empty);
+		}
+
+		NodePtr Link::make(const std::string& ns, const Nodes& children)
+		{
+			auto out = std::make_shared<Link>();
+
+			if (ns == "url") out->m_ns = std::make_shared<link::Url>();
+			else if (ns == "Image") out->m_ns = std::make_shared<link::Image>();
+			else out->m_ns = std::make_shared<link::Url>();
+
+			for (auto&& child : children)
+			{
+				if (child->m_tag == "HREF")
+					out->m_href.swap(child->m_children);
+				else if (child->m_tag == "SEG")
+				{
+					Nodes seg;
+					seg.swap(child->m_children);
+					out->m_segs.push_back(seg);
+				}
+			}
+
+			return out;
 		}
 	}
 
@@ -325,6 +359,11 @@ namespace wiki
 		}
 
 		Header::Header(int level, const Nodes& children) : Block("h" + std::to_string(level), children), m_level(level) {}
+
+		bool Header::store(binary::Writer& w) const
+		{
+			return w.store(binary::TAG::HEADER, std::to_string(m_level), m_children);
+		}
 
 		void Quote::text(stream& o, const variables_t& vars, list_ctx& ctx) const
 		{

@@ -28,6 +28,11 @@
 #include <utils.hpp>
 #include <vector>
 
+namespace filesystem
+{
+	class path;
+};
+
 namespace wiki
 {
 	enum class TOKEN
@@ -114,6 +119,68 @@ namespace wiki
 	SHAREABLE(Styler);
 
 	using Nodes = std::vector<NodePtr>;
+
+	namespace binary
+	{
+		inline constexpr unsigned short make_tag(char up, char lo) { return ((unsigned short)lo << 8) | ((unsigned short)up); }
+		// same as is_upper for ASCII
+		inline bool has_children(unsigned short id) { return ((id >> 8) & 0x20) == 0x20; }
+		inline bool has_string(unsigned short id)   { return ( id       & 0x20) == 0x20; }
+
+		enum class TAG : unsigned short
+		{
+			LINK		= make_tag('l', 'i'),
+			HEADER		= make_tag('h', 'e'),
+			ELEMENT		= make_tag('e', 'l'),
+			TEXT		= make_tag('t', 'E'),
+			VARIABLE	= make_tag('v', 'A'),
+			HREF		= make_tag('H', 'r'),
+			SEG			= make_tag('S', 'e'),
+			PARA		= make_tag('P', 'a'),
+			PRE			= make_tag('P', 'r'),
+			QUOTE		= make_tag('Q', 'u'),
+			OLIST		= make_tag('O', 'l'),
+			ULIST		= make_tag('U', 'l'),
+			ITEM		= make_tag('I', 't'),
+			SIGNATURE	= make_tag('S', 'i'),
+			BREAK		= make_tag('B', 'R'),
+			LINE		= make_tag('L', 'I'),
+			HR			= make_tag('H', 'R')
+		};
+
+		class Writer
+		{
+			struct Impl;
+			Impl* pimpl;
+		public:
+			Writer();
+			~Writer();
+			Writer(const Writer&) = delete;
+			Writer& operator=(const Writer&) = delete;
+
+			bool open(const filesystem::path&);
+			bool close();
+			bool store(const Nodes& nodes);
+			bool store(TAG id, const std::string& data, const Nodes& children);
+		};
+
+		class Reader
+		{
+			struct Impl;
+			Impl* pimpl;
+
+			static NodePtr create(TAG id, const std::string& data, const Nodes& children);
+		public:
+			Reader();
+			~Reader();
+			Reader(const Reader&) = delete;
+			Reader& operator=(const Reader&) = delete;
+
+			bool open(const filesystem::path&);
+			bool load(Nodes& nodes);
+			bool load(NodePtr& item);
+		};
+	}
 }
 
 #endif // __WIKI_BASE_HPP__

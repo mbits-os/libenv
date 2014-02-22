@@ -59,45 +59,6 @@ namespace wiki { namespace parser {
 	{
 	}
 
-	static void printBlocks(const Parser::Text& blocks, const std::string& pre = std::string())
-	{
-		for (auto& block: blocks)
-		{
-			std::cout << pre;
-
-			switch (block.type)
-			{
-			case Parser::BLOCK::UNKNOWN: std::cout << '?'; break;
-			case Parser::BLOCK::HEADER: std::cout << 'H'; break;
-			case Parser::BLOCK::PARA: std::cout << 'P'; break;
-			case Parser::BLOCK::QUOTE: std::cout << 'Q'; break;
-			case Parser::BLOCK::PRE: std::cout << 'R'; break;
-			case Parser::BLOCK::ITEM: std::cout << 'L'; break;
-			case Parser::BLOCK::SIGNATURE: std::cout << 'S'; break;
-			case Parser::BLOCK::HR: std::cout << "HR"; break;
-			case Parser::BLOCK::UL: std::cout << "UL"; break;
-			case Parser::BLOCK::OL: std::cout << "OL"; break;
-			}
-			if (block.iArg) std::cout << block.iArg;
-			if (!block.sArg.empty()) std::cout << '[' << block.sArg << ']';
-
-			if (!block.tokens.empty())
-			{
-				std::cout << ": (";
-				bool first = true;
-				for (auto& tok: block.tokens)
-				{
-					if (first) first = false;
-					else std::cout << ", ";
-					std::cout << tok;
-				}
-				std::cout << ")";
-			}
-			std::cout << "\n";
-			printBlocks(block.items, pre + "    ");
-		}
-	}
-
 	Parser::Text Parser::parse(const std::string& text)
 	{
 		auto line = text.begin();
@@ -117,8 +78,6 @@ namespace wiki { namespace parser {
 			if (line != end) ++line;
 		}
 		reset();
-
-		printBlocks(m_out);
 
 		return std::move(m_out);
 	}

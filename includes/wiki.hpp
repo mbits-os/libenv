@@ -111,6 +111,7 @@ namespace wiki
 		virtual void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const = 0;
 	};
 
+	document_ptr compile(const filesystem::path& file, const filesystem::path& obj);
 	document_ptr compile(const filesystem::path& file);
 	document_ptr compile(const std::string& text);
 }

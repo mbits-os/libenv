@@ -28,6 +28,16 @@
 #include <filesystem.hpp>
 #include "wiki_parser.hpp"
 #include "wiki_nodes.hpp"
+#include <iomanip>
+#include <fcntl.h>
+
+#ifdef _WIN32
+#include <process.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#define _getpid getpid
+#endif
 
 namespace wiki
 {
@@ -124,7 +134,7 @@ namespace wiki
 			element(Nodes& _items, Tokens::const_iterator from, Tokens::const_iterator to, std::string&& arg) : arg_scanner<element>(from, to, TOKEN::TAG_E, std::move(arg)), items(_items) {}
 			void visit(Nodes& children)
 			{
-				make_node<Node>(m_items, arg, children);
+				make_node<inline_elem::Element>(m_items, arg, children);
 			}
 		};
 
@@ -165,6 +175,16 @@ namespace wiki
 				child->markup(o, vars, styler, ctx);
 			styler->end_document(o);
 		}
+
+		void store(const filesystem::path& obj)
+		{
+			binary::Writer wr;
+			if (!wr.open(obj))
+				return;
+
+			if (!wr.store(m_children) || !wr.close())
+				filesystem::remove(obj);
+		}
 	};
 
 	/* public: */
@@ -174,15 +194,22 @@ namespace wiki
 		ref.write(buffer, size);
 	}
 
-	document_ptr compile(const filesystem::path& file)
+	document_ptr compile(const filesystem::path& file, const filesystem::path& obj)
 	{
 		filesystem::status st{ file };
 		if (!st.exists())
 			return nullptr;
 
-		std::cout << "WIKI: " << file << std::endl;
-
-		// TODO: branch here for pre-compiled WIKI file
+		if (st.mtime() <= filesystem::status{ obj }.mtime())
+		{
+			binary::Reader r;
+			if (r.open(obj))
+			{
+				Nodes children;
+				if (r.load(children))
+					return std::make_shared<Document>(children);
+			}
+		}
 
 		size_t size = (size_t)st.file_size();
 
@@ -199,9 +226,32 @@ namespace wiki
 
 		text[size] = 0;
 
-		auto out = compile(text);
-		// TODO: store binary version of the document here
+		document_ptr out = compile(text);
+		std::static_pointer_cast<Document>(out)->store(obj);
 		return out;
+	}
+
+	document_ptr compile(const filesystem::path& file)
+	{
+		filesystem::status st{ file };
+		if (!st.exists())
+			return nullptr;
+
+		size_t size = (size_t)st.file_size();
+
+		std::string text;
+		text.resize(size + 1);
+		if (text.size() <= size)
+			return nullptr;
+
+		auto f = fopen(file.native().c_str(), "r");
+		if (!f)
+			return nullptr;
+		fread(&text[0], 1, size, f);
+		fclose(f);
+
+		text[size] = 0;
+		return compile(text);
 	}
 
 	document_ptr compile(const std::string& text)
@@ -210,21 +260,6 @@ namespace wiki
 
 		Nodes children;
 		compiler::compile(children, blocks, false);
-
-		variables_t vars;
-		list_ctx ctx;
-		cstream cout{ std::cout };
-
-		for (auto&& child : children)
-		{
-			if (!child)
-				std::cout << "(nullptr)";
-			else
-				child->debug(cout);
-		}
-
-		std::cout << std::endl;
-
 		return std::make_shared<Document>(children);
 	}
 
