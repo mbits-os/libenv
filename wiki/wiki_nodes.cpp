@@ -26,6 +26,18 @@
 #include "wiki_nodes.hpp"
 #include <sstream>
 
+#ifdef __GNUC__
+namespace std
+{
+	std::string to_string(int i)
+	{
+		char buffer[64];
+		sprintf(buffer, "%d", i);
+		return buffer;
+	}
+}
+#endif
+
 namespace wiki
 {
 	inline stream& operator << (stream& o, TOKEN tok)
@@ -101,14 +113,14 @@ namespace wiki
 
 		void Variable::text(stream& o, const variables_t& vars, list_ctx&) const
 		{
-			auto& it = vars.find(m_name);
+			auto&& it = vars.find(m_name);
 			if (it != vars.end())
 				o << it->second;
 		}
 
 		void Variable::markup(stream& o, const variables_t& vars, const styler_ptr&, list_ctx&) const
 		{
-			auto& it = vars.find(m_name);
+			auto&& it = vars.find(m_name);
 			if (it != vars.end())
 				o << it->second;
 		}
@@ -311,6 +323,8 @@ namespace wiki
 			Node::debug(o);
 			o << '\n';
 		}
+
+		Header::Header(int level, const Nodes& children) : Block("h" + std::to_string(level), children), m_level(level) {}
 
 		void Quote::text(stream& o, const variables_t& vars, list_ctx& ctx) const
 		{

@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 #include <iosfwd>
+#include <string.h>
 
 namespace filesystem
 {

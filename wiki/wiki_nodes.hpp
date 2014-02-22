@@ -235,7 +235,7 @@ namespace wiki
 		{
 			int m_level;
 		public:
-			Header(int level, const Nodes& children) : Block("h" + std::to_string(level), children), m_level(level) {}
+			Header(int level, const Nodes& children);
 		};
 
 		class Para : public Block

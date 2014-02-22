@@ -83,7 +83,7 @@ namespace wiki
 				Nodes children;
 
 				++from;
-				from = compile(children, from, to, end_tok, false);
+				from = compile(children, from, to, Right::end_tok, false);
 				if (from != to && Right::reached(from))
 					static_cast<Final*>(this)->visit(children);
 

@@ -32,11 +32,18 @@
 #undef min
 #endif
 
+#ifdef __GNUC__
+#define STRING_CONST const
+#else
+#define STRING_CONST constexpr
+#endif
+
+
 namespace wiki { namespace parser {
 
-	static constexpr std::string bold{ "b" };
-	static constexpr std::string italic{ "i" };
-	static constexpr std::string space{ " " };
+	static STRING_CONST std::string bold{ "b" };
+	static STRING_CONST std::string italic{ "i" };
+	static STRING_CONST std::string space{ " " };
 
 	void Parser::Block::append(line::Tokens&& tokens)
 	{
