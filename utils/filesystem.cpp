@@ -25,6 +25,7 @@
 #include "pch.h"
 #include <filesystem.hpp>
 #include <vector>
+#include <cstdlib>
 
 namespace filesystem
 {
@@ -197,7 +198,8 @@ namespace filesystem
 		path a_base = base.is_absolute() ? base : absolute(base);
 
 		if (p.has_root_name())
-			return p.root_name() / a_base.root_directory() / a_base.relative_path() / p.relative_path();
+			return p.root_name() / a_base.root_directory() / a_base.relative_path() / p.relative_path();
+
 		if (p.has_root_directory())
 			return a_base.root_name() / p;
 
@@ -240,4 +242,8 @@ namespace filesystem
 		return out;
 	}
 
+	void remove(const path& p)
+	{
+		std::remove(p.native().c_str());
+	}
 }

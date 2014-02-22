@@ -42,6 +42,9 @@ namespace filesystem
 		if (!stat(p.native().c_str(), &st))
 		{
 			m_file_size = st.st_size;
+			m_mtime = st.st_mtime;
+			m_ctime = st.st_ctime;
+
 			if (S_ISBLK(st.st_mode)) m_type = file_type::block;
 			else if (S_ISCHR(st.st_mode)) m_type = file_type::character;
 			else if (S_ISDIR(st.st_mode)) m_type = file_type::directory;

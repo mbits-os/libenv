@@ -89,7 +89,11 @@ namespace filesystem
 
 		struct stat st;
 		if (!stat(native.c_str(), &st))
+		{
 			m_file_size = st.st_size;
+			m_mtime = st.st_mtime;
+			m_ctime = st.st_ctime;
+		}
 		else
 			m_type = file_type::not_found;
 	}

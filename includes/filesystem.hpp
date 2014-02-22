@@ -424,6 +424,8 @@ namespace filesystem
 	{
 		file_type m_type = file_type::none;
 		uintmax_t m_file_size = 0;
+		time_t    m_mtime = 0;
+		time_t    m_ctime = 0;
 	public:
 		status() {}
 		status(const status&) = default;
@@ -444,6 +446,8 @@ namespace filesystem
 			return true;
 		}
 		uintmax_t file_size() const { return m_file_size; }
+		time_t mtime() const { return m_mtime; }
+		time_t ctime() const { return m_ctime; }
 		bool is_directory() const { return m_type == file_type::directory; }
 		bool is_regular_file() const { return m_type == file_type::regular; }
 	};
@@ -452,6 +456,8 @@ namespace filesystem
 	inline uintmax_t file_size(const path& p) { return status(p).file_size(); }
 	inline bool is_directory(const path& p) { return status(p).is_directory(); }
 	inline bool is_regular_file(const path& p) { return status(p).is_regular_file(); }
+
+	void remove(const path& p);
 };
 
 namespace std
