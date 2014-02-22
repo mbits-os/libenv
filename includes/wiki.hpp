@@ -45,6 +45,38 @@ namespace wiki
 	using styler_ptr = std::shared_ptr<styler>;
 	using variables_t = std::map<std::string, std::string>;
 
+	struct stream
+	{
+		virtual ~stream() {}
+		virtual void write(const char* buffer, size_t size) = 0;
+
+		stream& operator << (const char* str)
+		{
+			if (str)
+				write(str, strlen(str));
+			return *this;
+		}
+
+		stream& operator << (const std::string& str)
+		{
+			if (!str.empty())
+				write(str.c_str(), str.length());
+			return *this;
+		}
+
+		stream& operator << (char c)
+		{
+			write(&c, 1);
+			return *this;
+		}
+	};
+
+	struct cstream : stream
+	{
+		std::ostream& ref;
+		explicit cstream(std::ostream& ref) : ref(ref) {}
+		void write(const char* buffer, size_t size) override;
+	};
 
 	class list_ctx
 	{
@@ -62,20 +94,20 @@ namespace wiki
 	struct styler
 	{
 		virtual ~styler() {}
-		virtual void begin_document(std::ostream& o) = 0;
-		virtual void end_document(std::ostream& o) = 0;
-		virtual void image(std::ostream& o, const std::string& path, const std::string& styles, const std::string& alt) const = 0;
-		virtual void begin_block(std::ostream& o, const std::string& tag) = 0;
-		virtual void end_block(std::ostream& o, const std::string& tag) = 0;
-		virtual void hr(std::ostream& o) = 0;
+		virtual void begin_document(stream& o) = 0;
+		virtual void end_document(stream& o) = 0;
+		virtual void image(stream& o, const std::string& path, const std::string& styles, const std::string& alt) const = 0;
+		virtual void begin_block(stream& o, const std::string& tag) = 0;
+		virtual void end_block(stream& o, const std::string& tag) = 0;
+		virtual void hr(stream& o) = 0;
 	};
 
 	struct document
 	{
 		virtual ~document() {}
 
-		virtual void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const = 0;
-		virtual void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const = 0;
+		virtual void text(stream& o, const variables_t& vars, list_ctx& ctx) const = 0;
+		virtual void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const = 0;
 	};
 
 	document_ptr compile(const filesystem::path& file);

@@ -56,9 +56,9 @@ namespace wiki
 		virtual void normalize() { normalizeChildren(); }
 		virtual void normalizeChildren();
 
-		virtual void debug(std::ostream& o) const;
-		virtual void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const;
-		virtual void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const;
+		virtual void debug(stream& o) const;
+		virtual void text(stream& o, const variables_t& vars, list_ctx& ctx) const;
+		virtual void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const;
 		virtual TOKEN getToken() const { return m_token; }
 		virtual bool isText() const { return false; }
 		virtual std::string getText() const { return std::string(); }
@@ -71,9 +71,9 @@ namespace wiki
 		public:
 			Token(TOKEN token) : Node(token) {}
 
-			virtual void text(std::ostream&, const variables_t&, list_ctx&) const override {}
-			virtual void markup(std::ostream&, const variables_t&, const styler_ptr&, list_ctx&) const override {}
-			virtual void debug(std::ostream& o) const override;
+			virtual void text(stream&, const variables_t&, list_ctx&) const override {}
+			virtual void markup(stream&, const variables_t&, const styler_ptr&, list_ctx&) const override {}
+			virtual void debug(stream& o) const override;
 		};
 
 		class Text : public Node
@@ -82,9 +82,9 @@ namespace wiki
 		public:
 			Text(const std::string& text) : m_text(text) {}
 			void append(std::string::const_iterator begin, std::string::const_iterator end) { m_text.append(begin, end); }
-			void text(std::ostream& o, const variables_t&, list_ctx&) const override { o << m_text; }
-			void markup(std::ostream& o, const variables_t&, const styler_ptr&, list_ctx&) const override { o << url::htmlQuotes(m_text); }
-			void debug(std::ostream& o) const override { o << m_text; }
+			void text(stream& o, const variables_t&, list_ctx&) const override { o << m_text; }
+			void markup(stream& o, const variables_t&, const styler_ptr&, list_ctx&) const override { o << url::htmlQuotes(m_text); }
+			void debug(stream& o) const override { o << m_text; }
 			bool isText() const override { return true; }
 			std::string getText() const override { return m_text; }
 		};
@@ -93,18 +93,18 @@ namespace wiki
 		{
 		public:
 			Break() : Node(TOKEN::BREAK, "br") {}
-			void text(std::ostream& o, const variables_t&, list_ctx& ctx) const override { o << '\n' << ctx.indentStr(); }
-			void markup(std::ostream& o, const variables_t&, const styler_ptr&, list_ctx& ctx) const override { o << ctx.indentStr() << "<br />\n"; }
-			void debug(std::ostream& o) const override { o << "<br/>\n"; }
+			void text(stream& o, const variables_t&, list_ctx& ctx) const override { o << '\n' << ctx.indentStr(); }
+			void markup(stream& o, const variables_t&, const styler_ptr&, list_ctx& ctx) const override { o << ctx.indentStr() << "<br />\n"; }
+			void debug(stream& o) const override { o << "<br/>\n"; }
 		};
 
 		class Line : public Node
 		{
 		public:
 			Line() {}
-			void text(std::ostream& o, const variables_t&, list_ctx& ctx) const override { o << '\n' << ctx.indentStr(); }
-			void markup(std::ostream& o, const variables_t&, const styler_ptr&, list_ctx& ctx) const override { o << ctx.indentStr() << "<br />\n"; }
-			void debug(std::ostream& o) const override { o << "\\CR\\LF\n"; }
+			void text(stream& o, const variables_t&, list_ctx& ctx) const override { o << '\n' << ctx.indentStr(); }
+			void markup(stream& o, const variables_t&, const styler_ptr&, list_ctx& ctx) const override { o << ctx.indentStr() << "<br />\n"; }
+			void debug(stream& o) const override { o << "\\CR\\LF\n"; }
 		};
 
 		class Variable : public Node
@@ -113,9 +113,9 @@ namespace wiki
 		public:
 			Variable(const std::string& name) : Node("VAR"), m_name(name) {}
 
-			void text(std::ostream& o, const variables_t& vars, list_ctx&) const override;
-			void markup(std::ostream& o, const variables_t& vars, const styler_ptr&, list_ctx&) const override;
-			void debug(std::ostream& o) const override { o << '[' << m_name << ']'; }
+			void text(stream& o, const variables_t& vars, list_ctx&) const override;
+			void markup(stream& o, const variables_t& vars, const styler_ptr&, list_ctx&) const override;
+			void debug(stream& o) const override { o << '[' << m_name << ']'; }
 		};
 
 		namespace link
@@ -129,9 +129,9 @@ namespace wiki
 				Namespace(const std::string& name): m_name(name) {}
 				virtual ~Namespace() {}
 				virtual const std::string& name() const { return m_name; }
-				virtual void text(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t& vars) const = 0;
-				virtual void markup(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t& vars, const styler_ptr& styler) const = 0;
-				virtual void debug(std::ostream& o, const std::string& href, const segments_t& segments) const = 0;
+				virtual void text(stream& o, const std::string& href, const segments_t& segments, const variables_t& vars) const = 0;
+				virtual void markup(stream& o, const std::string& href, const segments_t& segments, const variables_t& vars, const styler_ptr& styler) const = 0;
+				virtual void debug(stream& o, const std::string& href, const segments_t& segments) const = 0;
 			private:
 				std::string m_name;
 			};
@@ -139,32 +139,32 @@ namespace wiki
 			struct Url : Namespace
 			{
 				Url() : Namespace("url") {}
-				void text(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t&) const override;
-				void markup(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr&) const override;
-				void debug(std::ostream& o, const std::string& href, const segments_t& segments) const override;
+				void text(stream& o, const std::string& href, const segments_t& segments, const variables_t&) const override;
+				void markup(stream& o, const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr&) const override;
+				void debug(stream& o, const std::string& href, const segments_t& segments) const override;
 			};
 
 			struct Image : Namespace
 			{
 				Image() : Namespace("Image") {}
-				void text(std::ostream& o, const std::string& href, const segments_t&, const variables_t&) const override;
-				void markup(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr& styler) const override;
-				void debug(std::ostream& o, const std::string& href, const segments_t& segments) const override;
+				void text(stream& o, const std::string& href, const segments_t&, const variables_t&) const override;
+				void markup(stream& o, const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr& styler) const override;
+				void debug(stream& o, const std::string& href, const segments_t& segments) const override;
 			};
 
 			struct Unknown : Namespace
 			{
 				Unknown(const std::string& ns) : Namespace(ns) {}
-				void text(std::ostream& o, const std::string&, const segments_t&, const variables_t&) const override
+				void text(stream& o, const std::string&, const segments_t&, const variables_t&) const override
 				{
 					o << "(Unknown link type: " << name() << ')';
 				}
 
-				void markup(std::ostream& o, const std::string&, const segments_t&, const variables_t&, const styler_ptr&) const override
+				void markup(stream& o, const std::string&, const segments_t&, const variables_t&, const styler_ptr&) const override
 				{
 					o << "<em>Unknown link type: <strong>" << name() << "</strong>.</em>";
 				}
-				void debug(std::ostream& o, const std::string& href, const segments_t& segments) const override;
+				void debug(stream& o, const std::string& href, const segments_t& segments) const override;
 			};
 		}
 
@@ -206,9 +206,9 @@ namespace wiki
 		public:
 			Link(const Nodes& children = Nodes()) : Node("LINK", children) {}
 
-			void text(std::ostream& o, const variables_t& vars, list_ctx&) const override;
-			void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx&) const override;
-			void debug(std::ostream& o) const override;
+			void text(stream& o, const variables_t& vars, list_ctx&) const override;
+			void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx&) const override;
+			void debug(stream& o) const override;
 
 			void normalize() override;
 		};
@@ -226,9 +226,9 @@ namespace wiki
 			{
 			}
 
-			void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const override;
-			void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override;
-			void debug(std::ostream& o) const override;
+			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
+			void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override;
+			void debug(stream& o) const override;
 		};
 
 		class Header : public Block
@@ -255,7 +255,7 @@ namespace wiki
 		public:
 			Quote(const Nodes& children) : Block("quote", children) {}
 
-			void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const override;
+			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};
 
 		class OList : public Block
@@ -275,7 +275,7 @@ namespace wiki
 		public:
 			Item(const Nodes& children) : Block("li", children) {}
 
-			void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const override;
+			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};
 
 		class HR : public Block
@@ -283,8 +283,8 @@ namespace wiki
 		public:
 			HR() : Block("hr", Nodes()) {}
 
-			void text(std::ostream& o, const variables_t&, list_ctx&) const override {}
-			void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override { styler->hr(o); }
+			void text(stream& o, const variables_t&, list_ctx&) const override {}
+			void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override { styler->hr(o); }
 		};
 
 		class Signature : public Block
@@ -292,7 +292,7 @@ namespace wiki
 		public:
 			Signature(const Nodes& children) : Block("sign", children) {}
 
-			void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const override;
+			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};
 	}
 }

@@ -152,13 +152,13 @@ namespace wiki
 		Nodes m_children;
 	public:
 		Document(const Nodes& children) : m_children(children) {}
-		void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const override
+		void text(stream& o, const variables_t& vars, list_ctx& ctx) const override
 		{
 			for (auto& child : m_children)
 				child->text(o, vars, ctx);
 		}
 
-		void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override
+		void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override
 		{
 			styler->begin_document(o);
 			for (auto& child : m_children)
@@ -168,6 +168,12 @@ namespace wiki
 	};
 
 	/* public: */
+
+	void cstream::write(const char* buffer, size_t size)
+	{
+		ref.write(buffer, size);
+	}
+
 	document_ptr compile(const filesystem::path& file)
 	{
 		filesystem::status st{ file };
@@ -207,13 +213,14 @@ namespace wiki
 
 		variables_t vars;
 		list_ctx ctx;
+		cstream cout{ std::cout };
 
 		for (auto&& child : children)
 		{
 			if (!child)
 				std::cout << "(nullptr)";
 			else
-				child->debug(std::cout);
+				child->debug(cout);
 		}
 
 		std::cout << std::endl;
@@ -329,10 +336,11 @@ namespace wiki
 	std::string compiler::text(const Nodes& nodes)
 	{
 		std::ostringstream o;
+		cstream co{ o };
 		variables_t vars;
 		list_ctx ctx;
 		for (auto&& node : nodes)
-			node->text(o, vars, ctx);
+			node->text(co, vars, ctx);
 		return o.str();
 	}
 }
