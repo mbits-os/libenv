@@ -152,22 +152,18 @@ namespace wiki
 		Nodes m_children;
 	public:
 		Document(const Nodes& children) : m_children(children) {}
-		std::string text(const variables_t& vars, list_ctx& ctx) const override
+		void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const override
 		{
-			std::string out;
 			for (auto& child : m_children)
-				out += child->text(vars, ctx);
-			return out;
+				child->text(o, vars, ctx);
 		}
 
-		std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override
+		void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override
 		{
-			std::ostringstream o;
-			o << styler->begin_document();
+			styler->begin_document(o);
 			for (auto& child : m_children)
-				o << child->markup(vars, styler, ctx);
-			o << styler->end_document();
-			return o.str();
+				child->markup(o, vars, styler, ctx);
+			styler->end_document(o);
 		}
 	};
 
@@ -217,7 +213,7 @@ namespace wiki
 			if (!child)
 				std::cout << "(nullptr)";
 			else
-				std::cout << child->debug();
+				child->debug(std::cout);
 		}
 
 		std::cout << std::endl;
@@ -336,7 +332,7 @@ namespace wiki
 		variables_t vars;
 		list_ctx ctx;
 		for (auto&& node : nodes)
-			o << node->text(vars, ctx);
+			node->text(o, vars, ctx);
 		return o.str();
 	}
 }

@@ -47,116 +47,100 @@ namespace wiki
 			child->normalize();
 	}
 
-	std::string Node::debug() const
+	void Node::debug(std::ostream& o) const
 	{
-		std::ostringstream o;
 		o << "<" << m_tag << ">";
 		for (auto&& child : m_children)
-			o << child->debug();
+			child->debug(o);
 		o << "</" << m_tag << ">";
-		return o.str();
 	}
 
-	std::string Node::text(const variables_t& vars, list_ctx& ctx) const
+	void Node::text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const
 	{
-		std::string out;
 		for (auto& child : m_children)
-			out += child->text(vars, ctx);
-		return out;
+			child->text(o, vars, ctx);
 	}
 
-	std::string Node::markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const
+	void Node::markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const
 	{
 		std::string out("<" + m_tag + ">");
 		for (auto& child : m_children)
-			out += child->markup(vars, styler, ctx);
-		return out + "</" + m_tag + ">";
+			child->markup(o, vars, styler, ctx);
 	}
 
 	namespace inline_elem
 	{
-		std::string Token::debug() const
+		void Token::debug(std::ostream& o) const
 		{
-			std::ostringstream o;
 			o << m_token;
-			return o.str();
 		}
 
-		std::string Variable::text(const variables_t& vars, list_ctx&) const
+		void Variable::text(std::ostream& o, const variables_t& vars, list_ctx&) const
 		{
 			auto& it = vars.find(m_name);
-			if (it == vars.end()) return std::string();
-			return it->second;
+			if (it != vars.end())
+				o << it->second;
 		}
 
-		std::string Variable::markup(const variables_t& vars, const styler_ptr&, list_ctx&) const
+		void Variable::markup(std::ostream& o, const variables_t& vars, const styler_ptr&, list_ctx&) const
 		{
 			auto& it = vars.find(m_name);
-			if (it == vars.end()) return std::string();
-			return it->second;
+			if (it != vars.end())
+				o << it->second;
 		}
 
 		namespace link
 		{
-			std::string Url::debug(const std::string& href, const segments_t& segments) const
+			void Url::debug(std::ostream& o, const std::string& href, const segments_t& segments) const
 			{
-				std::ostringstream o;
 				o << "url:" << href;
 				for (auto&& seg : segments)
 					o << "|" << seg;
-
-				return o.str();
 			}
 
-			std::string Url::text(const std::string& href, const segments_t& segments, const variables_t&) const
+			void Url::text(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t&) const
 			{
 				if (!segments.empty())
-					return segments[0];
-
-				return "<" + href + ">";
+					o << segments[0];
+				else
+					o << '<' << href << '>';
 			}
 
-			std::string Url::markup(const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr&) const
+			void Url::markup(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr&) const
 			{
 				auto contents = href;
 				if (!segments.empty())
 					contents = segments[0];
 
-				std::ostringstream o;
 				o << "<a href=\"" << url::htmlQuotes(href) << "\">" << url::htmlQuotes(contents) << "</a>";
-				return o.str();
 			}
 		
-			std::string Image::debug(const std::string& href, const segments_t& segments) const
+			void Image::debug(std::ostream& o, const std::string& href, const segments_t& segments) const
 			{
-				return "Image:" + href;
+				o << "Image:" << href;
 			}
 
-			std::string Image::text(const std::string&, const segments_t&, const variables_t&) const
+			void Image::text(std::ostream& o, const std::string&, const segments_t&, const variables_t&) const
 			{
-				return std::string();
 			}
 
-			std::string Image::markup(const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr& styler) const
+			void Image::markup(std::ostream& o, const std::string& href, const segments_t& segments, const variables_t&, const styler_ptr& styler) const
 			{
 				std::string alt;
 				if (!segments.empty())
 					alt = " alt=\"" + segments[0] + "\"";
 
 				if (styler)
-					return styler->image(href, std::string(), alt);
-
-				return "<img src=\"" + url::htmlQuotes(href) + "\"" + alt + "/>";
+					styler->image(o, href, std::string(), alt);
+				else
+					o << "<img src=\"" << url::htmlQuotes(href) << "\"" << alt << "/>";
 			}
 
-			std::string Unknown::debug(const std::string& href, const segments_t& segments) const
+			void Unknown::debug(std::ostream& o, const std::string& href, const segments_t& segments) const
 			{
-				std::ostringstream o;
 				o << name() << "?" << href;
 				for (auto&& seg : segments)
 					o << "|" << seg;
-
-				return o.str();
 			}
 		}
 
@@ -168,7 +152,7 @@ namespace wiki
 			list_ctx ctx;
 			std::ostringstream o;
 			for (auto&& node : collection)
-				o << node->text(vars, ctx);
+				node->text(o, vars, ctx);
 			return o.str();
 		}
 
@@ -180,42 +164,47 @@ namespace wiki
 			list_ctx ctx;
 			std::ostringstream o;
 			for (auto&& node : collection)
-				o << node->debug();
+				node->debug(o);
 			return o.str();
 		}
 
-		std::string Link::debug() const
+		void Link::debug(std::ostream& o) const
 		{
 			if (!m_ns)
-				return "<LINK:nullptr>";
+			{
+				o << "<LINK:nullptr>";
+				return;
+			}
 
 			std::string href;
 			link::segments_t segs;
 			debug(href, segs);
 
-			return "<LINK:" + m_ns->debug(href, segs) + ">";
+			o << "<LINK:";
+			m_ns->debug(o, href, segs);
+			o << '>';
 		}
 
-		std::string Link::text(const variables_t& vars, list_ctx&) const
+		void Link::text(std::ostream& o, const variables_t& vars, list_ctx&) const
 		{
 			if (!m_ns)
-				return std::string();
+				return;
 
 			std::string href;
 			link::segments_t segs;
 			produce(href, segs, vars);
-			return m_ns->text(href, segs, vars);
+			m_ns->text(o, href, segs, vars);
 		}
 
-		std::string Link::markup(const variables_t& vars, const styler_ptr& styler, list_ctx&) const
+		void Link::markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx&) const
 		{
 			if (!m_ns)
-				return std::string();
+				return;
 
 			std::string href;
 			link::segments_t segs;
 			produce(href, segs, vars);
-			return m_ns->markup(href, segs, vars, styler);
+			m_ns->markup(o, href, segs, vars, styler);
 		}
 
 		void Link::normalize()
@@ -229,7 +218,9 @@ namespace wiki
 			{
 				base = 2;
 				list_ctx ctx;
-				auto ns = m_children[0]->text(variables_t(), ctx);
+				std::ostringstream o;
+				m_children[0]->text(o, variables_t(), ctx);
+				auto ns = o.str();
 				if (ns == "Image")
 					m_ns = std::make_shared<link::Image>();
 				else
@@ -273,50 +264,49 @@ namespace wiki
 
 	namespace block_elem
 	{
-		std::string Block::text(const variables_t& vars, list_ctx& ctx) const
+		void Block::text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const
 		{
-			return Node::text(vars, ctx) + "\n\n";
+			Node::text(o, vars, ctx);
+			o << "\n\n";
 		}
 
-		std::string Block::markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const
+		void Block::markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const
 		{
-			std::ostringstream o;
-			o << styler->begin_block(m_tag);
+			styler->begin_block(o, m_tag);
 			for (auto& child : m_children)
-				o << child->markup(vars, styler, ctx);
-			o << styler->end_block(m_tag);
-			return o.str();
+				child->markup(o, vars, styler, ctx);
+			styler->end_block(o, m_tag);
 		}
 
-		std::string Block::debug() const
+		void Block::debug(std::ostream& o) const
 		{
-			return "\n" + Node::debug() + "\n";
+			o << '\n';
+			Node::debug(o);
+			o << '\n';
 		}
 
-		std::string Quote::text(const variables_t& vars, list_ctx& ctx) const
+		void Quote::text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const
 		{
 			std::string indent = ctx.indentStr();
-			std::ostringstream o;
 			o << indent << "> ";
 			ctx.indentStr(indent + "> ");
 			for (auto& child : m_children)
-				o << child->text(vars, ctx);
+				child->text(o, vars, ctx);
 			ctx.indentStr(indent);
-			return o.str();
 		}
 
-		std::string Item::text(const variables_t& vars, list_ctx& ctx) const
+		void Item::text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const
 		{
-			std::ostringstream o;
 			o << ctx.indentStr() << " - ";
 			for (auto& child : m_children)
-				o << child->text(vars, ctx);
-			return o.str();
+				child->text(o, vars, ctx);
 		}
 
-		std::string Signature::text(const variables_t& vars, list_ctx& ctx) const
+		void Signature::text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const
 		{
-			return "-- \n" + Node::text(vars, ctx) + "\n\n";
+			o << "-- \n";
+			Node::text(o, vars, ctx);
+			o << "\n\n";
 		}
 	}
 }

@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iosfwd>
 
 namespace filesystem
 {
@@ -61,20 +62,20 @@ namespace wiki
 	struct styler
 	{
 		virtual ~styler() {}
-		virtual std::string begin_document() = 0;
-		virtual std::string end_document() = 0;
-		virtual std::string image(const std::string& path, const std::string& styles, const std::string& alt) const = 0;
-		virtual std::string begin_block(const std::string& tag) = 0;
-		virtual std::string end_block(const std::string& tag) = 0;
-		virtual std::string hr() = 0;
+		virtual void begin_document(std::ostream& o) = 0;
+		virtual void end_document(std::ostream& o) = 0;
+		virtual void image(std::ostream& o, const std::string& path, const std::string& styles, const std::string& alt) const = 0;
+		virtual void begin_block(std::ostream& o, const std::string& tag) = 0;
+		virtual void end_block(std::ostream& o, const std::string& tag) = 0;
+		virtual void hr(std::ostream& o) = 0;
 	};
 
 	struct document
 	{
 		virtual ~document() {}
 
-		virtual std::string text(const variables_t& vars, list_ctx& ctx) const = 0;
-		virtual std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const = 0;
+		virtual void text(std::ostream& o, const variables_t& vars, list_ctx& ctx) const = 0;
+		virtual void markup(std::ostream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const = 0;
 	};
 
 	document_ptr compile(const filesystem::path& file);
