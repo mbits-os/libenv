@@ -82,7 +82,7 @@ namespace FastCGI { namespace app {
 	{
 		std::string display_name;
 		std::string icon;
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 		std::string icicle = request.getIcicle();
 		if (!icicle.empty())
 		{
