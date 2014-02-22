@@ -287,5 +287,36 @@ namespace wiki
 			o << styler->end_block(m_tag);
 			return o.str();
 		}
+
+		std::string Block::debug() const
+		{
+			return "\n" + Node::debug() + "\n";
+		}
+
+		std::string Quote::text(const variables_t& vars, list_ctx& ctx) const
+		{
+			std::string indent = ctx.indentStr();
+			std::ostringstream o;
+			o << indent << "> ";
+			ctx.indentStr(indent + "> ");
+			for (auto& child : m_children)
+				o << child->text(vars, ctx);
+			ctx.indentStr(indent);
+			return o.str();
+		}
+
+		std::string Item::text(const variables_t& vars, list_ctx& ctx) const
+		{
+			std::ostringstream o;
+			o << ctx.indentStr() << " - ";
+			for (auto& child : m_children)
+				o << child->text(vars, ctx);
+			return o.str();
+		}
+
+		std::string Signature::text(const variables_t& vars, list_ctx& ctx) const
+		{
+			return "-- \n" + Node::text(vars, ctx) + "\n\n";
+		}
 	}
 }

@@ -220,14 +220,79 @@ namespace wiki
 		{
 			std::string m_sep;
 		public:
-			Block(const std::string& tag, const Nodes& children = Nodes(), const std::string& sep = " ")
+			Block(const std::string& tag, const Nodes& children, const std::string& sep = " ")
 				: Node(tag, children)
 				, m_sep(sep)
 			{
 			}
 
-			std::string text(const variables_t& vars, list_ctx&) const override;
-			std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx&) const override;
+			std::string text(const variables_t& vars, list_ctx& ctx) const override;
+			std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override;
+			std::string debug() const override;
+		};
+
+		class Header : public Block
+		{
+			int m_level;
+		public:
+			Header(int level, const Nodes& children) : Block("h" + std::to_string(level), children), m_level(level) {}
+		};
+
+		class Para : public Block
+		{
+		public:
+			Para(const Nodes& children) : Block("p", children) {}
+		};
+
+		class Pre : public Block
+		{
+		public:
+			Pre(const Nodes& children) : Block("pre", children, "\n") {}
+		};
+
+		class Quote : public Block
+		{
+		public:
+			Quote(const Nodes& children) : Block("quote", children) {}
+
+			std::string text(const variables_t& vars, list_ctx& ctx) const override;
+		};
+
+		class OList : public Block
+		{
+		public:
+			OList(const Nodes& children) : Block("ol", children) {}
+		};
+
+		class UList : public Block
+		{
+		public:
+			UList(const Nodes& children) : Block("ul", children) {}
+		};
+
+		class Item : public Block
+		{
+		public:
+			Item(const Nodes& children) : Block("li", children) {}
+
+			std::string text(const variables_t& vars, list_ctx& ctx) const override;
+		};
+
+		class HR : public Block
+		{
+		public:
+			HR() : Block("hr", Nodes()) {}
+
+			std::string text(const variables_t&, list_ctx&) const override { return std::string(); }
+			std::string markup(const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const override { return styler->hr(); }
+		};
+
+		class Signature : public Block
+		{
+		public:
+			Signature(const Nodes& children) : Block("sign", children) {}
+
+			std::string text(const variables_t& vars, list_ctx& ctx) const override;
 		};
 	}
 }

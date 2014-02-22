@@ -140,6 +140,11 @@ namespace wiki
 			items.push_back(elem);
 			return elem;
 		}
+		template <typename Class, typename... Args>
+		static inline std::shared_ptr<Class> make_block(Args&&... args)
+		{
+			return std::make_shared<Class>(std::forward<Args>(args)...);
+		}
 	};
 
 	/* public: */
@@ -179,6 +184,19 @@ namespace wiki
 
 		Nodes children;
 		compiler::compile(children, blocks, false);
+
+		variables_t vars;
+		list_ctx ctx;
+
+		for (auto&& child : children)
+		{
+			if (!child)
+				std::cout << "(nullptr)";
+			else
+				std::cout << child->debug();
+		}
+
+		std::cout << std::endl;
 
 		return nullptr;
 	}
@@ -263,23 +281,27 @@ namespace wiki
 
 	NodePtr compiler::compile(const parser::Parser::Block& block, bool pre)
 	{
+		using BLOCK = parser::Parser::BLOCK;
+
 		if (!pre)
-			pre = block.type == parser::Parser::BLOCK::PRE;
+			pre = block.type == BLOCK::PRE;
 		auto children = compile(block.tokens, pre);
 		compile(children, block.items, pre);
 
-		variables_t vars;
-		list_ctx ctx;
-
-		for (auto&& child : children)
+		switch (block.type)
 		{
-			if (!child)
-				std::cout << "(nullptr)";
-			else
-				std::cout << child->debug();
+		case BLOCK::HEADER:    return make_block<block_elem::Header>(block.iArg, children);
+		case BLOCK::PARA:      return make_block<block_elem::Para>(children);
+		case BLOCK::QUOTE:     return make_block<block_elem::Quote>(children);
+		case BLOCK::PRE:       return make_block<block_elem::Pre>(children);
+		case BLOCK::UL:        return make_block<block_elem::UList>(children);
+		case BLOCK::OL:        return make_block<block_elem::OList>(children);
+		case BLOCK::ITEM:      return make_block<block_elem::Item>(children);
+		case BLOCK::HR:        return make_block<block_elem::HR>();
+		case BLOCK::SIGNATURE: return make_block<block_elem::Signature>(children);
+		default:
+			break;
 		}
-
-		std::cout << std::endl;
 
 		return nullptr;
 	}
