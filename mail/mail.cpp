@@ -30,9 +30,11 @@
 #include <curl/curl.h>
 #include <future>
 #include <thread>
+#include <fast_cgi/application.hpp>
+#include <filesystem.hpp>
 
-#define MACHINE "reedr.net"
-#define SMTP "smtp://localhost"
+//#define MACHINE "reedr.net"
+//#define SMTP "smtp://localhost"
 //#define SMTP_USER
 //#define SMTP_PASS
 
@@ -45,6 +47,13 @@
 
 namespace mail
 {
+	struct configuration
+	{
+		std::string server, user, password, machine;
+	};
+
+	static configuration g_smtp;
+
 	void MimePart::echo()
 	{
 		if (m_fileName.empty())
@@ -274,6 +283,11 @@ namespace mail
 		m_downstream->close();
 	}
 
+	void Message::setFrom(const std::string& name)
+	{
+		m_from.assign(name, g_smtp.user + "@" + g_smtp.machine);
+	}
+
 	std::string Message::getSender() const { return m_from.mail(); }
 
 	std::vector<std::string> Message::getRecipients() const
@@ -296,6 +310,55 @@ namespace mail
 			[](const Address& a) { return a.mail(); }
 		);
 		return tos;
+	}
+
+	static bool readProps(const filesystem::path& path, std::map<std::string, std::string>& props)
+	{
+		std::ifstream ini(path.native());
+		if (!ini.is_open())
+			return false;
+
+		std::string line;
+		while (!ini.eof())
+		{
+			ini >> line;
+			std::string::size_type enter = line.find('=');
+			if (enter != std::string::npos)
+				props[line.substr(0, enter)] = line.substr(enter + 1);
+		}
+		return true;
+	}
+
+	std::string read(const std::map<std::string, std::string>& props, const std::string& key)
+	{
+		auto it = props.find(key);
+		if (it == props.end())
+			return std::string();
+
+		return it->second;
+	}
+
+	void PostOffice::init(const filesystem::path& ini)
+	{
+		std::map<std::string, std::string> props;
+		if (!readProps(ini, props))
+			return;
+
+		g_smtp.server = read(props, "server");
+		g_smtp.user = read(props, "user");
+		g_smtp.password = read(props, "password");
+		g_smtp.machine = read(props, "machine");
+
+		if (g_smtp.server.empty())
+			FLOG << "SMTP config is missing server key";
+
+		if (g_smtp.user.empty())
+			FLOG << "SMTP config is missing user key";
+
+		if (g_smtp.machine.empty())
+		{
+			g_smtp.machine = g_smtp.server.substr(0, g_smtp.server.find(':'));
+		}
 	}
 
 	void PostOffice::post(const MessagePtr& ptr, bool async)
@@ -376,15 +439,17 @@ namespace mail
 
 		if (!m_curl)
 			return false;
-		curl_easy_setopt(m_curl, CURLOPT_URL, SMTP);
+		curl_easy_setopt(m_curl, CURLOPT_URL, g_smtp.server.c_str());
 		curl_easy_setopt(m_curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
 		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
-#if defined(SMTP_USER) && defined(SMTP_PASS)
-		curl_easy_setopt(m_curl, CURLOPT_USERNAME, SMTP_USER);
-		curl_easy_setopt(m_curl, CURLOPT_PASSWORD, SMTP_PASS);
-#endif
+		if (!g_smtp.user.empty() && !g_smtp.password.empty())
+		{
+			curl_easy_setopt(m_curl, CURLOPT_USERNAME, g_smtp.user.c_str());
+			curl_easy_setopt(m_curl, CURLOPT_PASSWORD, g_smtp.password.c_str());
+		}
+
 		return true;
 	}
 
@@ -429,7 +494,7 @@ namespace mail
 		Crypt::md5_t boundary;
 		Crypt::md5(now, boundary);
 
-		auto msg = std::make_shared<Message>(subject, boundary, MACHINE, producer);
+		auto msg = std::make_shared<Message>(subject, boundary, g_smtp.machine, producer);
 		producer->setMessage(msg);
 		return msg;
 	}

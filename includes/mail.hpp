@@ -33,6 +33,11 @@
 #include <fstream>
 #include <filter.hpp>
 
+namespace filesystem
+{
+	class path;
+}
+
 namespace mail
 {
 	using filter::Filter;
@@ -260,6 +265,7 @@ namespace mail
 
 		void setSubject(const std::string& subject) { m_subject = subject; }
 		void setFrom(const std::string& name, const std::string& mail) { m_from.assign(name, mail); }
+		void setFrom(const std::string& name);
 		void addTo(const std::string& name, const std::string& mail) { m_to.push_back(Address(name, mail)); }
 		void addCc(const std::string& name, const std::string& mail) { m_cc.push_back(Address(name, mail)); }
 		void addBcc(const std::string& name, const std::string& mail) { m_bcc.push_back(Address(name, mail)); }
@@ -276,6 +282,7 @@ namespace mail
 	{
 		static int send(const std::string& from, const std::vector<std::string>& to, const MessagePtr& ptr);
 	public:
+		static void init(const filesystem::path& ini);
 		static void post(const MessagePtr& ptr, bool async);
 		static MessagePtr newMessage(const std::string& subject, const MessageProducerPtr& producer);
 	};
