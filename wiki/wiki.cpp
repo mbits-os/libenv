@@ -176,6 +176,12 @@ namespace wiki
 			styler->end_document(o);
 		}
 
+		void debug(stream& o) const override
+		{
+			for (auto& child : m_children)
+				child->debug(o);
+		}
+
 		void store(const filesystem::path& obj)
 		{
 			binary::Writer wr;

@@ -98,7 +98,7 @@ namespace wiki
 		virtual void begin_document(stream& o) = 0;
 		virtual void end_document(stream& o) = 0;
 		virtual void image(stream& o, const std::string& path, const std::string& styles, const std::string& alt) const = 0;
-		virtual void begin_block(stream& o, const std::string& tag) = 0;
+		virtual void begin_block(stream& o, const std::string& tag, const std::string& additional_style = std::string()) = 0;
 		virtual void end_block(stream& o, const std::string& tag) = 0;
 		virtual void hr(stream& o) = 0;
 	};
@@ -109,6 +109,7 @@ namespace wiki
 
 		virtual void text(stream& o, const variables_t& vars, list_ctx& ctx) const = 0;
 		virtual void markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const = 0;
+		virtual void debug(stream& o) const = 0;
 	};
 
 	document_ptr compile(const filesystem::path& file, const filesystem::path& obj);

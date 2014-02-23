@@ -125,6 +125,14 @@ namespace wiki
 				o << it->second;
 		}
 
+		void Element::markup(stream& o, const variables_t& vars, const styler_ptr& styler, list_ctx& ctx) const
+		{
+			o << '<' << m_tag << '>';
+			for (auto& child : m_children)
+				child->markup(o, vars, styler, ctx);
+			o << "</" << m_tag << '>';
+		}
+
 		namespace link
 		{
 			void Url::debug(stream& o, const std::string& href, const segments_t& segments) const

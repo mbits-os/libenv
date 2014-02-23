@@ -141,6 +141,7 @@ namespace wiki
 		public:
 			using Node::Node;
 			bool store(binary::Writer& w) const override { return w.store(binary::TAG::ELEMENT, m_tag, m_children); }
+			void markup(stream& o, const variables_t& vars, const styler_ptr&, list_ctx& ctx) const override;
 		};
 
 		namespace link
@@ -295,16 +296,23 @@ namespace wiki
 			void text(stream& o, const variables_t& vars, list_ctx& ctx) const override;
 		};
 
-		class OList : public SimpleBlock<binary::TAG::OLIST>
+		template<binary::TAG bin>
+		class ListBlock : public SimpleBlock<bin>
 		{
 		public:
-			OList(const Nodes& children) : SimpleBlock<binary::TAG::OLIST>("ol", children) {}
+			ListBlock(const Nodes& children) : SimpleBlock<bin>(bin == binary::TAG::OLIST ? "ol" : "ul", children) {}
 		};
 
-		class UList : public SimpleBlock<binary::TAG::ULIST>
+		class OList : public ListBlock<binary::TAG::OLIST>
 		{
 		public:
-			UList(const Nodes& children) : SimpleBlock<binary::TAG::ULIST>("ul", children) {}
+			using ListBlock<binary::TAG::OLIST>::ListBlock;
+		};
+
+		class UList : public ListBlock<binary::TAG::ULIST>
+		{
+		public:
+			using ListBlock<binary::TAG::ULIST>::ListBlock;
 		};
 
 		class Item : public SimpleBlock<binary::TAG::ITEM>
