@@ -93,6 +93,7 @@ namespace mail
 		}
 
 		virtual bool addLength() const { return true; }
+		virtual const char* contentDisposition() const { return "inline"; }
 
 		virtual void pipe(const FilterPtr& downstream)
 		{
@@ -141,6 +142,7 @@ namespace mail
 		ImagePart(size_t part, const std::string& machine, const std::string& mime, const std::string& path);
 		const std::string& getCID() const { return m_cid; }
 		void echoBody() override;
+		const char* contentDisposition() const override { return "attachment"; }
 	};
 
 	struct TextProducer
@@ -233,6 +235,7 @@ namespace mail
 	class Message: public Multipart
 	{
 		friend class PostOffice;
+		friend inline void post(const MessagePtr& message);
 
 		typedef std::vector<Address> Addresses;
 		size_t m_partsSoFar;
@@ -262,6 +265,11 @@ namespace mail
 
 		ImagePartPtr createInlineImage(const std::string& mime, const std::string& path);
 	};
+
+	inline void post(const MessagePtr& message)
+	{
+		message->post();
+	}
 
 	class PostOffice
 	{

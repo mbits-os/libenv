@@ -48,9 +48,9 @@ namespace mail
 	void MimePart::echo()
 	{
 		if (m_fileName.empty())
-			addHeader("Content-Disposition", "inline");
+			addHeader("Content-Disposition", contentDisposition());
 		else
-			addHeader("Content-Disposition", "inline; filename=" + m_fileName);
+			addHeader("Content-Disposition", contentDisposition() + ("; filename=" + m_fileName));
 
 		if (m_buffer)
 		{
@@ -132,12 +132,26 @@ namespace mail
 	void Multipart::echoBody()
 	{
 		auto raw = downstream();
-		for (auto& part : m_parts)
+		auto copy = m_parts;
+		decltype(copy.size()) prev_size = 0;
+		while (!copy.empty())
 		{
-			raw->put("--");
-			raw->put(m_boundary);
-			raw->put("\r\n");
-			part->echo();
+			for (auto& part : copy)
+			{
+				raw->put("--");
+				raw->put(m_boundary);
+				raw->put("\r\n");
+				part->echo();
+			}
+
+			prev_size += copy.size();
+			auto c_size = prev_size;
+			auto o_size = m_parts.size();
+			auto start = c_size < o_size ? c_size : o_size;
+
+			auto begin = m_parts.begin();
+			std::advance(begin, start);
+			copy.assign(begin, m_parts.end());
 		}
 
 		raw->put("--");
@@ -210,6 +224,7 @@ namespace mail
 	ImagePartPtr Message::createInlineImage(const std::string& mime, const std::string& path)
 	{
 		auto img = std::make_shared<ImagePart>(++m_partsSoFar, m_machine, mime, path);
+		img->pipe(m_downstream);
 		push_back(img);
 		return img;
 	}
