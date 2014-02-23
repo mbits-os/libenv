@@ -230,6 +230,7 @@ namespace mail
 		virtual ~MessageProducer() {}
 		virtual void echoPlain(const FilterPtr& downstream) = 0;
 		virtual void echoHtml(const FilterPtr& downstream) = 0;
+		virtual void setMessage(const MessageWeakPtr& message) = 0;
 	};
 
 	class Message: public Multipart

@@ -420,13 +420,18 @@ namespace mail
 
 	MessagePtr PostOffice::newMessage(const std::string& subject, const MessageProducerPtr& producer)
 	{
+		if (!producer)
+			return nullptr;
+
 		char now[100];
 		tyme::strftime(now, "%a, %d %b %Y %H:%M:%S GMT", tyme::gmtime(tyme::now()));
 
 		Crypt::md5_t boundary;
 		Crypt::md5(now, boundary);
 
-		return std::make_shared<Message>(subject, boundary, MACHINE, producer);
+		auto msg = std::make_shared<Message>(subject, boundary, MACHINE, producer);
+		producer->setMessage(msg);
+		return msg;
 	}
 
 }
