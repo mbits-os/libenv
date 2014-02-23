@@ -41,6 +41,7 @@ namespace lng
 };
 
 #define on500(log) __on500(__FILE__, __LINE__, log)
+#define sendMail(info) __sendMail(__FILE__, __LINE__, info)
 
 namespace FastCGI
 {
@@ -84,6 +85,36 @@ namespace FastCGI
 		virtual const char* getPageTitle(PageTranslation& tr) { return nullptr; }
 	};
 	typedef std::shared_ptr<Content> ContentPtr;
+
+	struct MailInfo
+	{
+		struct Recipient
+		{
+			std::string name;
+			std::string email;
+
+			Recipient() = default;
+			Recipient(const Recipient&) = default;
+			Recipient& operator=(const Recipient&) = default;
+			Recipient(const std::string& name, const std::string& email) : name(name), email(email) {}
+		};
+
+		using Recipients = std::vector<Recipient>;
+		using Variables = std::map<std::string, std::string>;
+
+		filesystem::path mailFile;
+		std::string subject;
+		Recipients to, cc;
+		Variables variables;
+
+		MailInfo(const filesystem::path& mailFile, const std::string& subject) : mailFile(mailFile), subject(subject) {}
+		MailInfo(filesystem::path&& mailFile, std::string&& subject) : mailFile(std::move(mailFile)), subject(std::move(subject)) {}
+
+		void add_to(const std::string& name, const std::string& email) { to.emplace_back(name, email); }
+		void add_cc(const std::string& name, const std::string& email) { cc.emplace_back(name, email); }
+
+		void var(const std::string& name, const std::string& value) { variables[name] = value; }
+	};
 
 	class static_resources_t {};
 	class Request
@@ -181,7 +212,7 @@ namespace FastCGI
 		void endSession(const std::string& sessionId);
 
 		lng::TranslationPtr httpAcceptLanguage();
-		void sendMail(const char* mailFile, const char* email);
+		void __sendMail(const char* file, int line, const MailInfo& info);
 
 		RequestStatePtr getRequestState() { return m_requestState; }
 		void setRequestState(RequestStatePtr state) { m_requestState = state; }

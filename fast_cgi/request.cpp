@@ -30,6 +30,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <wiki.hpp>
+#include <mail.hpp>
+#include <wiki_mailer.hpp>
 
 #define MAX_FORM_BUFFER 10240
 
@@ -37,6 +40,27 @@ FastCGI::static_resources_t static_web{};
 
 namespace FastCGI
 {
+	struct RequestFilter : mail::Filter
+	{
+		Request& req;
+		RequestFilter(Request& req) : req(req) {}
+
+		void onChar(char c) override
+		{
+			req << c;
+		}
+	};
+
+	struct RequestStream : wiki::stream
+	{
+		Request& req;
+		explicit RequestStream(Request& req) : req(req) {}
+		void write(const char* buffer, size_t size)
+		{
+			req << std::string(buffer, buffer + size);
+		}
+	};
+
 	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
 		if (session)
@@ -519,10 +543,42 @@ namespace FastCGI
 		return app().httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
 	}
 
-	void Request::sendMail(const char* mailFile, const char* email)
+	void Request::__sendMail(const char* file, int line, const MailInfo& info)
 	{
+		if (info.to.empty())
+			__on500(file, line, "Field `To:` empty when trying to send a message " + info.subject);
+
 		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
 		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		auto path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, mailFile);
+		auto path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, info.mailFile);
+		auto doc = wiki::compile(path);
+
+		if (!doc)
+			__on500(file, line, "Could not load WIKI file from " + info.mailFile.native() + " while trying to send a message (" + info.subject + " to " + info.to[0].email + ")");
+
+		auto producer = mail::make_wiki_producer(doc, info.variables, app().getDataDir());
+		auto message = PostOffice::newMessage(info.subject, producer);
+
+		if (!producer || !message)
+			on500("OOM while trying to send a message (" + info.subject + " to " + info.to[0].email + ")");
+
+		message->setSubject(info.subject);
+		message->setFrom("reedr Support Team", "no-reply@reedr.net");
+		for (auto&& addr : info.to)
+			message->addTo(addr.name, addr.email);
+		for (auto&& addr : info.cc)
+			message->addCc(addr.name, addr.email);
+
+		auto filter = std::make_shared<RequestFilter>(*this);
+		message->pipe(filter);
+		setHeader("Content-Type", "application/octet-stream; charset=utf-8");
+		setHeader("Content-Disposition", "inline; filename=reset.eml");
+
+		//RequestStream dbg{ *this };
+		//doc->debug(dbg);
+		//*this << "\n";
+
+		post(message);
+		die();
 	}
 }
