@@ -233,8 +233,8 @@ namespace mail
 		}
 	};
 
-	MessageProducerPtr make_producer(const wiki::document_ptr& doc, const wiki::variables_t& vars, const filesystem::path& data)
+	MessageProducerPtr make_wiki_producer(const wiki::document_ptr& doc, const wiki::variables_t& vars, const filesystem::path& data)
 	{
-		return std::make_shared<WikiMessageProducer>();
+		return std::make_shared<WikiMessageProducer>(doc, vars, data);
 	}
 }
