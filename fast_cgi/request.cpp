@@ -563,7 +563,7 @@ namespace FastCGI
 			on500("OOM while trying to send a message (" + info.subject + " to " + info.to[0].email + ")");
 
 		message->setSubject(info.subject);
-		message->setFrom("reedr Support Team", "no-reply@reedr.net");
+		message->setFrom(info.userName);
 		for (auto&& addr : info.to)
 			message->addTo(addr.name, addr.email);
 		for (auto&& addr : info.cc)
@@ -578,7 +578,6 @@ namespace FastCGI
 		//doc->debug(dbg);
 		//*this << "\n";
 
-		post(message);
-		die();
+		mail::PostOffice::post(message, true);
 	}
 }
