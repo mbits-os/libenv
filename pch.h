@@ -63,4 +63,16 @@ namespace std
 	}
 }
 
+#ifdef __GNUC__
+namespace std
+{
+	inline std::string to_string(int i)
+	{
+		char buffer[64];
+		sprintf(buffer, "%d", i);
+		return buffer;
+	}
+}
+#endif
+
 #endif //__LIBENV_PCH_H__

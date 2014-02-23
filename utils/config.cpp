@@ -84,61 +84,6 @@ namespace config
 		template <typename T>
 		T any_cast(const any& value) { return value.cast<T>(); }
 
-#ifdef __CYGWIN__
-		void strrev(char *str)
-		{
-			int i;
-			int j;
-			unsigned char a;
-			unsigned len = strlen(str);
-
-			for (i = 0, j = len - 1; i < j; i++, j--)
-			{
-				a = str[i];
-				str[i] = str[j];
-				str[j] = a;
-			}
-		}
-
-		int itoa(int num, char* str, int len, int base = 10)
-		{
-			int sum = num;
-			int i = 0;
-			int digit;
-
-			if (len == 0)
-				return -1;
-
-			do
-			{
-				digit = sum % base;
-
-				if (digit < 0xA)
-					str[i++] = '0' + digit;
-				else
-					str[i++] = 'A' + digit - 0xA;
-
-				sum /= base;
-
-			} while (sum && (i < (len - 1)));
-
-			if (i == (len - 1) && sum)
-				return -1;
-
-			str[i] = '\0';
-			strrev(str);
-
-			return 0;
-		}
-
-		std::string to_string(int a)
-		{
-			char buffer[40];
-			itoa(a, buffer, sizeof(buffer));
-			return buffer;
-		}
-#endif
-
 		struct section: base::section
 		{
 			typedef std::map<std::string, any> map_t;
@@ -182,11 +127,7 @@ namespace config
 				if (any.type() == typeid(bool))
 					return any_cast<bool>(any) ? "true" : "false";
 				if (any.type() == typeid(int))
-#ifdef __CYGWIN__
-					return to_string(any_cast<int>(any));
-#else
 					return std::to_string(any_cast<int>(any));
-#endif
 				return any_cast<std::string>(it->second);
 			}
 			int get_int(const std::string& name, int def_val) const override

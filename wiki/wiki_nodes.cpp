@@ -26,18 +26,6 @@
 #include "wiki_nodes.hpp"
 #include <sstream>
 
-#ifdef __GNUC__
-namespace std
-{
-	std::string to_string(int i)
-	{
-		char buffer[64];
-		sprintf(buffer, "%d", i);
-		return buffer;
-	}
-}
-#endif
-
 namespace wiki
 {
 	inline stream& operator << (stream& o, TOKEN tok)

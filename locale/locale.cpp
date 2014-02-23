@@ -95,7 +95,6 @@ namespace lng
 
 	filesystem::path Locale::getFilename(const char* header, const filesystem::path& filename)
 	{
-		struct _stat st;
 		std::list<std::string> langs = url::priorityList(header);
 		for (auto& lang : langs)
 		{

@@ -30,18 +30,6 @@
 #include <string>
 #include <utils.hpp>
 
-#if WIN32
-#include <io.h>
-#include <fcntl.h>
-
-static inline int pipe(int* fd) { return _pipe(fd, 2048, O_BINARY); }
-
-#else
-#include <unistd.h>
-#define _read read
-#define _close close
-#endif
-
 namespace filter
 {
 	SHAREABLE(Filter);
@@ -125,25 +113,13 @@ namespace filter
 		std::string& str() { return m_out; }
 	};
 
-#ifdef POSIX
-#define _read read
-#define _write write
-#define _close close
-#endif
-
 	class FileDescriptor
 	{
 		int m_fd;
-#ifdef _MSC_VER
-		FileDescriptor() {}
-		FileDescriptor(const FileDescriptor&) {}
-		FileDescriptor& operator = (const FileDescriptor&) { return *this; }
-#else
+	public:
 		FileDescriptor() = delete;
 		FileDescriptor(const FileDescriptor&) = delete;
 		FileDescriptor& operator = (const FileDescriptor&) = delete;
-#endif
-	public:
 
 		explicit FileDescriptor(int fd): m_fd(fd) {}
 		FileDescriptor(FileDescriptor&& right)
@@ -161,9 +137,9 @@ namespace filter
 			rhs.m_fd = old;
 			return *this;
 		}
-		size_t read(void* buffer, size_t len) { return ::_read(m_fd, buffer, len); }
-		size_t write(const void* buffer, size_t len) { return ::_write(m_fd, buffer, len); }
-		void close() { if (m_fd) ::_close(m_fd); m_fd = 0; }
+		size_t read(void* buffer, size_t len);
+		size_t write(const void* buffer, size_t len);
+		void close();
 	};
 
 	struct Pipe

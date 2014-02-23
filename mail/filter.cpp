@@ -25,8 +25,30 @@
 #include "pch.h"
 #include <filter.hpp>
 
+#if WIN32
+#include <io.h>
+#include <fcntl.h>
+
+static inline int pipe(int* fd) { return _pipe(fd, 2048, O_BINARY); }
+
+#else
+#include <unistd.h>
+#define _read read
+#define _close close
+#endif
+
 namespace filter
 {
+#ifdef POSIX
+#define _read read
+#define _write write
+#define _close close
+#endif
+
+	size_t FileDescriptor::read(void* buffer, size_t len) { return ::_read(m_fd, buffer, len); }
+	size_t FileDescriptor::write(const void* buffer, size_t len) { return ::_write(m_fd, buffer, len); }
+	void FileDescriptor::close() { if (m_fd) ::_close(m_fd); m_fd = 0; }
+
 	void Base64Block::onChar(char c)
 	{
 		next(c);
