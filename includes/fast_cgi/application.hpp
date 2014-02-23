@@ -132,6 +132,7 @@ namespace FastCGI
 
 		long m_pid;
 		std::string m_staticWeb;
+		filesystem::path m_dataDir;
 		filesystem::path m_dbConf;
 		filesystem::path m_smtpConf;
 		filesystem::path m_accessLog;
@@ -170,6 +171,9 @@ namespace FastCGI
 
 		void setStaticResources(const std::string& url) { m_staticWeb = url; }
 		const std::string& getStaticResources() const { return m_staticWeb; }
+
+		void setDataDir(const filesystem::path& conf) { m_dataDir = conf; }
+		const filesystem::path& getDataDir() const { return m_dataDir; }
 
 		void setDBConn(const filesystem::path& conf) { m_dbConf = conf; }
 		const filesystem::path& getDBConn() const { return m_dbConf; }
