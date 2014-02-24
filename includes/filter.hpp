@@ -57,6 +57,11 @@ namespace filter
 		virtual ~Filter() {}
 		virtual void pipe(const FilterPtr& downstream) { m_downstream = downstream; }
 		virtual void onChar(char c) = 0;
+		virtual void bodyEnd()
+		{
+			if (m_downstream)
+				m_downstream->bodyEnd();
+		}
 		virtual void close()
 		{
 			if (m_downstream)
@@ -241,7 +246,6 @@ namespace filter
 		};
 	public:
 		void onChar(char c) override { Base64Encoder<Base64>::encode(c); }
-		void close() override { Base64Encoder<Base64>::close(); }
 		void output(char c) { next(c); }
 		static std::string encode(const std::string& message)
 		{
@@ -272,6 +276,7 @@ namespace filter
 	public:
 		Base64Block(): m_ptr(0) {}
 		void onChar(char c) override;
+		void bodyEnd() override;
 	};
 
 	// to have fully quoted printable, one should

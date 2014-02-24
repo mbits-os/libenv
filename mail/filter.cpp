@@ -59,6 +59,12 @@ namespace filter
 		}
 	}
 
+	void Base64Block::bodyEnd()
+	{
+		next("\r\n");
+		Filter::bodyEnd();
+	}
+
 	void Quoting::onChar(char c)
 	{
 		if (c == '=' || c == '.' || ((unsigned char)c > 0x80))

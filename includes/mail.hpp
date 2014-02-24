@@ -32,11 +32,7 @@
 #include <algorithm>
 #include <fstream>
 #include <filter.hpp>
-
-namespace filesystem
-{
-	class path;
-}
+#include <filesystem.hpp>
 
 //#define CONTENT_DISP_MUTABLE
 
@@ -147,9 +143,9 @@ namespace mail
 	class ImagePart: public MimePart
 	{
 		std::string m_cid;
-		std::string m_path;
+		filesystem::path m_path;
 	public:
-		ImagePart(size_t part, const std::string& machine, const std::string& mime, const std::string& path);
+		ImagePart(size_t part, const std::string& machine, const std::string& mime, const filesystem::path& path);
 		const std::string& getCID() const { return m_cid; }
 		void echoBody() override;
 #ifdef CONTENT_DISP_MUTABLE
@@ -173,7 +169,11 @@ namespace mail
 		{
 		}
 
-		void echoBody() override { m_producer->echo(sink()); }
+		void echoBody() override
+		{
+			m_producer->echo(sink());
+			sink()->bodyEnd();
+		}
 	};
 
 	class Multipart: public MimePart

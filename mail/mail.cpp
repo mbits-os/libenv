@@ -36,6 +36,7 @@
 #include <cctype>
 
 //#define DEBUG_SMTP
+//#define DEBUG_SMTP_FULL
 
 #if WIN32
 #include <direct.h>
@@ -48,7 +49,7 @@ namespace mail
 {
 	struct configuration
 	{
-		std::string server, user, password, machine;
+		std::string server, user, password, mailbox, machine;
 	};
 
 	static configuration g_smtp;
@@ -109,16 +110,12 @@ namespace mail
 #define SEP '/'
 #endif
 
-	ImagePart::ImagePart(size_t part, const std::string& machine, const std::string& mime, const std::string& path)
+	ImagePart::ImagePart(size_t part, const std::string& machine, const std::string& mime, const filesystem::path& path)
 		: MimePart(mime, "base64")
 		, m_cid(std::move(makeCID(part, machine)))
 		, m_path(path)
 	{
-		std::string::size_type pos = path.find_last_of(SEP);
-		if (pos != std::string::npos)
-			setFileName(path.substr(pos + 1));
-		else
-			setFileName(path);
+		setFileName(m_path.filename().string());
 		addHeader("Content-ID", "<" + m_cid + ">");
 	}
 
@@ -128,13 +125,13 @@ namespace mail
 		if (!filter)
 			return;
 
-		char buffer[2048];
-		_getcwd(buffer, 1024);
-		strcat(strcat(buffer, "\\"), m_path.c_str());
-		std::ifstream file(m_path, std::ios::in | std::ios::binary);
+		auto path = filesystem::canonical(m_path).native();
+		std::ifstream file(path, std::ios::in | std::ios::binary);
 		char c;
 		while (file.get(c))
 			filter->put(c);
+
+		filter->bodyEnd();
 	}
 
 	void Multipart::echoBody()
@@ -165,6 +162,8 @@ namespace mail
 		raw->put("--");
 		raw->put(m_boundary);
 		raw->put("--\r\n\r\n");
+
+		raw->bodyEnd();
 	}
 
 	void Multipart::pipe(const FilterPtr& downstream)
@@ -288,7 +287,7 @@ namespace mail
 
 	void Message::setFrom(const std::string& name)
 	{
-		m_from.assign(name, g_smtp.user + "@" + g_smtp.machine);
+		m_from.assign(name, g_smtp.mailbox + "@" + g_smtp.machine);
 	}
 
 	std::string Message::getSender() const { return m_from.mail(); }
@@ -350,6 +349,7 @@ namespace mail
 		g_smtp.server = read(props, "server");
 		g_smtp.user = read(props, "user");
 		g_smtp.password = read(props, "password");
+		g_smtp.mailbox = read(props, "mailbox");
 		g_smtp.machine = read(props, "machine");
 
 		if (g_smtp.server.empty())
@@ -357,6 +357,11 @@ namespace mail
 
 		if (g_smtp.user.empty())
 			FLOG << "SMTP config is missing user key";
+
+		if (g_smtp.mailbox.empty())
+		{
+			g_smtp.mailbox = g_smtp.user.substr(0, g_smtp.user.find('@'));
+		}
 
 		if (g_smtp.machine.empty())
 		{
@@ -386,7 +391,9 @@ namespace mail
 
 		static size_t fread(void *buffer, size_t size, size_t count, Curl* curl)
 		{
+#ifdef DEBUG_SMTP_FULL
 			FLOG << "Required " << count << " blocks of " << size << " bytes each (for " << curl << ")";
+#endif
 			return curl->m_fd.read(buffer, size * count) / size;
 		}
 
@@ -395,6 +402,7 @@ namespace mail
 		~Curl() { close(); }
 		bool open();
 		void close();
+		void closeFd();
 		void setSender(const std::string& from);
 		void setRecipients(const std::vector<std::string>& to);
 		void pipe(filter::FileDescriptor&& fd);
@@ -434,6 +442,7 @@ namespace mail
 		if (res != CURLE_OK)
 			FLOG << "curl_easy_perform() failed: " << curl_easy_strerror(res);
 
+		smtp.closeFd();
 		thread.join();
 		FLOG << "Message sent...";
 		return res;
@@ -493,7 +502,7 @@ namespace mail
 				FLOG << "== Info: " << data;
 		default: /* in case a new one is introduced to shock us */
 			return 0;
-
+#ifdef DEBUG_SMTP_FULL
 		case CURLINFO_HEADER_OUT:
 			text = "=> Send header";
 			break;
@@ -512,10 +521,13 @@ namespace mail
 		case CURLINFO_SSL_DATA_IN:
 			text = "<= Recv SSL data";
 			break;
+#endif
 		}
 
+#ifdef DEBUG_SMTP_FULL
 		dump(text, (unsigned char *)data, size);
 		return 0;
+#endif
 	}
 #endif
 
@@ -549,6 +561,11 @@ namespace mail
 	{
 		curl_slist_free_all(m_recipients);
 		curl_easy_cleanup(m_curl);
+	}
+
+	void Curl::closeFd()
+	{
+		m_fd.close();
 	}
 
 	void Curl::setSender(const std::string& from)

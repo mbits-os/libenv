@@ -570,7 +570,7 @@ namespace FastCGI
 			message->addCc(addr.name, addr.email);
 
 #if 1
-		FLOG << "PostOffixe::post";
+		FLOG << "PostOffice::post";
 		mail::PostOffice::post(message, true);
 		FLOG << "Posted";
 #else
