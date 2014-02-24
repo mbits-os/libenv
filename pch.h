@@ -63,7 +63,7 @@ namespace std
 	}
 }
 
-#ifdef __GNUC__
+#ifdef __CYGWIN__
 namespace std
 {
 	inline std::string to_string(int i)

@@ -32,11 +32,10 @@
 #include <thread>
 #include <fast_cgi/application.hpp>
 #include <filesystem.hpp>
+#include <iomanip>
+#include <cctype>
 
-//#define MACHINE "reedr.net"
-//#define SMTP "smtp://localhost"
-//#define SMTP_USER
-//#define SMTP_PASS
+//#define DEBUG_SMTP
 
 #if WIN32
 #include <direct.h>
@@ -67,7 +66,7 @@ namespace mail
 
 			std::ostringstream str;
 			str << m_buffer->size();
-				
+
 			addHeader("Content-Length", str.str());
 
 			echoHeaders();
@@ -87,7 +86,7 @@ namespace mail
 
 	void MimePart::echoHeaders()
 	{
-		for (auto& head: m_headers)
+		for (auto& head : m_headers)
 		{
 			m_downstream->put(head.first);
 			m_downstream->put(": ");
@@ -171,14 +170,14 @@ namespace mail
 	void Multipart::pipe(const FilterPtr& downstream)
 	{
 		MimePart::pipe(downstream);
-		for (auto part: m_parts)
+		for (auto part : m_parts)
 		{
 			part->pipe(downstream);
 		}
 	}
 
 	template <typename Upstream>
-	struct MethodProducer: TextProducer
+	struct MethodProducer : TextProducer
 	{
 		std::shared_ptr<Upstream> m_upstream;
 		void (Upstream::* m_method)(const FilterPtr&);
@@ -216,15 +215,17 @@ namespace mail
 		Crypt::md5(now, hash);
 
 		std::string msgId;
-		msgId.reserve(machine.size() + sizeof(hash) + 1);
-		msgId.append(hash, sizeof(hash) - 1);
+		msgId.reserve(machine.size() + sizeof(hash) + 3);
+		msgId.push_back('<');
+		msgId.append(hash, sizeof(hash)-1);
 		msgId.push_back('@');
 		msgId += machine;
+		msgId.push_back('>');
 
 		addHeader("Date", now);
-    	addHeader("Message-ID", msgId);
-    	addHeader("X-Mailer", "reedr/1.0");
-    	addHeader("MIME-Version", "1.0");
+		addHeader("Message-ID", msgId);
+		addHeader("X-Mailer", "reedr/1.0");
+		addHeader("MIME-Version", "1.0");
 		m_msg->push_back(m_text);
 		m_msg->push_back(m_html);
 		push_back(m_msg);
@@ -249,7 +250,7 @@ namespace mail
 	{
 		std::string out;
 		bool first = true;
-		for (auto& address: addresses)
+		for (auto& address : addresses)
 		{
 			if (first) first = false;
 			else out += ", ";
@@ -263,7 +264,7 @@ namespace mail
 	{
 		std::string out;
 		bool first = true;
-		for (auto& address: addresses)
+		for (auto& address : addresses)
 		{
 			if (first) first = false;
 			else out += ", ";
@@ -274,6 +275,7 @@ namespace mail
 
 	void Message::post()
 	{
+		FLOG << "Generating the message.";
 		addHeader("Subject", Base64::header(m_subject));
 		addHeader("From", m_from.format());
 		addHeader("To", join(m_to));
@@ -281,6 +283,7 @@ namespace mail
 		if (!m_bcc.empty()) addHeader("Bcc", join(m_bcc));
 		echo();
 		m_downstream->close();
+		FLOG << "Message generated";
 	}
 
 	void Message::setFrom(const std::string& name)
@@ -383,6 +386,7 @@ namespace mail
 
 		static size_t fread(void *buffer, size_t size, size_t count, Curl* curl)
 		{
+			FLOG << "Required " << count << " blocks of " << size << " bytes each (for " << curl << ")";
 			return curl->m_fd.read(buffer, size * count) / size;
 		}
 
@@ -399,30 +403,39 @@ namespace mail
 
 	int PostOffice::send(const std::string& from, const std::vector<std::string>& to, const MessagePtr& ptr)
 	{
+		FLOG << "Sending a message...";
 		if (to.empty())
 			return -1;
 
 		Curl smtp;
 		if (!smtp.open())
+		{
+			FLOG << "Could not open SMTP object";
 			return -1;
+		}
 
 		smtp.setSender(from);
 		smtp.setRecipients(to);
 
 		filter::Pipe pipe;
 		if (!pipe.open())
+		{
+			FLOG << "Could not create pipe.";
 			return -1;
+		}
 
 		smtp.pipe(std::move(pipe.reader));
 		ptr->pipe(std::make_shared<filter::FdFilter>(std::move(pipe.writer)));
 
-		std::async(std::launch::async, [ptr]() { ptr->post(); });
+		auto thread = std::thread([ptr]() { ptr->post(); });
 
 		auto res = smtp.transfer();
 
-		if(res != CURLE_OK)
-			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		if (res != CURLE_OK)
+			FLOG << "curl_easy_perform() failed: " << curl_easy_strerror(res);
 
+		thread.join();
+		FLOG << "Message sent...";
 		return res;
 	}
 
@@ -433,13 +446,86 @@ namespace mail
 	{
 	}
 
+#ifdef DEBUG_SMTP
+	static void dump(const char *text, unsigned char *ptr, size_t size)
+	{
+		constexpr unsigned int width = 0x10;
+
+		FLOG << text << ", " << size << " bytes";
+
+		for (size_t i = 0; i < size; i += width)
+		{
+			FastCGI::ApplicationLog log{ __FILE__, __LINE__ };
+
+			log << std::setw(4) << std::setfill('0') << std::hex << i << ": ";
+
+			/* hex not disabled, show it */
+			for (size_t c = 0; c < width; c++)
+			{
+				if (i + c < size)
+					log << std::setw(2) << std::setfill('0') << (int)ptr[i + c] << ' ';
+				else
+					log << "   ";
+			}
+
+			log << std::dec;
+
+			for (size_t c = 0; (c < width) && (i + c < size); c++)
+			{
+				auto _c = ptr[i + c];
+				if (std::isprint(_c))
+					log << _c;
+				else
+					log << '.';
+			}
+		}
+	}
+
+	static int my_trace(CURL *, curl_infotype type, char *data, size_t size, void *)
+	{
+		const char *text;
+
+		switch (type) {
+		case CURLINFO_TEXT:
+			if (data && data[strlen(data) - 1] == '\n')
+				FLOG << "== Info: " << std::string(data, data + (strlen(data) - 1));
+			else
+				FLOG << "== Info: " << data;
+		default: /* in case a new one is introduced to shock us */
+			return 0;
+
+		case CURLINFO_HEADER_OUT:
+			text = "=> Send header";
+			break;
+		case CURLINFO_DATA_OUT:
+			text = "=> Send data";
+			break;
+		case CURLINFO_SSL_DATA_OUT:
+			text = "=> Send SSL data";
+			break;
+		case CURLINFO_HEADER_IN:
+			text = "<= Recv header";
+			break;
+		case CURLINFO_DATA_IN:
+			text = "<= Recv data";
+			break;
+		case CURLINFO_SSL_DATA_IN:
+			text = "<= Recv SSL data";
+			break;
+		}
+
+		dump(text, (unsigned char *)data, size);
+		return 0;
+	}
+#endif
+
 	bool Curl::open()
 	{
 		m_curl = curl_easy_init();
 
 		if (!m_curl)
 			return false;
-		curl_easy_setopt(m_curl, CURLOPT_URL, g_smtp.server.c_str());
+		curl_easy_setopt(m_curl, CURLOPT_URL, ("smtp://" + g_smtp.server).c_str());
 		curl_easy_setopt(m_curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
 		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -449,6 +535,12 @@ namespace mail
 			curl_easy_setopt(m_curl, CURLOPT_USERNAME, g_smtp.user.c_str());
 			curl_easy_setopt(m_curl, CURLOPT_PASSWORD, g_smtp.password.c_str());
 		}
+
+#ifdef DEBUG_SMTP
+		curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, my_trace);
+		curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, nullptr);
+		curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 1l);
+#endif
 
 		return true;
 	}
@@ -466,7 +558,7 @@ namespace mail
 
 	void Curl::setRecipients(const std::vector<std::string>& to)
 	{
-		for (auto& addr: to)
+		for (auto& addr : to)
 			m_recipients = curl_slist_append(m_recipients, addr.c_str());
 		curl_easy_setopt(m_curl, CURLOPT_MAIL_RCPT, m_recipients);
 	}
@@ -475,11 +567,12 @@ namespace mail
 	{
 		m_fd = std::move(fd);
 		curl_easy_setopt(m_curl, CURLOPT_READFUNCTION, fread);
-		curl_easy_setopt(m_curl, CURLOPT_READDATA, this);
+		curl_easy_setopt(m_curl, CURLOPT_INFILE, this);
 	}
 
 	CURLcode Curl::transfer()
 	{
+		FLOG << "Transferring the data from descriptor";
 		return curl_easy_perform(m_curl);
 	}
 

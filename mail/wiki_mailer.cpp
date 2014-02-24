@@ -196,7 +196,7 @@ namespace mail
 		MessageWeakPtr message;
 
 		wiki::document_ptr doc;
-		const wiki::variables_t& vars;
+		wiki::variables_t vars;
 		filesystem::path data;
 
 		WikiMessageProducer(const wiki::document_ptr& doc, const wiki::variables_t& vars, const filesystem::path& data) : doc(doc), vars(vars), data(data) {}

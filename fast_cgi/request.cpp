@@ -569,6 +569,11 @@ namespace FastCGI
 		for (auto&& addr : info.cc)
 			message->addCc(addr.name, addr.email);
 
+#if 1
+		FLOG << "PostOffixe::post";
+		mail::PostOffice::post(message, true);
+		FLOG << "Posted";
+#else
 		auto filter = std::make_shared<RequestFilter>(*this);
 		message->pipe(filter);
 		setHeader("Content-Type", "application/octet-stream; charset=utf-8");
@@ -578,6 +583,8 @@ namespace FastCGI
 		//doc->debug(dbg);
 		//*this << "\n";
 
-		mail::PostOffice::post(message, true);
+		mail::post(message);
+		die();
+#endif
 	}
 }

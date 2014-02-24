@@ -52,7 +52,7 @@ namespace filter
 	void Base64Block::onChar(char c)
 	{
 		next(c);
-		if (++m_ptr == 77)
+		if (++m_ptr == 75)
 		{
 			m_ptr = 0;
 			next("\r\n");

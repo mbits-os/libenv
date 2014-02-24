@@ -38,6 +38,8 @@ namespace filesystem
 	class path;
 }
 
+//#define CONTENT_DISP_MUTABLE
+
 namespace mail
 {
 	using filter::Filter;
@@ -98,7 +100,10 @@ namespace mail
 		}
 
 		virtual bool addLength() const { return true; }
-		virtual const char* contentDisposition() const { return "inline"; }
+#ifdef CONTENT_DISP_MUTABLE
+		virtual
+#endif
+			const char* contentDisposition() const { return "inline"; }
 
 		virtual void pipe(const FilterPtr& downstream)
 		{
@@ -147,7 +152,9 @@ namespace mail
 		ImagePart(size_t part, const std::string& machine, const std::string& mime, const std::string& path);
 		const std::string& getCID() const { return m_cid; }
 		void echoBody() override;
+#ifdef CONTENT_DISP_MUTABLE
 		const char* contentDisposition() const override { return "attachment"; }
+#endif
 	};
 
 	struct TextProducer
