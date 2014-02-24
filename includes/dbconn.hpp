@@ -51,6 +51,8 @@ namespace db
 		virtual long long getLongLong(int column) = 0;
 		virtual tyme::time_t getTimestamp(int column) = 0;
 		virtual const char* getText(int column) = 0;
+		virtual size_t getBlobSize(int column) = 0;
+		virtual const void* getBlob(int column) = 0;
 		virtual bool isNull(int column) = 0;
 		virtual ConnectionPtr getConnection() const = 0;
 		virtual StatementPtr getStatement() const = 0;
@@ -207,6 +209,7 @@ namespace db
 		virtual bool bind(int arg, long value) = 0;
 		virtual bool bind(int arg, long long value) = 0;
 		virtual bool bind(int arg, const char* value) = 0;
+		virtual bool bind(int arg, const void* value, size_t size) = 0;
 		virtual bool bindTime(int arg, tyme::time_t value) = 0;
 		virtual bool bindNull(int arg) = 0;
 		virtual bool execute() = 0;

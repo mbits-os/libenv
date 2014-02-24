@@ -134,6 +134,8 @@ namespace db
 			long long getLongLong(int column);
 			tyme::time_t getTimestamp(int column);
 			const char* getText(int column);
+			size_t getBlobSize(int column);
+			const void* getBlob(int column);
 			bool isNull(int column);
 			ConnectionPtr getConnection() const { return m_parent->getConnection(); }
 			StatementPtr getStatement() const { return m_parent; }
@@ -161,6 +163,7 @@ namespace db
 			bool bind(int arg, long value);
 			bool bind(int arg, long long value);
 			bool bind(int arg, const char* value);
+			bool bind(int arg, const void* value, size_t size);
 			bool bindTime(int arg, tyme::time_t value);
 			bool bindNull(int arg);
 			template <class T>

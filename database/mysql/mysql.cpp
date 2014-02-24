@@ -242,6 +242,19 @@ namespace db { namespace mysql {
 		return true;
 	}
 
+	bool MySQLStatement::bind(int arg, const void* value, size_t size)
+	{
+		if (!value)
+			return bindNull(arg);
+
+		if (!bindImpl(arg, value, size))
+			return false;
+
+		memcpy(m_buffers[arg], value, size);
+		m_bind[arg].buffer_type = MYSQL_TYPE_BLOB;
+		return true;
+	}
+
 	bool MySQLStatement::bindTime(int arg, tyme::time_t value)
 	{
 		tyme::tm_t tm = tyme::gmtime(value);
@@ -526,6 +539,42 @@ namespace db { namespace mysql {
 
 		MYSQL_BIND bind = {};
 		bind.buffer_type = MYSQL_TYPE_STRING;
+		bind.buffer = m_buffers[column];
+		bind.buffer_length = m_lengths[column];
+
+		if (mysql_stmt_fetch_column(m_stmt, &bind, column, 0) != 0)
+			return nullptr;
+
+		m_buffers[column][m_lengths[column]] = 0;
+		return m_buffers[column];
+	}
+
+	size_t MySQLCursor::getBlobSize(int column)
+	{
+		return m_lengths[column];
+	}
+
+	const void* MySQLCursor::getBlob(int column)
+	{
+		if (m_is_null[column])
+			return nullptr;
+
+		if (m_error[column] || !m_buffers[column]) // the field would have been truncated
+		{
+			char* buffer = new (std::nothrow) char[m_lengths[column] + 1];
+			if (!buffer)
+				return nullptr;
+
+			delete[] m_buffers[column];
+			m_buffers[column] = buffer;
+
+			m_bind[column].buffer_type = MYSQL_TYPE_BLOB;
+			m_bind[column].buffer = m_buffers[column];
+			m_bind[column].buffer_length = m_lengths[column];
+		}
+
+		MYSQL_BIND bind = {};
+		bind.buffer_type = MYSQL_TYPE_BLOB;
 		bind.buffer = m_buffers[column];
 		bind.buffer_length = m_lengths[column];
 
