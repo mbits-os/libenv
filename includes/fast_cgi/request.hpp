@@ -222,9 +222,7 @@ namespace FastCGI
 		void setRequestState(RequestStatePtr state) { m_requestState = state; }
 
 		ContentPtr getContent() { return m_content; }
-		void setContent(ContentPtr content) { m_content = content; }
-		template <typename T>
-		void setContent(std::shared_ptr<T> content) { m_content = std::static_pointer_cast<Content>(content); }
+		void setContent(const ContentPtr& content) { m_content = content; }
 
 		Request& operator << (static_resources_t)
 		{
