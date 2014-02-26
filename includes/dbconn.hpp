@@ -209,6 +209,7 @@ namespace db
 		virtual bool bind(int arg, long value) = 0;
 		virtual bool bind(int arg, long long value) = 0;
 		virtual bool bind(int arg, const char* value) = 0;
+		virtual bool bind(int arg, const std::string& value) { return bind(arg, value.c_str()); }
 		virtual bool bind(int arg, const void* value, size_t size) = 0;
 		virtual bool bindTime(int arg, tyme::time_t value) = 0;
 		virtual bool bindNull(int arg) = 0;

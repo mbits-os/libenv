@@ -101,6 +101,23 @@ namespace Crypt
 			return true;
 		}
 
+		static bool digest(const char* message, hash_t& hash)
+		{
+			if (!message || !*message)
+				return false;
+
+			salt_t salt;
+			digest_t _digest;
+			newSalt(salt);
+			if (!T::__crypt(salt, message, strlen(message), _digest))
+				return false;
+
+			base64_encode(digest, DIGEST_SIZE, hash);
+			hash[PAYLOAD_LENGTH] = 0;
+
+			return true;
+		}
+
 		static void pack(const digest_t& digest, const salt_t& salt, hash_t& hash)
 		{
 			base64_encode(digest, DIGEST_SIZE, hash);
