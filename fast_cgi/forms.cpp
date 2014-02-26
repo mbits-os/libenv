@@ -33,6 +33,7 @@ namespace FastCGI {
 		, m_label(label)
 		, m_hint(hint)
 		, m_userValue(false)
+		, m_hasError(false)
 	{
 		if (!name.empty())
 		{
