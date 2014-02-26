@@ -97,7 +97,7 @@ namespace dom
 		virtual XmlNodePtr nextSibling() = 0;
 
 		virtual XmlDocumentPtr ownerDocument() = 0;
-		virtual bool appendChild(XmlNodePtr newChild) = 0;
+		virtual bool appendChild(const XmlNodePtr& newChild) = 0;
 		virtual void* internalData() = 0;
 
 		virtual XmlNodePtr find(const std::string& path, const Namespaces& ns) = 0;
@@ -109,10 +109,9 @@ namespace dom
 	{
 		static XmlDocumentPtr create();
 		static XmlDocumentPtr fromFile(const char* path);
-		virtual ~XmlDocument() {}
 
 		virtual XmlElementPtr documentElement() = 0;
-		virtual void setDocumentElement(XmlElementPtr elem) = 0;
+		virtual void setDocumentElement(const XmlElementPtr& elem) = 0;
 
 		virtual XmlElementPtr createElement(const std::string& tagName) = 0;
 		virtual XmlTextPtr createTextNode(const std::string& data) = 0;
@@ -129,14 +128,14 @@ namespace dom
 		XmlElementPtr element(size_t index)
 		{
 			XmlNodePtr i = item(index);
-			if (i.get() && i->nodeType() == ELEMENT_NODE)
+			if (i && i->nodeType() == ELEMENT_NODE)
 				return std::static_pointer_cast<XmlElement>(i);
 			return XmlElementPtr();
 		}
 		XmlTextPtr text(size_t index)
 		{
 			XmlNodePtr i = item(index);
-			if (i.get() && i->nodeType() == TEXT_NODE)
+			if (i && i->nodeType() == TEXT_NODE)
 				return std::static_pointer_cast<XmlText>(i);
 			return XmlTextPtr();
 		}
@@ -146,10 +145,10 @@ namespace dom
 	struct XmlElement: XmlNode
 	{
 		virtual std::string tagName() const { return nodeName(); }
-		virtual std::string stringValue() { return innerText(); }
+		virtual std::string stringValue() override { return innerText(); }
 		virtual std::string getAttribute(const std::string& name) = 0;
 		virtual XmlAttributePtr getAttributeNode(const std::string& name) = 0;
-		virtual bool setAttribute(XmlAttributePtr attr) = 0;
+		virtual bool setAttribute(const XmlAttributePtr& attr) = 0;
 		virtual XmlNodeListPtr getAttributes() = 0;
 		virtual bool hasAttribute(const std::string& name) = 0;
 		virtual XmlNodeListPtr getElementsByTagName(const std::string& tagName) = 0;
@@ -172,8 +171,8 @@ namespace dom
 		virtual std::string data() const { return nodeValue(); }
 	};
 
-	void Print(XmlNodePtr node, bool ignorews = false, size_t depth = 0);
-	void Print(XmlNodeListPtr subs, bool ignorews = false, size_t depth = 0);
+	void Print(const XmlNodePtr& node, bool ignorews = false, size_t depth = 0);
+	void Print(const XmlNodeListPtr& subs, bool ignorews = false, size_t depth = 0);
 }
 
 #endif // __DOM_HPP__
