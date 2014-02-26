@@ -31,7 +31,7 @@
 #include <string.h>
 #include <crypt.hpp>
 #include <fstream>
-#ifdef WIN32
+#if defined(WIN32) && !defined(NDEBUG)
 #include <__file__.win32.hpp>
 #else
 #define BUILD_DIR_LEN 6
