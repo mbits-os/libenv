@@ -61,6 +61,7 @@ namespace FastCGI {
 		std::string m_value;
 		bool        m_userValue;
 		Strings     m_attrs;
+		bool        m_hasError;
 
 		virtual void getControlString(Request& request) { }
 		virtual void getSimpleControlString(Request& request) { getControlString(request); }
@@ -102,6 +103,7 @@ namespace FastCGI {
 		}
 		bool hasUserData() const { return m_userValue && !m_value.empty(); }
 		const std::string& getData() const { return m_value; }
+		void setError(bool val = true) { m_hasError = val; }
 	};
 
 	class Input: public Control
