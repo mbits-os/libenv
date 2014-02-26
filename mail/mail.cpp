@@ -492,7 +492,9 @@ namespace mail
 
 	static int my_trace(CURL *, curl_infotype type, char *data, size_t size, void *)
 	{
+#ifdef DEBUG_SMTP_FULL
 		const char *text;
+#endif
 
 		switch (type) {
 		case CURLINFO_TEXT:
