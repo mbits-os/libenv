@@ -43,6 +43,7 @@ namespace FastCGI
 			"STL Test",
 			"noone@example.com",
 			"...",
+			true,
 			tyme::now()
 			);
 	}
@@ -65,7 +66,7 @@ namespace FastCGI
 		}
 		*/
 		db::StatementPtr query = db->prepare(
-			"SELECT user._id AS _id, user.login AS login, user.name AS name, user.email AS email, session.set_on AS set_on "
+			"SELECT user._id AS _id, user.login AS login, user.name AS name, user.email AS email, user.is_admin AS is_admin, session.set_on AS set_on "
 			"FROM session "
 			"LEFT JOIN user ON (user._id = session.user_id) "
 			"WHERE session.hash=?"
@@ -82,7 +83,8 @@ namespace FastCGI
 					c->getText(2),
 					c->getText(3),
 					sessionId,
-					c->getTimestamp(4));
+					c->getInt(4) != 0,
+					c->getTimestamp(5));
 			}
 		}
 		return nullptr;
@@ -97,7 +99,7 @@ namespace FastCGI
 		Crypt::session(seed, sessionId);
 
 		const char* SQL_USER_BY_EMAIL =
-			"SELECT _id, login, name "
+			"SELECT _id, login, name, is_admin "
 			"FROM user "
 			"WHERE email=?"
 			;
@@ -107,13 +109,15 @@ namespace FastCGI
 
 		if (query.get() && query->bind(0, email))
 		{
-			db::CursorPtr c = query->query();
+			auto c = query->query();
 			if (c.get() && c->next())
 			{
 				long long _id = c->getLongLong(0);
 				std::string login = c->getText(1);
 				std::string name = c->getText(2);
-				c = db::CursorPtr();
+				bool isAdmin = c->getInt(3) != 0;
+
+				c.reset();
 				query = db->prepare(
 					SQL_NEW_SESSION
 					);
@@ -132,6 +136,7 @@ namespace FastCGI
 							name,
 							email,
 							sessionId,
+							isAdmin,
 							now
 							);
 					}
