@@ -27,6 +27,7 @@
 #include <utils.hpp>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fast_cgi/application.hpp>
 
 #ifndef _WIN32
 #define _stat stat
@@ -45,34 +46,75 @@ namespace lng
 		m_fileRoot = fileRoot;
 	}
 
+	inline bool inside(const std::list<std::string>& langs, const std::string& key)
+	{
+		for (auto&& lang : langs)
+		{
+			if (lang == key)
+				return true;
+		}
+		return false;
+	}
+
+	bool expandList(std::list<std::string>& langs)
+	{
+		for (auto&& lang : langs)
+		{
+			auto pos = lang.find_last_of('-');
+			if (pos == std::string::npos)
+				continue; // no tags in the language range
+
+			auto sub = lang.substr(0, pos);
+			if (inside(langs, sub))
+				continue; // sub-range already in list
+
+			auto sub_len = sub.length();
+			auto insert = langs.end();
+			auto cur = langs.begin(), end = langs.end();
+			for (; cur != end; ++cur)
+			{
+				if (
+					cur->compare(0, sub_len, sub) == 0 &&
+					cur->length() > sub_len &&
+					cur->at(sub_len) == '-'
+					)
+				{
+					insert = cur;
+				}
+			}
+
+			if (insert != langs.end())
+				++insert;
+
+			langs.insert(insert, sub);
+			return true;
+		}
+		return false;
+	}
+
 	TranslationPtr Locale::httpAcceptLanguage(const char* header)
 	{
 		std::list<std::string> langs = url::priorityList(header);
-		for (auto& lang: langs)
+
+		while (expandList(langs));
+
+		for (auto& lang : langs)
 		{
-			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
-
-			Translations::iterator _it = m_translations.find(lang);
-			if (_it != m_translations.end())
-			{
-				auto candidate = _it->second.lock();
-				if (candidate)
-					return candidate;
-			}
-
-			auto candidate = std::make_shared<Translation>();
-			if (!candidate)
-				return nullptr; //OOM, 500 the page
-
-			if (candidate->open(m_fileRoot / lang / "site_strings.lng"))
-			{
-				m_translations[lang] = candidate;
+			auto candidate = getTranslation(lang);
+			if (candidate)
 				return candidate;
-			};
 		}
 
 		//falback to en
-		Translations::iterator _it = m_translations.find("en");
+		return getTranslation("en");
+	}
+
+	TranslationPtr Locale::getTranslation(const std::string& language_range)
+	{
+		auto lang = language_range;
+		std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
+
+		Translations::iterator _it = m_translations.find(lang);
 		if (_it != m_translations.end())
 		{
 			auto candidate = _it->second.lock();
@@ -84,13 +126,13 @@ namespace lng
 		if (!candidate)
 			return nullptr; //OOM, 500 the page
 
-		if (candidate->open(m_fileRoot / "en/site_strings.lng"))
+		if (candidate->open(m_fileRoot / lang / "site_strings.lng"))
 		{
-			m_translations["en"] = candidate;
+			m_translations[lang] = candidate;
 			return candidate;
 		};
 
-		return TranslationPtr();
+		return nullptr;
 	}
 
 	filesystem::path Locale::getFilename(const char* header, const filesystem::path& filename)

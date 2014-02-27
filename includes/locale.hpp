@@ -80,6 +80,7 @@ namespace lng
 		Translations m_translations;
 	public:
 		void init(const filesystem::path& fileRoot);
+		TranslationPtr getTranslation(const std::string& language_range);
 		TranslationPtr httpAcceptLanguage(const char* header);
 		filesystem::path getFilename(const char* header, const filesystem::path& filename);
 	};
