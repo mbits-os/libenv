@@ -30,6 +30,7 @@
 #include <mt.hpp>
 #include <fstream>
 #include <utils.hpp>
+#include <format.hpp>
 
 #include <fast_cgi/thread.hpp>
 
@@ -69,6 +70,12 @@ namespace FastCGI
 	public:
 		bool init(SessionPtr session, Request& request);
 		const char* operator()(lng::LNG stringId);
+
+		template <typename AtLeastOne, typename... Args>
+		std::string operator()(lng::LNG stringId, AtLeastOne&& arg, Args&&... args)
+		{
+			return str::format(operator()(stringId), std::forward<AtLeastOne>(arg), std::forward<Args>(args)...);
+		}
 	};
 
 	struct RequestState
