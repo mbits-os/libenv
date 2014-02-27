@@ -227,7 +227,11 @@ namespace wiki
 		auto f = fopen(file.native().c_str(), "r");
 		if (!f)
 			return nullptr;
-		fread(&text[0], 1, size, f);
+		if (fread(&text[0], 1, size, f) != size)
+		{
+			fclose(f);
+			return nullptr;
+		};
 		fclose(f);
 
 		text[size] = 0;
@@ -253,7 +257,12 @@ namespace wiki
 		auto f = fopen(file.native().c_str(), "r");
 		if (!f)
 			return nullptr;
-		fread(&text[0], 1, size, f);
+
+		if (fread(&text[0], 1, size, f) != size)
+		{
+			fclose(f);
+			return nullptr;
+		};
 		fclose(f);
 
 		text[size] = 0;
