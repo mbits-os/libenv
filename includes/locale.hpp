@@ -27,6 +27,7 @@
 
 #include "site_strings.h"
 #include <filesystem.hpp>
+#include <vector>
 
 namespace lng
 {
@@ -73,6 +74,14 @@ namespace lng
 	typedef std::shared_ptr<Translation> TranslationPtr;
 	typedef std::weak_ptr<Translation> TranslationWeakPtr;
 
+	struct LocaleInfo
+	{
+		std::string m_lang;
+		std::string m_name;
+	};
+
+	using LocaleInfos = std::vector<LocaleInfo>;
+
 	class Locale
 	{
 		typedef std::map<std::string, TranslationWeakPtr> Translations;
@@ -83,6 +92,7 @@ namespace lng
 		TranslationPtr getTranslation(const std::string& language_range);
 		TranslationPtr httpAcceptLanguage(const char* header);
 		filesystem::path getFilename(const char* header, const filesystem::path& filename);
+		LocaleInfos knownLanguages();
 	};
 }
 

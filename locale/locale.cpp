@@ -28,6 +28,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fast_cgi/application.hpp>
+#include <iterator>
+
+#ifdef _WIN32
+#include "dirent_win32.hpp"
+#else
+#include <dirent.h>
+#endif
 
 #ifndef _WIN32
 #define _stat stat
@@ -38,6 +45,30 @@
 #else
 #define SEP '/'
 #endif
+
+class dir_handle
+{
+	DIR* dir = nullptr;
+public:
+	~dir_handle() { close(); }
+	void close()
+	{
+		if (!dir)
+			return;
+
+		closedir(dir);
+		dir = nullptr;
+	}
+
+	bool open(const filesystem::path& path)
+	{
+		close();
+		dir = opendir(path.native().c_str());
+		return dir != nullptr;
+	}
+
+	dirent* read() { return dir ? readdir(dir) : nullptr; }
+};
 
 namespace lng
 {
@@ -150,5 +181,44 @@ namespace lng
 			return path;
 
 		return filesystem::path();
+	}
+
+	LocaleInfos Locale::knownLanguages()
+	{
+		dir_handle handle;
+		if (!handle.open(m_fileRoot))
+			return LocaleInfos();
+
+		LocaleInfos out;
+		dirent* entry = nullptr;
+		while ((entry = handle.read()) != nullptr)
+		{
+			char * lang = entry->d_name;
+			if (lang && *lang == '.') // ., .., and "hidden" files
+				continue;
+
+			filesystem::path candidate = m_fileRoot / lang;
+			if (!filesystem::is_directory(candidate))
+				continue;
+
+			TranslationPtr translation;
+			//std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
+
+			Translations::iterator _it = m_translations.find(lang);
+			if (_it != m_translations.end())
+				translation = _it->second.lock();
+
+			if (!translation)
+			{
+				translation = std::make_shared<Translation>();
+				if (!translation->open(candidate / "site_strings.lng"))
+					continue;
+			}
+
+			LocaleInfo nfo = { translation->tr(lng::CULTURE), translation->tr(lng::LANGUAGE_NAME) };
+			out.emplace_back(nfo);
+		}
+
+		return out;
 	}
 }
