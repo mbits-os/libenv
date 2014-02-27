@@ -92,12 +92,12 @@ namespace Crypt
 				return false;
 
 			salt_t salt;
-			digest_t digest;
+			digest_t _digest;
 			newSalt(salt);
-			if (!T::__crypt(salt, message, strlen(message), digest))
+			if (!T::__crypt(salt, message, strlen(message), _digest))
 				return false;
 
-			pack(digest, salt, hash);			
+			pack(_digest, salt, hash);
 			return true;
 		}
 
@@ -112,7 +112,7 @@ namespace Crypt
 			if (!T::__crypt(salt, message, strlen(message), _digest))
 				return false;
 
-			base64_encode(digest, DIGEST_SIZE, hash);
+			base64_encode(_digest, DIGEST_SIZE, hash);
 			hash[PAYLOAD_LENGTH] = 0;
 
 			return true;
