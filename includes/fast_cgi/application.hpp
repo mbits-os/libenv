@@ -166,6 +166,7 @@ namespace FastCGI
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
+		lng::TranslationPtr getTranslation(const std::string& lang) { return m_locale.getTranslation(lang); }
 		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
 		filesystem::path getLocalizedFilename(const char* header, const filesystem::path& filename) { return m_locale.getFilename(header, filename); }
 

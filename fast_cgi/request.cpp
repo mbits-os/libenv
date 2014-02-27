@@ -68,6 +68,16 @@ namespace FastCGI
 			m_translation = session->getTranslation();
 			if (m_translation)
 				return true;
+
+			auto preferred = session->preferredLanguage();
+			if (!preferred.empty())
+			{
+				m_translation = request.getTranslation(preferred);
+				session->setTranslation(m_translation);
+
+				if (m_translation)
+					return true;
+			}
 		}
 
 		m_translation = request.httpAcceptLanguage();
@@ -534,6 +544,11 @@ namespace FastCGI
 	{
 		app().endSession(*this, sessionId);
 		setCookie("reader.login", "", tyme::now());
+	}
+
+	lng::TranslationPtr Request::getTranslation(const std::string& lang)
+	{
+		return app().getTranslation(lang);
 	}
 
 	lng::TranslationPtr Request::httpAcceptLanguage()

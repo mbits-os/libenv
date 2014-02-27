@@ -215,6 +215,7 @@ namespace FastCGI
 		SessionPtr startSession(bool long_session, const char* email);
 		void endSession(const std::string& sessionId);
 
+		lng::TranslationPtr getTranslation(const std::string& lang);
 		lng::TranslationPtr httpAcceptLanguage();
 		void __sendMail(const char* file, int line, const MailInfo& info);
 

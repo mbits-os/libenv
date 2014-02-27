@@ -69,19 +69,22 @@ namespace FastCGI
 		std::string m_email;
 		std::string m_hash;
 		bool m_isAdmin;
+		std::string m_preferredLanguage;
 		tyme::time_t m_setOn;
 		lng::TranslationPtr m_tr;
 	public:
 		Session()
 		{
 		}
-		Session(long long id, const std::string& login, const std::string& name, const std::string& email, const std::string& hash, bool isAdmin, tyme::time_t setOn)
+		Session(long long id, const std::string& login, const std::string& name, const std::string& email,
+			const std::string& hash, bool isAdmin, const std::string& preferredLanguage, tyme::time_t setOn)
 			: m_id(id)
 			, m_login(login)
 			, m_name(name)
 			, m_email(email)
 			, m_hash(hash)
 			, m_isAdmin(isAdmin)
+			, m_preferredLanguage(preferredLanguage)
 			, m_setOn(setOn)
 		{
 		}
@@ -96,6 +99,7 @@ namespace FastCGI
 		const std::string& getEmail() const { return m_email; }
 		const std::string& getSessionId() const { return m_hash; }
 		bool isAdmin() const { return m_isAdmin; }
+		const std::string& preferredLanguage() const { return m_preferredLanguage; }
 		tyme::time_t getStartTime() const { return m_setOn; }
 		lng::TranslationPtr getTranslation() { return m_tr; }
 		void setTranslation(lng::TranslationPtr tr) { m_tr = tr; }
