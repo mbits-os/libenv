@@ -101,8 +101,8 @@ namespace FastCGI { namespace app {
 			.add_raw(user);
 		user->item("badge", -1, "Here be badger")
 			.separator()
-			.item("settings", -1, tr(lng::LNG_NAV_SETTINGS))
-			.item("profile", -1, "Pȓôƒïĺê")
+			.item("settings", -1, tr(lng::LNG_SETTINGS_TITLE))
+			.item("profile", -1, tr(lng::LNG_SETTINGS_PROFILE))
 			.item("help", -1, tr(lng::LNG_NAV_HELP))
 			.item("logout", -1, tr(lng::LNG_NAV_SIGNOUT));
 		menu.right()
