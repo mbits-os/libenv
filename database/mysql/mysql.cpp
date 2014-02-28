@@ -550,7 +550,7 @@ namespace db { namespace mysql {
 		if ((size_t)column >= m_count)
 		{
 			MYSQL_LOG("[MySQL/getText] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
-			return false;
+			return nullptr;
 		}
 
 		if (m_is_null[column])
@@ -598,7 +598,7 @@ namespace db { namespace mysql {
 		if ((size_t)column >= m_count)
 		{
 			MYSQL_LOG("[MySQL/getBlob] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
-			return false;
+			return nullptr;
 		}
 
 		if (m_is_null[column])
