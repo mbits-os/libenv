@@ -232,30 +232,11 @@ namespace FastCGI
 		ContentPtr getContent() { return m_content; }
 		void setContent(const ContentPtr& content) { m_content = content; }
 
-		Request& operator << (static_resources_t)
-		{
-			return *this << getStaticResources();
-		}
-
-		template <typename T>
-		Request& operator << (const T& obj)
+		std::ostream& cout()
 		{
 			ensureInputWasRead();
 			printHeaders();
-			m_backend->cout() << obj;
-			return *this;
-		}
-
-		template <typename T>
-		Request& operator << (const T* obj)
-		{
-			ensureInputWasRead();
-			printHeaders();
-			if (obj)
-				m_backend->cout() << obj;
-			else
-				m_backend->cout() << "(nullptr)";
-			return *this;
+			return m_backend->cout();
 		}
 
 		template <typename T>
@@ -293,6 +274,18 @@ namespace FastCGI
 		const std::string& getIcicle() const { return m_icicle; }
 #endif
 	};
+
+	inline std::ostream& req_ostream(Request& r) { return r.cout(); }
+
+#ifndef REQUEST_OSTREAM
+#define REQUEST_OSTREAM
+	template <typename T> inline Request& operator << (Request& r, T&& in) { req_ostream(r) << in; return r; }
+#endif
+
+	inline Request& operator << (Request& r, static_resources_t)
+	{
+		return r << r.getStaticResources();
+	}
 }
 
 extern FastCGI::static_resources_t static_web;

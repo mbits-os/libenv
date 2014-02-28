@@ -90,20 +90,20 @@ namespace FastCGI {
 		Input(const std::string& type, const std::string& name, const std::string& label, const std::string& hint)
 			: Control<Renderer>(name, label, hint)
 		{
-			setAttr("type", type);
+			this->setAttr("type", type);
 			Renderer::setPlaceholder(this, label);
 		}
 
 		void getControlString(Request& request)
 		{
-			Renderer::getControlString(request, this, "input", m_hasError);
+			Renderer::getControlString(request, this, "input", this->m_hasError);
 		}
 
 		void getSimpleControlString(Request& request)
 		{
-			if (getLabelString(request))
+			if (this->getLabelString(request))
 				request << ": ";
-			getElement(request, "input");
+			this->getElement(request, "input");
 		}
 	};
 
@@ -144,21 +144,21 @@ namespace FastCGI {
 		}
 		void getControlString(Request& request)
 		{
-			Renderer::checkboxControlString(request, this, m_hasError);
+			Renderer::checkboxControlString(request, this, this->m_hasError);
 		}
 
 		void bindData(Request& request, const Strings& data)
 		{
-			CheckboxBase::bindData(request, data, m_name, m_value, m_userValue);
+			CheckboxBase::bindData(request, data, this->m_name, this->m_value, this->m_userValue);
 		}
 
 		void bindUI()
 		{
-			if (m_checked)
-				setAttr("checked", "checked");
+			if (this->m_checked)
+				this->setAttr("checked", "checked");
 		}
 
-		bool isChecked() const { return m_checked; }
+		bool isChecked() const { return this->m_checked; }
 	};
 
 	class Options
@@ -192,7 +192,7 @@ namespace FastCGI {
 
 		void getControlString(Request& request)
 		{
-			Renderer::selectionControlString(request, this, m_hasError, [this](Request& request){
+			Renderer::selectionControlString(request, this, this->m_hasError, [this](Request& request){
 				m_options.getControlString(request);
 			});
 		}
@@ -212,8 +212,8 @@ namespace FastCGI {
 			: Input<Renderer>("submit", name, std::string(), hint)
 		{
 			if (narrow)
-				setAttr("class", "narrow");
-			setAttr("value", label);
+				this->setAttr("class", "narrow");
+			this->setAttr("value", label);
 		}
 
 		void bindUI() {}
@@ -226,7 +226,7 @@ namespace FastCGI {
 		Reset(const std::string& name, const std::string& label, const std::string& hint)
 			: Input<Renderer>("reset", name, std::string(), hint)
 		{
-			setAttr("value", label);
+			this->setAttr("value", label);
 		}
 
 		void bindUI() {}
@@ -241,11 +241,11 @@ namespace FastCGI {
 			: Control<Renderer>(name, std::string(), std::string())
 			, m_text(text)
 		{
-				setAttr("href", link);
-			}
+			this->setAttr("href", link);
+		}
 		virtual void getControlString(Request& request)
 		{
-			Renderer::getControlString(request, this, "a", m_hasError, m_text);
+			Renderer::getControlString(request, this, "a", this->m_hasError, this->m_text);
 		}
 		void bindUI() {}
 	};

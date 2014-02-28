@@ -34,6 +34,12 @@ namespace FastCGI {
 	template <typename Renderer> using Controls = std::list<ControlPtr<Renderer>>;
 
 	class Request;
+	inline std::ostream& req_ostream(Request&);
+
+#ifndef REQUEST_OSTREAM
+#define REQUEST_OSTREAM
+	template <typename T> inline Request& operator << (Request& r, T&& in) { req_ostream(r) << in; return r; }
+#endif
 
 	typedef std::map<std::string, std::string> Strings;
 

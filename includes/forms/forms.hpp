@@ -165,18 +165,18 @@ namespace FastCGI {
 
 		ControlBase* findControl(const std::string& name)
 		{
-			Control* ptr = nullptr;
-			std::find_if(m_controls.begin(), m_controls.end(), [&ptr, &name](ControlPtr& ctrl) -> bool
+			for (auto&& ctrl : this->m_controls)
 			{
-				ptr = ctrl->findControl(name);
-				return ptr != nullptr;
-			});
-			return ptr;
+				auto ptr = ctrl->findControl(name);
+				if (ptr)
+					return ptr;
+			}
+			return nullptr;
 		}
 
 		void bind(Request& request, const Strings& data)
 		{
-			for (auto&& ctrl : m_controls)
+			for (auto&& ctrl : this->m_controls)
 				ctrl->bind(request, data);
 		}
 
