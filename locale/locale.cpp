@@ -142,6 +142,7 @@ namespace lng
 
 	TranslationPtr Locale::getTranslation(const std::string& language_range)
 	{
+		bool refreshed = false;
 		auto lang = language_range;
 		std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });
 
@@ -149,8 +150,14 @@ namespace lng
 		if (_it != m_translations.end())
 		{
 			auto candidate = _it->second.lock();
-			if (candidate)
+			if (candidate && candidate->fresh())
 				return candidate;
+
+			if (candidate)
+			{
+				refreshed = true;
+				FLOG << "[LNG:" << candidate->tr(lng::CULTURE) << "] Refreshing strings";
+			}
 		}
 
 		auto candidate = std::make_shared<Translation>();
@@ -159,6 +166,9 @@ namespace lng
 
 		if (candidate->open(m_fileRoot / lang / "site_strings.lng"))
 		{
+			if (!refreshed)
+				FLOG << "[LNG:" << candidate->tr(lng::CULTURE) << "] Loading strings";
+
 			m_translations[lang] = candidate;
 			return candidate;
 		};

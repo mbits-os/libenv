@@ -65,11 +65,26 @@ namespace FastCGI
 	{
 		if (session)
 		{
+			auto preferred = session->preferredLanguage();
+
 			m_translation = session->getTranslation();
 			if (m_translation)
-				return true;
+			{
+				auto culture = m_translation->tr(lng::CULTURE);
+				if (!preferred.empty() && preferred != culture)
+					m_translation = nullptr;
 
-			auto preferred = session->preferredLanguage();
+				if (m_translation && !m_translation->fresh())
+				{
+					preferred = culture;
+					m_translation = nullptr;
+				}
+
+				// still survived? use it...
+				if (m_translation)
+					return true;
+			}
+
 			if (!preferred.empty())
 			{
 				m_translation = request.getTranslation(preferred);

@@ -66,9 +66,23 @@ namespace lng
 	class Translation
 	{
 		LangFile m_file;
+		filesystem::path m_path;
+		time_t m_mtime = 0;
+
+		time_t mtime() const { return filesystem::status(m_path).mtime(); }
 	public:
-		bool open(const filesystem::path& path) { return m_file.open(path) == ERR_OK; }
+		bool open(const filesystem::path& path)
+		{
+			m_path = path;
+			m_mtime = mtime();
+
+			return m_file.open(path) == ERR_OK;
+		}
 		const char* tr(LNG stringId) { return m_file.getString(stringId); }
+		bool fresh() const
+		{
+			return mtime() == m_mtime;
+		}
 	};
 
 	typedef std::shared_ptr<Translation> TranslationPtr;
