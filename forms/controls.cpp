@@ -22,11 +22,44 @@
  * SOFTWARE.
  */
 
-#ifndef __FORMS_H__
-#define __FORMS_H__
-
-#include <forms/control_base.hpp>
+#include "pch.h"
 #include <forms/controls.hpp>
-#include <forms/forms.hpp>
+#include <fast_cgi/request.hpp>
 
-#endif // __FORMS_H__
+namespace FastCGI {
+
+	void CheckboxBase::bindData(Request& request, const Strings& data, const std::string& name, std::string& value, bool& userValue)
+	{
+		if (name.empty()) return;
+
+		userValue = false;
+		value.erase();
+
+		if (request.getVariable("posted") != nullptr)
+		{
+			param_t val = request.getVariable(name.c_str());
+			userValue = true;
+			if (val)
+				value = val;
+			else
+				value.erase();
+			m_checked = val != nullptr;
+			return;
+		}
+
+		auto _it = data.find(name);
+		if (_it != data.end())
+		{
+			value = _it->second;
+			m_checked = value == "1" || value == "true";
+			return;
+		}
+	}
+
+	void Options::getControlString(Request& request)
+	{
+		for (auto&& opt : m_options)
+			request << "<option value='" << url::htmlQuotes(opt.first) << "'>" << opt.second << "</option>\r\n";
+	}
+
+} // FastCGI

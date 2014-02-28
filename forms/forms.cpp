@@ -22,11 +22,38 @@
  * SOFTWARE.
  */
 
-#ifndef __FORMS_H__
-#define __FORMS_H__
-
-#include <forms/control_base.hpp>
-#include <forms/controls.hpp>
+#include "pch.h"
 #include <forms/forms.hpp>
+#include <fast_cgi/request.hpp>
 
-#endif // __FORMS_H__
+namespace FastCGI {
+	FormBase::FormBase(const std::string& title, const std::string& method, const std::string& action, const std::string& mime)
+		: m_title(title)
+		, m_method(method)
+		, m_action(action)
+		, m_mime(mime)
+	{
+	}
+
+	void FormBase::formStart(SessionPtr session, Request& request, PageTranslation& tr)
+	{
+		request << "\r\n<form method='" << m_method << "'";
+		if (!m_action.empty()) request << " action='" << m_action << "'";
+		if (!m_mime.empty()) request << " enctype='" << m_mime << "'";
+		request << ">\r\n  <input type='hidden' name='posted' value='1' />\r\n";
+
+		for (auto&& hidden : m_hidden) {
+			param_t var = request.getVariable(hidden.c_str());
+			if (var != nullptr)
+				request << "  <input type='hidden' name='" << hidden << "' value='" << url::htmlQuotes(var) << "' />\r\n";
+		};
+
+		request << "\r\n";
+	}
+
+	void FormBase::formEnd(SessionPtr session, Request& request, PageTranslation& tr)
+	{
+		request << "</form>\r\n";
+	}
+
+} // FastCGI

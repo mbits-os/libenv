@@ -22,11 +22,15 @@
  * SOFTWARE.
  */
 
-#ifndef __FORMS_H__
-#define __FORMS_H__
+#include "pch.h"
+#include <forms/basic_renderer.hpp>
+#include <fast_cgi/request.hpp>
 
-#include <forms/control_base.hpp>
-#include <forms/controls.hpp>
-#include <forms/forms.hpp>
+namespace FastCGI {
 
-#endif // __FORMS_H__
+	void BasicRenderer::getLabelString(Request& request, const std::string& name, const std::string& label)
+	{
+		request << "<label for='" << name << "'>" << label << "</label>";
+	}
+
+} // FastCGI

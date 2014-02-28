@@ -22,11 +22,54 @@
  * SOFTWARE.
  */
 
-#ifndef __FORMS_H__
-#define __FORMS_H__
-
+#include "pch.h"
 #include <forms/control_base.hpp>
-#include <forms/controls.hpp>
-#include <forms/forms.hpp>
+#include <fast_cgi/request.hpp>
 
-#endif // __FORMS_H__
+namespace FastCGI {
+	void ControlBase::getAttributes(Request& request)
+	{
+		for (auto&& pair : m_attrs)
+			request << " " << pair.first << "='" << url::htmlQuotes(pair.second) << "'";
+	}
+
+	void ControlBase::getElement(Request& request, const std::string& name)
+	{
+		request << "<" << name;
+		getAttributes(request);
+		request << " />";
+	}
+
+	void ControlBase::getElement(Request& request, const std::string& name, const std::string& content)
+	{
+		request << "<" << name;
+		getAttributes(request);
+		if (!content.empty())
+			request << " >" << content << "</" << name << ">";
+		else
+			request << " />";
+	}
+
+	void ControlBase::bindData(Request& request, const Strings& data)
+	{
+		if (m_name.empty()) return;
+
+		m_userValue = false;
+		m_value.erase();
+
+		param_t value = request.getVariable(m_name.c_str());
+		if (value != nullptr)
+		{
+			m_userValue = true;
+			m_value = value;
+			return;
+		}
+
+		auto _it = data.find(m_name);
+		if (_it != data.end())
+		{
+			m_value = _it->second;
+			return;
+		}
+	}
+} // FastCGI
