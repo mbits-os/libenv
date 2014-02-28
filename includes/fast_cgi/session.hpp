@@ -100,6 +100,7 @@ namespace FastCGI
 		const std::string& getSessionId() const { return m_hash; }
 		bool isAdmin() const { return m_isAdmin; }
 		const std::string& preferredLanguage() const { return m_preferredLanguage; }
+		void preferredLanguage(const std::string& lang) { m_preferredLanguage = lang; }
 		tyme::time_t getStartTime() const { return m_setOn; }
 		lng::TranslationPtr getTranslation() { return m_tr; }
 		void setTranslation(lng::TranslationPtr tr) { m_tr = tr; }
