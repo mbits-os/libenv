@@ -95,10 +95,21 @@ namespace FastCGI
 		std::string icicle = m_app->freeze((char**)envp(), req);
 		req.setIcicle(icicle);
 		m_app->report((char**)envp(), icicle);
+
+		using clock = std::chrono::high_resolution_clock;
+
+		auto then = clock::now();
 #endif
 
 		try { onRequest(req); }
 		catch(FastCGI::FinishResponse) {} // die() lands here
+
+#if DEBUG_CGI
+		auto now = clock::now();
+		auto ptr = m_app->frozen(icicle);
+		if (ptr)
+			ptr->duration(now - then);
+#endif
 	}
 
 	db::ConnectionPtr Thread::dbConn(Request& request)

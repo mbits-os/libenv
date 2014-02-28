@@ -29,6 +29,9 @@
 #include <locale.hpp>
 #include <mt.hpp>
 #include <sstream>
+#ifdef DEBUG_CGI
+#include <chrono>
+#endif
 
 #define LINED_2(name, line) name ## _ ## line
 #define LINED_1(name, line) LINED_2(name, line)
@@ -88,6 +91,9 @@ namespace FastCGI
 	class FrozenState
 	{
 	public:
+		using clock_t = std::chrono::high_resolution_clock;
+		using duration_t = clock_t::duration;
+
 		typedef std::map<std::string, std::string> string_map;
 
 		FrozenState(char** envp, const Request& req, const std::string& icicle);
@@ -104,6 +110,9 @@ namespace FastCGI
 		void session_user(const std::string& user) { m_session_user = user; }
 
 		tyme::time_t now() const { return m_now; }
+
+		duration_t duration() const { return m_duration; }
+		void duration(const duration_t& value) { m_duration = value; }
 	private:
 		std::string m_icicle;
 
@@ -116,6 +125,8 @@ namespace FastCGI
 		std::string m_remote_addr;
 		std::string m_remote_port;
 		std::string m_session_user;
+
+		duration_t m_duration;
 
 		tyme::time_t m_now;
 	};
@@ -166,6 +177,7 @@ namespace FastCGI
 		SessionPtr getSession(Request& request, const std::string& sessionId);
 		SessionPtr startSession(Request& request, const char* email);
 		void endSession(Request& request, const std::string& sessionId);
+		lng::LocaleInfos knownLanguages() { return m_locale.knownLanguages(); }
 		lng::TranslationPtr getTranslation(const std::string& lang) { return m_locale.getTranslation(lang); }
 		lng::TranslationPtr httpAcceptLanguage(const char* header) { return m_locale.httpAcceptLanguage(header); }
 		filesystem::path getLocalizedFilename(const char* header, const filesystem::path& filename) { return m_locale.getFilename(header, filename); }
