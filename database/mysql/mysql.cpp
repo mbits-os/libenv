@@ -27,6 +27,9 @@
 #include <utils.hpp>
 #include <sstream>
 
+extern "C" void flog(const char* file, int line, const char* fmt, ...);
+#define MYSQL_LOG(...) ::flog(__FILE__, __LINE__, __VA_ARGS__)
+
 namespace db { namespace mysql {
 	bool startup_driver()
 	{
@@ -275,7 +278,10 @@ namespace db { namespace mysql {
 	bool MySQLStatement::bindNull(int arg)
 	{
 		if ((size_t)arg >= m_count)
+		{
+			MYSQL_LOG("[MySQL/Bind] Argument out of bounds (size:%d / index:%d)", (int)m_count, arg);
 			return false;
+		}
 
 		delete [] m_buffers[arg];
 		m_buffers[arg] = nullptr;
@@ -290,7 +296,10 @@ namespace db { namespace mysql {
 	bool MySQLStatement::bindImpl(int arg, const void* value, size_t len)
 	{
 		if ((size_t)arg >= m_count)
+		{
+			MYSQL_LOG("[MySQL/Bind] Argument out of bounds (size:%d / index:%d)", (int)m_count, arg);
 			return false;
+		}
 
 		delete [] m_buffers[arg];
 		m_buffers[arg] = new (std::nothrow) char[len];
@@ -482,6 +491,12 @@ namespace db { namespace mysql {
 
 	long MySQLCursor::getLong(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/getLong] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return false;
+		}
+
 		if (m_is_null[column])
 			return 0;
 
@@ -490,6 +505,12 @@ namespace db { namespace mysql {
 
 	long long MySQLCursor::getLongLong(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/getLongLong] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return false;
+		}
+
 		if (m_is_null[column])
 			return 0;
 
@@ -498,6 +519,12 @@ namespace db { namespace mysql {
 
 	tyme::time_t MySQLCursor::getTimestamp(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/getTimestamp] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return false;
+		}
+
 		if (m_is_null[column])
 			return 0;
 
@@ -520,6 +547,12 @@ namespace db { namespace mysql {
 
 	const char* MySQLCursor::getText(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/getText] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return false;
+		}
+
 		if (m_is_null[column])
 			return nullptr;
 
@@ -551,11 +584,23 @@ namespace db { namespace mysql {
 
 	size_t MySQLCursor::getBlobSize(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/getBlobSize] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return 0;
+		}
+
 		return m_lengths[column];
 	}
 
 	const void* MySQLCursor::getBlob(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/getBlob] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return false;
+		}
+
 		if (m_is_null[column])
 			return nullptr;
 
@@ -587,6 +632,12 @@ namespace db { namespace mysql {
 
 	bool MySQLCursor::isNull(int column)
 	{
+		if ((size_t)column >= m_count)
+		{
+			MYSQL_LOG("[MySQL/isNull] Argument out of bounds (size:%d / index:%d)", (int)m_count, column);
+			return true;
+		}
+
 		return m_is_null[column] != 0;
 	}
 

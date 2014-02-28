@@ -122,10 +122,6 @@ namespace db
 				, m_parent(parent)
 			{
 			}
-			~MySQLCursor()
-			{
-				deleteBind();
-			}
 			bool prepare();
 			bool next();
 			size_t columnCount();
