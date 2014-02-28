@@ -118,7 +118,7 @@ namespace FastCGI
 				std::string login = c->getText(1);
 				std::string name = c->getText(2);
 				bool isAdmin = c->getInt(3) != 0;
-				auto lang = c->isNull(5) ? std::string() : c->getText(5);
+				auto lang = c->isNull(4) ? std::string() : c->getText(4);
 
 				c.reset();
 				query = db->prepare(
