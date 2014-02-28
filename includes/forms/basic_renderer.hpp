@@ -46,10 +46,14 @@ namespace FastCGI {
 		template <typename Arg>
 		static void getControlString(Request& request, ControlBase* control, bool hasError, Arg&& arg) {}
 		static void checkboxControlString(Request& request, ControlBase* control, bool hasError) {}
+		static void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError) {}
+		static void radioControlString(Request& request, ControlBase* control, bool hasError) {}
 		static void getSectionStart(Request& request, size_t sectionId, const std::string& name) {}
 		static void getSectionEnd(Request& request, size_t sectionId, const std::string& name) {}
 		static void getFormStart(Request& request, const std::string& title) {}
 		static void getFormEnd(Request& request) {}
+		static void getFieldsetStart(Request& request, const std::string& title);
+		static void getFieldsetEnd(Request& request);
 
 		template <typename Renderer>
 		static void getButtons(Request& request, const Controls<Renderer>& buttons)

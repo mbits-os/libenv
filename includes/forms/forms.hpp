@@ -33,6 +33,9 @@ namespace FastCGI {
 	template <typename Renderer> class Section;
 	template <typename Renderer> using Sections = std::list<Section<Renderer>>;
 
+	template <typename Renderer> class Fieldset;
+	template <typename Renderer> using FieldsetPtr = std::shared_ptr<Fieldset<Renderer>>;
+
 	template <typename Renderer = BasicRenderer>
 	class ControlContainer
 	{
@@ -68,6 +71,27 @@ namespace FastCGI {
 			return control<Checkbox<Renderer>>(name, label, hint);
 		}
 
+		RadioPtr<Renderer> radio(const std::string& group, const std::string& value, const std::string& label = std::string())
+		{
+			auto obj = std::make_shared<Radio<Renderer>>(group, value, label);
+			if (obj)
+				m_controls.push_back(obj);
+			return obj;
+		}
+
+		RadioGroupPtr<Renderer> radio_group(const std::string& group, const std::string& label = std::string())
+		{
+			auto obj = std::make_shared<RadioGroup<Renderer>>(group, label);
+			if (obj)
+				m_controls.push_back(obj);
+			return obj;
+		}
+
+		FieldsetPtr<Renderer> fieldset(const std::string& label = std::string(), const std::string& hint = std::string())
+		{
+			return control<Fieldset<Renderer>>(std::string(), label, hint);
+		}
+
 		LinkPtr<Renderer> ctrl_link(const std::string& name, const std::string& link, const std::string& text)
 		{
 			auto ptr = std::make_shared<Link<Renderer>>(name, link, text);
@@ -93,10 +117,33 @@ namespace FastCGI {
 				ctrl->render(request);
 		}
 
+		void renderControlsSimple(Request& request)
+		{
+			for (auto&& ctrl : m_controls)
+				ctrl->renderSimple(request);
+		}
+
 		void bind(Request& request, const Strings& data)
 		{
 			for (auto&& ctrl : m_controls)
 				ctrl->bind(request, data);
+		}
+	};
+
+	template <typename Renderer = BasicRenderer>
+	class Fieldset : public Control<Renderer>, public ControlContainer<Renderer>
+	{
+	public:
+		Fieldset(const std::string& name, const std::string& label, const std::string& hint)
+			: Control<Renderer>(name, label, hint)
+		{
+		}
+
+		void getControlString(Request& request)
+		{
+			Renderer::getFieldsetStart(request, this->m_label);
+			this->renderControls(request);
+			Renderer::getFieldsetEnd(request);
 		}
 	};
 

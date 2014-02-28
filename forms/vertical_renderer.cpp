@@ -77,6 +77,16 @@ namespace FastCGI {
 		request << "</li>";
 	}
 
+	void VerticalRenderer::radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError)
+	{
+		if (hasError)
+			request << "<li class='error'>";
+		else
+			request << "<li>";
+		control->getElement(request, "span", title);
+		request << "</li>";
+	}
+
 	void VerticalRenderer::getFormStart(Request& request, const std::string& title)
 	{
 		request << "\r\n"
@@ -100,4 +110,5 @@ namespace FastCGI {
 		request <<
 			"</div>\r\n";
 	}
+
 } // FastCGI

@@ -33,4 +33,16 @@ namespace FastCGI {
 		request << "<label for='" << name << "'>" << label << "</label>";
 	}
 
+	void BasicRenderer::getFieldsetStart(Request& request, const std::string& title)
+	{
+		request << "<fieldset>\r\n";
+		if (!title.empty())
+			request << "<legend>" << title << "</legend>\r\n";
+	}
+
+	void BasicRenderer::getFieldsetEnd(Request& request)
+	{
+		request << "</fieldset>\r\n";
+	}
+
 } // FastCGI

@@ -101,6 +101,14 @@ namespace FastCGI {
 			m_attrs[key] = value;
 		}
 
+		std::string getAttr(const std::string& key)
+		{
+			auto it = m_attrs.find(key);
+			if (it == m_attrs.end())
+				return std::string();
+			return it->second;
+		}
+
 		virtual void bindData(Request& request, const Strings& data);
 		virtual void bindUI()
 		{

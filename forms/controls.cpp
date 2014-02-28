@@ -56,10 +56,17 @@ namespace FastCGI {
 		}
 	}
 
-	void Options::getControlString(Request& request)
+	void Options::getControlString(Request& request, const std::string& selected)
 	{
 		for (auto&& opt : m_options)
-			request << "<option value='" << url::htmlQuotes(opt.first) << "'>" << opt.second << "</option>\r\n";
+		{
+			request << "<option value='" << url::htmlQuotes(opt.first) << "'";
+
+			if (opt.first == selected)
+				request << " selected='selected'";
+
+			request << ">" << opt.second << "</option>\r\n";
+		}
 	}
 
 } // FastCGI

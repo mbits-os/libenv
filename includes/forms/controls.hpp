@@ -33,18 +33,22 @@ namespace FastCGI {
 	template <typename Renderer> class Input;
 	template <typename Renderer> class Text;
 	template <typename Renderer> class Checkbox;
+	template <typename Renderer> class Radio;
+	template <typename Renderer> class RadioGroup;
 	template <typename Renderer> class Selection;
 	template <typename Renderer> class Submit;
 	template <typename Renderer> class Reset;
 	template <typename Renderer> class Link;
 
-	template <typename Renderer> using InputPtr     = std::shared_ptr<Input<Renderer>>;
-	template <typename Renderer> using TextPtr      = std::shared_ptr<Text<Renderer>>;
-	template <typename Renderer> using CheckboxPtr  = std::shared_ptr<Checkbox<Renderer>>;
-	template <typename Renderer> using SelectionPtr = std::shared_ptr<Selection<Renderer>>;
-	template <typename Renderer> using SubmitPtr    = std::shared_ptr<Submit<Renderer>>;
-	template <typename Renderer> using ResetPtr     = std::shared_ptr<Reset<Renderer>>;
-	template <typename Renderer> using LinkPtr      = std::shared_ptr<Link<Renderer>>;
+	template <typename Renderer> using InputPtr      = std::shared_ptr<Input<Renderer>>;
+	template <typename Renderer> using TextPtr       = std::shared_ptr<Text<Renderer>>;
+	template <typename Renderer> using CheckboxPtr   = std::shared_ptr<Checkbox<Renderer>>;
+	template <typename Renderer> using RadioPtr      = std::shared_ptr<Radio<Renderer>>;
+	template <typename Renderer> using RadioGroupPtr = std::shared_ptr<RadioGroup<Renderer>>;
+	template <typename Renderer> using SelectionPtr  = std::shared_ptr<Selection<Renderer>>;
+	template <typename Renderer> using SubmitPtr     = std::shared_ptr<Submit<Renderer>>;
+	template <typename Renderer> using ResetPtr      = std::shared_ptr<Reset<Renderer>>;
+	template <typename Renderer> using LinkPtr       = std::shared_ptr<Link<Renderer>>;
 
 	struct BasicRenderer;
 
@@ -161,13 +165,83 @@ namespace FastCGI {
 		bool isChecked() const { return this->m_checked; }
 	};
 
+	template <typename Renderer = BasicRenderer>
+	class Radio : public Input<Renderer>, protected CheckboxBase
+	{
+		bool m_checked;
+	public:
+		Radio(const std::string& group, const std::string& value, const std::string& label)
+			: Input<Renderer>("radio", group, label, std::string())
+		{
+			this->setAttr("id", group + "-" + value);
+			this->setAttr("value", value);
+		}
+
+		void getControlString(Request& request)
+		{
+			Renderer::checkboxControlString(request, this, this->m_hasError);
+		}
+
+		void bindData(Request& request, const Strings& data)
+		{
+			CheckboxBase::bindData(request, data, this->m_name, this->m_value, this->m_userValue);
+		}
+
+		void bindUI()
+		{
+			if (this->m_checked)
+				this->setAttr("checked", "checked");
+		}
+
+		bool isChecked() const { return this->m_checked; }
+		void check(bool val = true) { this->m_checked = val; }
+	};
+
+	template <typename Renderer = BasicRenderer>
+	class RadioGroup : public Control<Renderer>
+	{
+		std::list<RadioPtr<Renderer>> m_buttons;
+	public:
+		RadioGroup(const std::string& name, const std::string& label)
+			: Control<Renderer>(name, label, std::string())
+		{
+		}
+
+		RadioPtr<Renderer> radio(const std::string& value, const std::string& label)
+		{
+			auto obj = std::make_shared<Radio<Renderer>>(this->m_name, value, label);
+			if (obj)
+				m_buttons.push_back(obj);
+			return obj;
+		}
+
+		void getControlString(Request& request)
+		{
+			Renderer::radioGroupControlString(request, this, this->m_label, this->m_hasError);
+			for (auto&& radio : m_buttons)
+				radio->render(request);
+		}
+
+		void bindUI() override
+		{
+			if (this->m_value.empty())
+				return;
+
+			for (auto&& ctrl: m_buttons)
+			{
+				ctrl->check(ctrl->getAttr("value") == this->m_value);
+				ctrl->bindUI();
+			}
+		}
+	};
+
 	class Options
 	{
 	public:
 		using value_t = std::pair<std::string, std::string>;
 		using options_t = std::vector<value_t>;
 
-		void getControlString(Request& request);
+		void getControlString(Request& request, const std::string& selected);
 
 		Options& add(const std::string& key, const std::string& value)
 		{
@@ -193,7 +267,7 @@ namespace FastCGI {
 		void getControlString(Request& request)
 		{
 			Renderer::selectionControlString(request, this, this->m_hasError, [this](Request& request){
-				m_options.getControlString(request);
+				m_options.getControlString(request, this->m_value);
 			});
 		}
 

@@ -45,6 +45,7 @@ namespace FastCGI {
 		}
 
 		static void checkboxControlString(Request& request, ControlBase* control, bool hasError);
+		static void radioControlString(Request& request, ControlBase* control, bool hasError);
 		template <typename Callabale>
 		static void selectionControlString(Request& request, ControlBase* control, bool hasError, Callabale&& op)
 		{
