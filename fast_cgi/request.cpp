@@ -224,12 +224,12 @@ namespace FastCGI
 				if (length > MAX_FORM_BUFFER)
 					length = MAX_FORM_BUFFER;
 
-				char * buffer = (char*)malloc((size_t)length);
+				char * buffer = new (std::nothrow) char[length];
 				if (buffer)
 				{
 					if (read(buffer, length) == length)
 						unpackVariables(buffer, (size_t)length);
-					free(buffer);
+					delete [] buffer;
 				}
 			}
 		}

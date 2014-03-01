@@ -101,7 +101,7 @@ namespace http
 			{
 				if (close)
 				{
-					free(data);
+					delete [] data;
 					data = nullptr;
 				}
 			}
@@ -125,7 +125,7 @@ namespace http
 
 			m_encodings.clear();
 
-			free(m_data);
+			delete [] m_data;
 			m_data = nullptr;
 		}
 
@@ -150,7 +150,7 @@ namespace http
 				return false;
 
 			size_t buffer = file.size() - stringsStart;
-			m_data = (char*)malloc(buffer);
+			m_data = new (std::nothrow) char[buffer];
 			if (!m_data)
 				return false;
 			AutoCloser guard(m_data);
@@ -241,27 +241,53 @@ namespace http
 	{
 		struct ContentData
 		{
-			void* content;
+			char* content;
 			size_t content_length;
+			size_t capacity;
 			ContentData()
 				: content(nullptr)
 				, content_length(0)
+				, capacity(0)
 			{
 			}
 			~ContentData()
 			{
-				free(content);
+				delete [] content;
+			}
+
+			bool grow(size_t newsize)
+			{
+				if (capacity >= newsize)
+					return true;
+
+				auto copy_capacity = capacity;
+				if (!copy_capacity)
+					copy_capacity = 16;
+
+				while (copy_capacity < newsize)
+					copy_capacity <<= 1;
+
+				auto tmp = new (std::nothrow) char[copy_capacity];
+				if (!tmp)
+					return false;
+
+				if (content)
+					memcpy(tmp, content, content_length);
+
+				delete [] content;
+				content = tmp;
+				capacity = copy_capacity;
+				return true;
 			}
 
 			bool append(const void* data, size_t len)
 			{
-				void* copy = nullptr;
 				if (data && len)
 				{
-					void* copy = realloc(content, content_length + len);
-					if (!copy) return false;
-					content = copy;
-					memcpy((char*)content + content_length, data, len);
+					if (!grow(content_length + len))
+						return false;
+
+					memcpy(content + content_length, data, len);
 					content_length += len;
 				}
 				return true;
@@ -269,7 +295,7 @@ namespace http
 
 			void clear()
 			{
-				free(content);
+				delete [] content;
 				content = nullptr;
 				content_length = 0;
 			}

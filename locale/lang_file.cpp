@@ -77,7 +77,7 @@ namespace lng
 		size_t length = (size_t)st.file_size();
 
 		close();
-		m_content = (char*)malloc(length);
+		m_content = new (std::nothrow) char[length];
 		if (!m_content)
 			return ERR_OOM;
 
@@ -146,7 +146,7 @@ namespace lng
 
 	void LangFile::close()
 	{
-		free(m_content);
+		delete [] m_content;
 		m_count = 0;
 		m_offsets = nullptr;
 		m_strings = nullptr;

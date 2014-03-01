@@ -45,7 +45,7 @@ namespace FastCGI
 		static inline char* dup(const char* src)
 		{
 			size_t len = strlen(src) + 1;
-			char* dst = (char*)malloc(len);
+			char* dst = new (std::nothrow) char[len];
 			if (!dst)
 				return dst;
 			memcpy(dst, src, len);
@@ -54,13 +54,13 @@ namespace FastCGI
 
 		STLThread::STLThread(const char* uri)
 		{
-			REQUEST_URI = (char*)malloc(strlen(uri) + sizeof("REQUEST_URI="));
+			REQUEST_URI = new (std::nothrow) char[strlen(uri) + sizeof("REQUEST_URI=")];
 			strcat(strcpy(REQUEST_URI, "REQUEST_URI="), uri);
 			const char* query = strchr(uri, '?');
 			if (query)
 			{
 				++query;
-				QUERY_STRING = (char*)malloc(strlen(query) + sizeof("QUERY_STRING="));
+				QUERY_STRING = new (std::nothrow) char[strlen(query) + sizeof("QUERY_STRING=")];
 				strcat(strcpy(QUERY_STRING, "QUERY_STRING="), query);
 			}
 			else QUERY_STRING = dup("QUERY_STRING=");
@@ -77,8 +77,8 @@ namespace FastCGI
 
 		STLThread::~STLThread()
 		{
-			free(REQUEST_URI);
-			free(QUERY_STRING);
+			delete [] REQUEST_URI;
+			delete [] QUERY_STRING;
 		}
 	};
 }
