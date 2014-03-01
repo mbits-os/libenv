@@ -174,6 +174,7 @@ namespace db
 			bool execute();
 			CursorPtr query();
 			const char* errorMessage();
+			long errorCode();
 			ConnectionPtr getConnection() const { return m_parent; }
 		};
 
@@ -196,6 +197,7 @@ namespace db
 			StatementPtr prepare(const char* sql, long lowLimit, long hiLimit);
 			bool exec(const char* sql);
 			const char* errorMessage();
+			long errorCode();
 		};
 
 		class MySQLDriver: public Driver

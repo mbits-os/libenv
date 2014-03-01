@@ -187,13 +187,18 @@ namespace db { namespace mysql {
 		return mysql_error(&m_mysql);
 	}
 
+	long MySQLConnection::errorCode()
+	{
+		return mysql_errno(&m_mysql);
+	}
+
 	bool MySQLStatement::prepare(const char* stmt)
 	{
 		if (!stmt) return false;
 		int rc = mysql_stmt_prepare(m_stmt, stmt, strlen(stmt));
-		if (rc == 1)
-			std::cerr << "MySQL: " << mysql_stmt_errno(m_stmt) << ": "
-				<< mysql_stmt_error(m_stmt) << std::endl;
+		//if (rc == 1)
+		//	std::cerr << "MySQL: " << mysql_stmt_errno(m_stmt) << ": "
+		//		<< mysql_stmt_error(m_stmt) << std::endl;
 		if (rc != 0)
 			return false;
 
@@ -201,9 +206,9 @@ namespace db { namespace mysql {
 			return false;
 
 		rc = mysql_stmt_bind_param(m_stmt, m_bind);
-		if (rc == 1)
-			std::cerr << "MySQL: " << mysql_stmt_errno(m_stmt) << ": "
-				<< mysql_stmt_error(m_stmt) << std::endl;
+		//if (rc == 1)
+		//	std::cerr << "MySQL: " << mysql_stmt_errno(m_stmt) << ": "
+		//		<< mysql_stmt_error(m_stmt) << std::endl;
 		return rc == 0;
 	}
 
@@ -345,6 +350,11 @@ namespace db { namespace mysql {
 		return mysql_stmt_error(m_stmt);
 	}
 
+	long MySQLStatement::errorCode()
+	{
+		return mysql_stmt_errno(m_stmt);
+	}
+
 	bool MySQLCursor::allocBind(size_t count)
 	{
 		if (!MySQLBinding::allocBind(count))
@@ -464,9 +474,9 @@ namespace db { namespace mysql {
 	bool MySQLCursor::next()
 	{
 		int rc = mysql_stmt_fetch(m_stmt);
-		if (rc == 1)
-			std::cerr << "MySQL: " << mysql_stmt_errno(m_stmt) << ": "
-				<< mysql_stmt_error(m_stmt) << std::endl;
+		//if (rc == 1)
+		//	std::cerr << "MySQL: " << mysql_stmt_errno(m_stmt) << ": "
+		//		<< mysql_stmt_error(m_stmt) << std::endl;
 		if (rc == MYSQL_DATA_TRUNCATED)
 			rc = 0; // getXxx will take care of truncations...
 		return rc == 0;

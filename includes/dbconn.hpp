@@ -201,9 +201,15 @@ namespace db
 		return Struct<Type>().get(c, l);
 	}
 
-	struct Statement
+	struct ErrorReporter
 	{
-		virtual ~Statement() {}
+		virtual ~ErrorReporter() {}
+		virtual const char* errorMessage() = 0;
+		virtual long errorCode() = 0;
+	};
+
+	struct Statement : ErrorReporter
+	{
 		virtual bool bind(int arg, int value) = 0;
 		virtual bool bind(int arg, short value) = 0;
 		virtual bool bind(int arg, long value) = 0;
@@ -215,13 +221,11 @@ namespace db
 		virtual bool bindNull(int arg) = 0;
 		virtual bool execute() = 0;
 		virtual CursorPtr query() = 0;
-		virtual const char* errorMessage() = 0;
 		virtual ConnectionPtr getConnection() const = 0;
 	};
 
-	struct Connection
+	struct Connection : ErrorReporter
 	{
-		virtual ~Connection() {}
 		virtual bool isStillAlive() = 0;
 		virtual bool beginTransaction() = 0;
 		virtual bool rollbackTransaction() = 0;
@@ -229,7 +233,6 @@ namespace db
 		virtual bool exec(const char* sql) = 0;
 		virtual StatementPtr prepare(const char* sql) = 0;
 		virtual StatementPtr prepare(const char* sql, long lowLimit, long hiLimit) = 0;
-		virtual const char* errorMessage() = 0;
 		virtual bool reconnect() = 0;
 		static ConnectionPtr open(const filesystem::path& path);
 	};
