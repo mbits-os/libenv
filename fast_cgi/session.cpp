@@ -45,11 +45,12 @@ namespace FastCGI
 			"...",
 			true,
 			std::string(),
+			0,
 			tyme::now()
 			);
 	}
 
-	SessionPtr Session::fromDB(db::ConnectionPtr db, const char* sessionId)
+	SessionPtr Session::fromDB(const db::ConnectionPtr& db, const char* sessionId)
 	{
 		/*
 		I want:
@@ -67,16 +68,16 @@ namespace FastCGI
 		}
 		*/
 		db::StatementPtr query = db->prepare(
-			"SELECT user._id AS _id, user.login AS login, user.name AS name, user.email AS email, user.is_admin AS is_admin, user.lang AS lang, session.set_on AS set_on "
+			"SELECT user._id AS _id, user.login AS login, user.name AS name, user.email AS email, user.is_admin AS is_admin, user.lang AS lang, user.prefs AS prefs, session.set_on AS set_on "
 			"FROM session "
 			"LEFT JOIN user ON (user._id = session.user_id) "
 			"WHERE session.hash=?"
 			);
 
-		if (query.get() && query->bind(0, sessionId))
+		if (query && query->bind(0, sessionId))
 		{
 			db::CursorPtr c = query->query();
-			if (c.get() && c->next())
+			if (c && c->next())
 			{
 				return std::make_shared<Session>(
 					c->getLongLong(0),
@@ -86,13 +87,24 @@ namespace FastCGI
 					sessionId,
 					c->getInt(4) != 0,
 					c->isNull(5) ? std::string() : c->getText(5),
-					c->getTimestamp(6));
+					c->getInt(6),
+					c->getTimestamp(7));
 			}
 		}
 		return nullptr;
 	}
 
-	SessionPtr Session::startSession(db::ConnectionPtr db, const char* email)
+	void reportError(const char* file, int line, db::ErrorReporter* rep, const char* sql)
+	{
+		const char* error = rep->errorMessage();
+		long errorId = rep->errorCode();
+		if (!error) error = "(none)";
+		FastCGI::ApplicationLog(file, line) << "DB error " << errorId << ": " << error << " (" << sql << ")\n";
+	}
+
+#define REPORT_ERROR(rep, sql) reportError(__FILE__, __LINE__, rep, sql)
+
+	SessionPtr Session::startSession(const db::ConnectionPtr& db, const char* email)
 	{
 		tyme::time_t now = tyme::now();
 		char seed[20];
@@ -101,7 +113,7 @@ namespace FastCGI
 		Crypt::session(seed, sessionId);
 
 		const char* SQL_USER_BY_EMAIL =
-			"SELECT _id, login, name, is_admin, lang "
+			"SELECT _id, login, name, is_admin, lang, prefs "
 			"FROM user "
 			"WHERE email=?"
 			;
@@ -109,22 +121,23 @@ namespace FastCGI
 
 		db::StatementPtr query = db->prepare(SQL_USER_BY_EMAIL);
 
-		if (query.get() && query->bind(0, email))
+		if (query && query->bind(0, email))
 		{
 			auto c = query->query();
-			if (c.get() && c->next())
+			if (c && c->next())
 			{
 				long long _id = c->getLongLong(0);
 				std::string login = c->getText(1);
 				std::string name = c->getText(2);
 				bool isAdmin = c->getInt(3) != 0;
 				auto lang = c->isNull(4) ? std::string() : c->getText(4);
+				uint32_t prefs = (uint32_t)c->getInt(5);
 
 				c.reset();
 				query = db->prepare(
 					SQL_NEW_SESSION
 					);
-				if (query.get() &&
+				if (query &&
 					query->bind(0, sessionId) &&
 					query->bind(1, seed) &&
 					query->bind(2, _id) &&
@@ -141,41 +154,55 @@ namespace FastCGI
 							sessionId,
 							isAdmin,
 							lang,
+							prefs,
 							now
 							);
 					}
 					else
 					{
-						const char* error = query->errorMessage();
-						if (!error) error = "";
-						FLOG << "DB error: " << SQL_NEW_SESSION << " " << error << "\n";
+						REPORT_ERROR(query.get(), SQL_NEW_SESSION);
 					}
 				}
 				else
 				{
-					const char* error = db->errorMessage();
-					if (!error) error = "";
-					FLOG << "DB error: " << SQL_NEW_SESSION << " " << error << "\n";
+					REPORT_ERROR(query.get(), SQL_NEW_SESSION);
 				}
 			}
 		}
 		else
 		{
-			const char* error = query.get() ? query->errorMessage() : db->errorMessage();
-			if (!error) error = "";
-			FLOG << "DB error: " << SQL_USER_BY_EMAIL << " " << error << "\n";
+			auto rep = query ? (db::ErrorReporter*)query.get() : db.get();
+			REPORT_ERROR(rep, SQL_USER_BY_EMAIL);
 		}
 		return nullptr;
 	}
 
-	void Session::endSession(db::ConnectionPtr db, const char* sessionId)
+	void Session::endSession(const db::ConnectionPtr& db, const char* sessionId)
 	{
 		db::StatementPtr query = db->prepare("DELETE FROM session WHERE hash=?");
-		if (query.get() && query->bind(0, sessionId))
+		if (query && query->bind(0, sessionId))
 			query->execute();
 	}
 
-	long long Session::createFolder(db::ConnectionPtr db, const char* name, long long parent)
+	bool bindTextOrNull(const db::StatementPtr& query, int arg, const std::string& text)
+	{
+		return text.empty() ? query->bindNull(arg) : query->bind(arg, text);
+	}
+	void Session::storeLanguage(const db::ConnectionPtr& db)
+	{
+		db::StatementPtr query = db->prepare("UPDATE user SET lang=? WHERE _id=?");
+		if (query && bindTextOrNull(query, 0, m_preferredLanguage) && query->bind(1, m_id))
+			query->execute();
+	}
+
+	void Session::storeFlags(const db::ConnectionPtr& db)
+	{
+		db::StatementPtr query = db->prepare("UPDATE user SET prefs=? WHERE _id=?");
+		if (query && query->bind(0, (int)m_flags) && query->bind(1, m_id))
+			query->execute();
+	}
+
+	long long Session::createFolder(const db::ConnectionPtr& db, const char* name, long long parent)
 	{
 		return SERR_INTERNAL_ERROR;
 	}
@@ -324,7 +351,7 @@ namespace FastCGI
 		return insert->execute();
 	}
 
-	static inline int alreadySubscribes(db::ConnectionPtr& db, long long user_id, long long feed_id)
+	static inline int alreadySubscribes(const db::ConnectionPtr& db, long long user_id, long long feed_id)
 	{
 		auto stmt = db->prepare("SELECT count(*) FROM subscription WHERE feed_id=? AND folder_id IN (SELECT _id FROM folder WHERE user_id=?)");
 		if (!stmt) { FLOG << db->errorMessage(); return SERR_INTERNAL_ERROR; }
@@ -335,7 +362,7 @@ namespace FastCGI
 		return c->getInt(0);
 	}
 
-	static inline long long getRootFolder(db::ConnectionPtr& db, long long user_id)
+	static inline long long getRootFolder(const db::ConnectionPtr& db, long long user_id)
 	{
 		auto select = db->prepare("SELECT root_folder FROM user WHERE _id=?");
 		if (!select || !select->bind(0, user_id)) return SERR_INTERNAL_ERROR;
@@ -344,7 +371,7 @@ namespace FastCGI
 		return c->getLongLong(0);
 	}
 
-	static inline bool doSubscribe(db::ConnectionPtr& db, long long feed_id, long long folder_id)
+	static inline bool doSubscribe(const db::ConnectionPtr& db, long long feed_id, long long folder_id)
 	{
 		auto max_id = db->prepare("SELECT max(ord) FROM subscription WHERE folder_id=?");
 		if (!max_id || !max_id->bind(0, folder_id))
@@ -370,7 +397,7 @@ namespace FastCGI
 		return true;
 	}
 
-	static inline bool unreadLatest(db::ConnectionPtr& db, long long feed_id, long long user_id, int unread_count)
+	static inline bool unreadLatest(const db::ConnectionPtr& db, long long feed_id, long long user_id, int unread_count)
 	{
 		auto unread = db->prepare("SELECT _id FROM entry WHERE feed_id=? ORDER BY date DESC", 0, unread_count);
 		if (!unread || !unread->bind(0, feed_id))
@@ -399,7 +426,7 @@ namespace FastCGI
 		return true;
 	}
 
-	long long Session::subscribe(db::ConnectionPtr db, const char* url, long long folder)
+	long long Session::subscribe(const db::ConnectionPtr& db, const char* url, long long folder)
 	{
 		int unread_count = UNREAD_COUNT;
 		long long feed_id = 0;

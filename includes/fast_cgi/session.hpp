@@ -61,6 +61,13 @@ namespace FastCGI
 		ENTRY_IMPORTANT
 	};
 
+	enum
+	{
+		UI_VIEW_ONLY_UNREAD  = 1,
+		UI_VIEW_ONLY_TITLES = 2,
+		UI_VIEW_OLDEST_FIRST = 4
+	};
+
 	class Session
 	{
 		long long m_id;
@@ -71,13 +78,30 @@ namespace FastCGI
 		bool m_isAdmin;
 		std::string m_preferredLanguage;
 		tyme::time_t m_setOn;
+		uint32_t m_flags;
 		lng::TranslationPtr m_tr;
+
+		void flags(int mask, int value)
+		{
+			m_flags &= ~mask;
+			m_flags |= value;
+		}
+
+		bool flags(int mask) const
+		{
+			return (m_flags & mask) == mask;
+		}
+
+		void flags_set(int bit, bool set)
+		{
+			flags(bit, set ? bit : 0);
+		}
 	public:
 		Session()
 		{
 		}
 		Session(long long id, const std::string& login, const std::string& name, const std::string& email,
-			const std::string& hash, bool isAdmin, const std::string& preferredLanguage, tyme::time_t setOn)
+			const std::string& hash, bool isAdmin, const std::string& preferredLanguage, uint32_t flags, tyme::time_t setOn)
 			: m_id(id)
 			, m_login(login)
 			, m_name(name)
@@ -85,14 +109,15 @@ namespace FastCGI
 			, m_hash(hash)
 			, m_isAdmin(isAdmin)
 			, m_preferredLanguage(preferredLanguage)
+			, m_flags(flags)
 			, m_setOn(setOn)
 		{
 		}
 
 		static SessionPtr stlSession();
-		static SessionPtr fromDB(db::ConnectionPtr db, const char* sessionId);
-		static SessionPtr startSession(db::ConnectionPtr db, const char* email);
-		static void endSession(db::ConnectionPtr db, const char* sessionId);
+		static SessionPtr fromDB(const db::ConnectionPtr& db, const char* sessionId);
+		static SessionPtr startSession(const db::ConnectionPtr& db, const char* email);
+		static void endSession(const db::ConnectionPtr& db, const char* sessionId);
 		long long getId() const { return m_id; }
 		const std::string& getLogin() const { return m_login; }
 		const std::string& getName() const { return m_name; }
@@ -101,11 +126,21 @@ namespace FastCGI
 		bool isAdmin() const { return m_isAdmin; }
 		const std::string& preferredLanguage() const { return m_preferredLanguage; }
 		void preferredLanguage(const std::string& lang) { m_preferredLanguage = lang; }
+		void storeLanguage(const db::ConnectionPtr& db);
+
+		bool viewOnlyUnread() const  { return flags(UI_VIEW_ONLY_UNREAD); }
+		bool viewOnlyTitles() const  { return flags(UI_VIEW_ONLY_TITLES); }
+		bool viewOldestFirst() const { return flags(UI_VIEW_OLDEST_FIRST); }
+		void setViewOnlyUnread(bool value = true)  { flags_set(UI_VIEW_ONLY_UNREAD, value); }
+		void setViewOnlyTitles(bool value = true)  { flags_set(UI_VIEW_ONLY_TITLES, value); }
+		void setViewOldestFirst(bool value = true) { flags_set(UI_VIEW_OLDEST_FIRST, value); }
+		void storeFlags(const db::ConnectionPtr& db);
+
 		tyme::time_t getStartTime() const { return m_setOn; }
 		lng::TranslationPtr getTranslation() { return m_tr; }
-		void setTranslation(lng::TranslationPtr tr) { m_tr = tr; }
-		long long createFolder(db::ConnectionPtr db, const char* name, long long parent = 0);
-		long long subscribe(db::ConnectionPtr db, const char* url, long long folder = 0);
+		void setTranslation(const lng::TranslationPtr& tr) { m_tr = tr; }
+		long long createFolder(const db::ConnectionPtr& db, const char* name, long long parent = 0);
+		long long subscribe(const db::ConnectionPtr& db, const char* url, long long folder = 0);
 	};
 }
 
