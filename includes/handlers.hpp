@@ -31,6 +31,12 @@
 #include <__file__.win32.hpp>
 #endif
 
+#if DEBUG_CGI
+#define DEBUG_NAME(handler_name) std::string name() const override { return handler_name; }
+#else
+#define DEBUG_NAME(handler_name)
+#endif
+
 namespace FastCGI { namespace app
 {
 	class Handler
@@ -66,21 +72,21 @@ namespace FastCGI { namespace app
 			return title;
 		} 
 		//rendering the page
-		virtual void prerender(SessionPtr session, Request& request, PageTranslation& tr) {}
-		virtual void header(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void headElement(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void buildTopMenu(TopMenu::TopBar& menu, SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void bodyStart(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void render(SessionPtr session, Request& request, PageTranslation& tr)
+		virtual void prerender(const SessionPtr& session, Request& request, PageTranslation& tr) {}
+		virtual void header(const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void headElement(const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void buildTopMenu(TopMenu::TopBar& menu, const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void bodyStart(const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void render(const SessionPtr& session, Request& request, PageTranslation& tr)
 		{
 			ContentPtr content = request.getContent();
 			if (content.get())
 				content->render(session, request, tr);
 		}
-		virtual void footer(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void bodyEnd(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void topbarUI(SessionPtr session, Request& request, PageTranslation& tr);
-		virtual void postrender(SessionPtr session, Request& request, PageTranslation& tr) {}
+		virtual void footer(const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void bodyEnd(const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void topbarUI(const SessionPtr& session, Request& request, PageTranslation& tr);
+		virtual void postrender(const SessionPtr& session, Request& request, PageTranslation& tr) {}
 	public:
 		void visit(Request& request);
 	};
@@ -114,14 +120,8 @@ namespace FastCGI { namespace app
 		{
 		}
 
-#if DEBUG_CGI
-		std::string name() const
-		{
-			return "Location: <a href='" + m_service_url + "'>" + m_service_url + "</a>";
-		}
-#endif
-
-		void visit(Request& request) { request.redirect(m_service_url); }
+		DEBUG_NAME("Location: <a href='" + m_service_url + "'>" + m_service_url + "</a>");
+		void visit(Request& request) override { request.redirect(m_service_url); }
 	};
 
 #if DEBUG_CGI

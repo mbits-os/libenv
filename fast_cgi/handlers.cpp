@@ -59,7 +59,7 @@ namespace FastCGI { namespace app {
 
 	const char* getDTD() { return ""; }
 
-	void PageHandler::header(SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::header(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		TopMenu::TopBar menu("topbar", "home", "menu");
 		buildTopMenu(menu, session, request, tr);
@@ -78,7 +78,7 @@ namespace FastCGI { namespace app {
 		bodyStart(session, request, tr);
 	}
 
-	void PageHandler::buildTopMenu(TopMenu::TopBar& menu, SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::buildTopMenu(TopMenu::TopBar& menu, const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		std::string display_name;
 		std::string icon;
@@ -114,7 +114,7 @@ namespace FastCGI { namespace app {
 			.setItemUrl("logout", "/auth/logout");
 	}
 
-	void PageHandler::headElement(SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::headElement(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		request <<
 			"    <title>" << getTitle(request, tr) << "</title>\r\n"
@@ -127,7 +127,7 @@ namespace FastCGI { namespace app {
 			;
 	}
 
-	void PageHandler::bodyStart(SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::bodyStart(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		request <<
 			/*"  <div id=\"wrapper\" class=\"hfeed\">\r\n"
@@ -150,7 +150,7 @@ namespace FastCGI { namespace app {
 			"            <div id=\"content\">\r\n";
 	}
 
-	void PageHandler::footer(SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::footer(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		bodyEnd(session, request, tr);
 		request <<
@@ -158,7 +158,7 @@ namespace FastCGI { namespace app {
 			"</html>\r\n";
 	}
 
-	void PageHandler::bodyEnd(SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::bodyEnd(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		request << "\r\n"
 			"            </div><!-- #content -->\r\n"
@@ -169,7 +169,7 @@ namespace FastCGI { namespace app {
 			;
 		topbarUI(session, request, tr);
 	}
-	void PageHandler::topbarUI(SessionPtr session, Request& request, PageTranslation& tr)
+	void PageHandler::topbarUI(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{
 		request <<
 			"<!-- UI -->\r\n"

@@ -88,7 +88,7 @@ namespace FastCGI
 	{
 	public:
 		virtual ~Content() {}
-		virtual void render(SessionPtr session, Request& request, PageTranslation& tr) = 0;
+		virtual void render(const SessionPtr& session, Request& request, PageTranslation& tr) = 0;
 		virtual const char* getPageTitle(PageTranslation& tr) { return nullptr; }
 	};
 	typedef std::shared_ptr<Content> ContentPtr;

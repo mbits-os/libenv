@@ -307,7 +307,7 @@ namespace FastCGI {
 
 		const char* getPageTitle(PageTranslation& tr) override { return m_title.c_str(); }
 		virtual const char* getFormTitle(PageTranslation& tr) { return getPageTitle(tr); }
-		void render(SessionPtr session, Request& request, PageTranslation& tr) override
+		void render(const SessionPtr& session, Request& request, PageTranslation& tr) override
 		{
 			FormBase::formStart(session, request, tr);
 			RendererT::getFormStart(request, getFormTitle(tr));
