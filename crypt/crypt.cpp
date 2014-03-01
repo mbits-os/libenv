@@ -130,14 +130,37 @@ namespace Crypt
 
 	static char randomChar()
 	{
+		// TODO : fixme!
 		return alphabet(sslrand<unsigned char>() >> 2);
+	}
+
+	static void randomU32(char (&out)[4])
+	{
+		unsigned char ent[3];
+		RAND_bytes(ent, sizeof(ent));
+		out[0] = alphabet(ent[0] >> 2);
+		out[1] = alphabet((ent[0] & 0x3) | (ent[1] >> 4));
+		out[2] = alphabet((ent[1] & 0xF) | (ent[2] >> 6));
+		out[3] = alphabet(ent[2] & 0x3F);
 	}
 
 	void newSalt(char* salt, size_t len)
 	{
+		char sample[4];
 		salt[--len] = 0;
-		for (size_t i = 0; i < len; ++i)
-			salt[i] = randomChar();
+		size_t tmp = len / 4;
+		for (size_t i = 0; i < tmp; ++i)
+		{
+			randomU32(sample);
+			memcpy(salt, sample, 4);
+			salt += 4;
+		}
+
+		tmp = len % 4;
+		if (!tmp) return;
+
+		randomU32(sample);
+		memcpy(salt, sample, tmp);
 	}
 
 	void base64_encode(const void* data, size_t len, char* output)
