@@ -186,6 +186,9 @@ namespace lng
 	filesystem::path Locale::getFilename(const char* header, const filesystem::path& filename)
 	{
 		std::list<std::string> langs = url::priorityList(header);
+
+		while (expandList(langs));
+
 		for (auto& lang : langs)
 		{
 			std::transform(lang.begin(), lang.end(), lang.begin(), [](char c) { return c == '-' ? '_' : c; });

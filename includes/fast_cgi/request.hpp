@@ -42,7 +42,7 @@ namespace lng
 };
 
 #define on500(log) __on500(__FILE__, __LINE__, log)
-#define sendMail(info) __sendMail(__FILE__, __LINE__, info)
+#define sendMail(preferredLanguage, info) __sendMail(__FILE__, __LINE__, preferredLanguage, info)
 
 namespace FastCGI
 {
@@ -224,7 +224,7 @@ namespace FastCGI
 
 		lng::TranslationPtr getTranslation(const std::string& lang);
 		lng::TranslationPtr httpAcceptLanguage();
-		void __sendMail(const char* file, int line, const MailInfo& info);
+		void __sendMail(const char* file, int line, const std::string& preferredLanguage, const MailInfo& info);
 
 		RequestStatePtr getRequestState() { return m_requestState; }
 		void setRequestState(RequestStatePtr state) { m_requestState = state; }

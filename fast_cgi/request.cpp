@@ -224,7 +224,7 @@ namespace FastCGI
 				if (length > MAX_FORM_BUFFER)
 					length = MAX_FORM_BUFFER;
 
-				char * buffer = new (std::nothrow) char[length];
+				char * buffer = new (std::nothrow) char[(size_t)length];
 				if (buffer)
 				{
 					if (read(buffer, length) == length)
@@ -573,18 +573,31 @@ namespace FastCGI
 		return app().httpAcceptLanguage(HTTP_ACCEPT_LANGUAGE);
 	}
 
-	void Request::__sendMail(const char* file, int line, const MailInfo& info)
+	void Request::__sendMail(const char* file, int line, const std::string& preferredLanguage, const MailInfo& info)
 	{
 		if (info.to.empty())
 			__on500(file, line, "Field `To:` empty when trying to send a message " + info.subject);
 
-		param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
-		if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
-		auto path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, info.mailFile);
-		auto doc = wiki::compile(path);
+		wiki::document_ptr doc;
+
+		if (!preferredLanguage.empty())
+		{
+			auto path = app().getLocalizedFilename(preferredLanguage.c_str(), info.mailFile);
+			if (!path.empty())
+				doc = wiki::compile(path);
+		}
 
 		if (!doc)
-			__on500(file, line, "Could not load WIKI file from " + info.mailFile.native() + " while trying to send a message (" + info.subject + " to " + info.to[0].email + ")");
+		{
+			param_t HTTP_ACCEPT_LANGUAGE = getParam("HTTP_ACCEPT_LANGUAGE");
+			if (!HTTP_ACCEPT_LANGUAGE) HTTP_ACCEPT_LANGUAGE = "";
+			auto path = app().getLocalizedFilename(HTTP_ACCEPT_LANGUAGE, info.mailFile);
+			if (!path.empty())
+				doc = wiki::compile(path);
+		}
+
+		if (!doc)
+			__on500(file, line, "Could not load WIKI file from " + info.mailFile.native() + " while trying to send a message \"" + info.subject + "\" to <" + info.to[0].email + ">");
 
 		auto producer = mail::make_wiki_producer(doc, info.variables, app().getDataDir());
 		auto message = PostOffice::newMessage(info.subject, producer);
