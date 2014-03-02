@@ -25,8 +25,6 @@
 #ifndef __LIBENV_PCH_H__
 #define __LIBENV_PCH_H__
 
-#include <new.hpp>
-
 #include "fcgio.h"
 #include <memory>
 #include <list>
