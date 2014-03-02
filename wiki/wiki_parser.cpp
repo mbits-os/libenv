@@ -68,8 +68,8 @@ namespace wiki { namespace parser {
 			auto lineEnd = line;
 			while (lineEnd != end && *lineEnd != '\n') ++lineEnd;
 			auto right = lineEnd;
-			if (right != end)
-				while (right != lineEnd && isspace(*right)) --right;
+			while (right != line && isspace(right[-1]))
+				--right;
 
 			parseLine(line, right);
 

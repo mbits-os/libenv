@@ -254,7 +254,7 @@ namespace wiki
 		if (text.size() <= size)
 			return nullptr;
 
-		auto f = fopen(file.native().c_str(), "r");
+		auto f = fopen(file.native().c_str(), "rb");
 		if (!f)
 			return nullptr;
 
@@ -263,6 +263,7 @@ namespace wiki
 			fclose(f);
 			return nullptr;
 		};
+
 		fclose(f);
 
 		text[size] = 0;
