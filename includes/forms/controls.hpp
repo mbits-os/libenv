@@ -79,7 +79,7 @@ namespace FastCGI {
 
 		void render(Request& request) override
 		{
-			Renderer::render(request, this);
+			Renderer::render(request, this, this->m_hasError);
 		}
 		void renderSimple(Request& request) override
 		{
@@ -264,7 +264,14 @@ namespace FastCGI {
 		{
 		}
 
-		void getControlString(Request& request)
+		bool getLabelString(Request& request) override
+		{
+			if (!m_label.empty())
+				Renderer::selectionLabelString(request, m_name, m_label);
+			return !m_label.empty();
+		}
+
+		void getControlString(Request& request) override
 		{
 			Renderer::selectionControlString(request, this, this->m_hasError, [this](Request& request){
 				m_options.getControlString(request, this->m_value);

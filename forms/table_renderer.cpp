@@ -27,7 +27,7 @@
 #include <fast_cgi/request.hpp>
 
 namespace FastCGI {
-	void TableRenderer::render(Request& request, ControlBase* ctrl)
+	void TableRenderer::render(Request& request, ControlBase* ctrl, bool)
 	{
 		request << "<tr>";
 		ctrl->getControlString(request);

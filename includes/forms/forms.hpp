@@ -230,7 +230,7 @@ namespace FastCGI {
 		void render(Request& request, size_t pageId)
 		{
 			Renderer::getSectionStart(request, pageId, m_name);
-			Controls<Renderer>::renderControls(request);
+			ControlContainer<Renderer>::renderControls(request);
 			Renderer::getSectionEnd(request, pageId, m_name);
 		}
 

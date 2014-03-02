@@ -28,16 +28,28 @@
 
 namespace FastCGI {
 
-	void VerticalRenderer::render(Request& request, ControlBase* ctrl)
+	void VerticalRenderer::render(Request& request, ControlBase* ctrl, bool hasError)
 	{
+		request <<
+			"      <div class='item";
+		if (hasError)
+			request << " error";
+		request << "'>\r\n";
+		ctrl->getLabelString(request);
 		ctrl->getControlString(request);
-		request << "\r\n";
+		request <<
+			"      </div>\r\n";
 	}
 
 	void VerticalRenderer::setPlaceholder(ControlBase* ctrl, const std::string& placeholder)
 	{
 		if (!placeholder.empty())
 			ctrl->setAttr("placeholder", placeholder);
+	}
+
+	void VerticalRenderer::getLabelString(Request& request, const std::string& name, const std::string& label)
+	{
+		request << "        <div class='label'><label for='" << name << "'>" << label << "</label></div>\r\n";
 	}
 
 	void VerticalRenderer::getErrorString(Request& request, const std::string& error)
@@ -53,17 +65,15 @@ namespace FastCGI {
 
 	void VerticalRenderer::getHintString(Request& request, const std::string& hint)
 	{
-		request << "<tr><td></td><td class='hint'>" << hint << "</td></tr>\r\n";
+		request << "<br/><span class='hint'>" << hint << "</span>";
 	}
 
-	void VerticalRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError)
+	void VerticalRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool)
 	{
-		if (hasError)
-			request << "<li class='error'>";
-		else
-			request << "<li>";
+		request << "        <div class='control'>";
 		control->getElement(request, element);
-		request << "</li>";
+		control->getHintString(request);
+		request << "</div>\r\n";
 	}
 
 	void VerticalRenderer::checkboxControlString(Request& request, ControlBase* control, bool hasError)
@@ -87,28 +97,49 @@ namespace FastCGI {
 		request << "</li>";
 	}
 
+	void VerticalRenderer::selectionLabelString(Request& request, const std::string& name, const std::string& label)
+	{
+		request << "        <div class='label retain'><label for='" << name << "'>" << label << "</label></div>\r\n";
+	}
+
+	void VerticalRenderer::getSectionStart(Request& request, size_t sectionId, const std::string& name)
+	{
+		request <<
+			"    <div class='section' id='sec-" << sectionId << "'>\r\n"
+			"      <h2>" << name << "</h2>\r\n";
+	}
+
+	void VerticalRenderer::getSectionEnd(Request& request, size_t sectionId, const std::string& name)
+	{
+		request <<
+			"    </div> <!-- sec-" << sectionId << " -->\r\n";
+	}
+
 	void VerticalRenderer::getFormStart(Request& request, const std::string& title)
 	{
 		request << "\r\n"
-			"<div class='form'>\r\n"
-			"<h1>" << title << "</h1>\r\n";
+			"  <div class='form'>\r\n"
+			"    <h1>" << title << "</h1>\r\n";
 	}
 
 	void VerticalRenderer::getFormEnd(Request& request)
 	{
-		request << "</ul>\r\n";
 #if DEBUG_CGI
-		request << "\r\n"
-			"<div class=\"debug-icons\"><div>\r\n"
-			"<a class=\"debug-icon\" href=\"/debug/\"><span>[D]</span></a>\r\n";
+		request <<
+			"\r\n"
+			"    <div class=\"debug-icons\">\r\n"
+			"      <div>\r\n"
+			"        <a class=\"debug-icon\" href=\"/debug/\"><span>[D]</span></a>\r\n";
 		std::string icicle = request.getIcicle();
 		if (!icicle.empty())
-			request << "<a class=\"frozen-icon\" href=\"/debug/?frozen=" << url::encode(icicle) << "\"><span>[F]</span></a>\r\n";
-		request << "</div></div>\r\n";
+			request << "        <a class=\"frozen-icon\" href=\"/debug/?frozen=" << url::encode(icicle) << "\"><span>[F]</span></a>\r\n";
+		request <<
+			"      </div>\r\n"
+			"    </div>\r\n";
 #endif
 
 		request <<
-			"</div>\r\n";
+			"  </div> <!-- class='form' -->\r\n";
 	}
 
 } // FastCGI

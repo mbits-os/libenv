@@ -30,7 +30,7 @@
 namespace FastCGI {
 	struct TableRenderer : BasicRenderer
 	{
-		static void render(Request& request, ControlBase* ctrl);
+		static void render(Request& request, ControlBase* ctrl, bool);
 		static void getErrorString(Request& request, const std::string& error);
 		static void getHintString(Request& request, const std::string& hint);
 		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError);

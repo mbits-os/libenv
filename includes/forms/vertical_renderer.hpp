@@ -31,42 +31,38 @@ namespace FastCGI {
 
 	struct VerticalRenderer : BasicRenderer
 	{
-		static void render(Request& request, ControlBase* ctrl);
+		static void render(Request& request, ControlBase* ctrl, bool hasError);
 		static void setPlaceholder(ControlBase* ctrl, const std::string& placeholder);
+		static void getLabelString(Request& request, const std::string& name, const std::string& label);
 		static void getErrorString(Request& request, const std::string& error);
 		static void getMessagesString(Request& request, const std::list<std::string>& messages);
 		static void getHintString(Request& request, const std::string& hint);
 		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError);
 
 		template <typename Arg>
-		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, Arg&& arg)
+		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool, Arg&& arg)
 		{
-			if (hasError)
-				request << "<li class='error'>";
-			else
-				request << "<li>";
+			request << "        <div class='control'>";
 			control->getElement(request, element, std::forward<Arg>(arg));
-			request << "</li>";
+			control->getHintString(request);
+			request << "</div>\r\n";
 		}
 
 		static void checkboxControlString(Request& request, ControlBase* control, bool hasError);
 		static void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError);
 
+		static void selectionLabelString(Request& request, const std::string& name, const std::string& label);
 		template <typename Callabale>
-		static void selectionControlString(Request& request, ControlBase* control, bool hasError, Callabale&& op)
+		static void selectionControlString(Request& request, ControlBase* control, bool, Callabale&& op)
 		{
-			if (hasError)
-				request << "<li class='error'>";
-			else
-				request << "<li>";
-
-			if (control->getLabelString(request))
-				request << "<br/>\r\n";
-
+			request << "        <div class='control'>";
 			control->getElement(request, "select", std::forward<Callabale>(op));
-
-			request << "</li>";
+			control->getHintString(request);
+			request << "</div>\r\n";
 		}
+
+		static void getSectionStart(Request& request, size_t sectionId, const std::string& name);
+		static void getSectionEnd(Request& request, size_t sectionId, const std::string& name);
 
 		static void getFormStart(Request& request, const std::string& title);
 		static void getFormEnd(Request& request);

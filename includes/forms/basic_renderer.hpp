@@ -31,7 +31,7 @@ namespace FastCGI {
 
 	struct BasicRenderer
 	{
-		static void render(Request& request, ControlBase* ctrl) {}
+		static void render(Request& request, ControlBase* ctrl, bool) {}
 		static void renderSimple(Request& request, ControlBase* ctrl)
 		{
 			ctrl->getSimpleControlString(request);
@@ -43,6 +43,10 @@ namespace FastCGI {
 		static void getMessagesString(Request& request, const std::list<std::string>& messages) {}
 		static void getHintString(Request& request, const std::string& hint) {}
 		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError) {}
+		static void selectionLabelString(Request& request, const std::string& name, const std::string& label)
+		{
+			getLabelString(request, name, label);
+		}
 		template <typename Arg>
 		static void getControlString(Request& request, ControlBase* control, bool hasError, Arg&& arg) {}
 		static void checkboxControlString(Request& request, ControlBase* control, bool hasError) {}
