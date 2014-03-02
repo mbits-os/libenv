@@ -141,11 +141,10 @@ namespace db
 			StatementPtr getStatement() const { return m_parent; }
 		};
 
-		class MySQLStatement: public Statement, MySQLBinding
+		class MySQLStatement: public Statement, MySQLBinding, public std::enable_shared_from_this<Statement>
 		{
 			ConnectionPtr m_parent;
 		public:
-			std::weak_ptr<Statement> m_self;
 			MySQLStatement(MYSQL *mysql, MYSQL_STMT *stmt, const ConnectionPtr& parent)
 				: MySQLBinding(mysql, stmt)
 				, m_parent(parent)
@@ -182,13 +181,12 @@ namespace db
 			ConnectionPtr getConnection() const { return m_parent; }
 		};
 
-		class MySQLConnection: public Connection
+		class MySQLConnection : public Connection, public std::enable_shared_from_this<Connection>
 		{
 			MYSQL m_mysql;
 			bool m_connected;
 			filesystem::path m_path;
 		public:
-			std::weak_ptr<Connection> m_self;
 			MySQLConnection(const filesystem::path& path);
 			~MySQLConnection();
 			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);
