@@ -283,7 +283,7 @@ namespace FastCGI
 
 	ApplicationLog::ApplicationLog(const char* file, int line)
 	{
-		m_log << (file + BUILD_DIR_LEN) << ":" << line << " [" << _getpid() << "] @" << mt::Thread::currentId() << " ";
+		m_log << "[" << _getpid() << "] @" << mt::Thread::currentId() << " "; // << (file + BUILD_DIR_LEN) << ":" << line << ": ";
 	}
 
 	ApplicationLog::~ApplicationLog()
