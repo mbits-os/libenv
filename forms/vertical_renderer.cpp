@@ -49,7 +49,7 @@ namespace FastCGI {
 
 	void VerticalRenderer::getLabelString(Request& request, const std::string& name, const std::string& label)
 	{
-		request << "        <div class='label'><label for='" << name << "'>" << label << "</label></div>\r\n";
+		request << "        <div class='label'><label for='" << name << "'>" << label << ":</label></div>\r\n";
 	}
 
 	void VerticalRenderer::getErrorString(Request& request, const std::string& error)
@@ -99,7 +99,7 @@ namespace FastCGI {
 
 	void VerticalRenderer::selectionLabelString(Request& request, const std::string& name, const std::string& label)
 	{
-		request << "        <div class='label retain'><label for='" << name << "'>" << label << "</label></div>\r\n";
+		request << "        <div class='label retain'><label for='" << name << "'>" << label << ":</label></div>\r\n";
 	}
 
 	void VerticalRenderer::getSectionStart(Request& request, size_t sectionId, const std::string& name)
