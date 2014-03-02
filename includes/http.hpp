@@ -109,6 +109,7 @@ namespace http
 	};
 
 	void init(const filesystem::path& charsetPath);
+	void reload(const filesystem::path& charsetPath);
 }
 
 #endif //__HTTP_HPP__

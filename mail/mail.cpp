@@ -47,7 +47,7 @@
 
 namespace mail
 {
-	struct configuration
+	struct configuration: public mt::AsyncData
 	{
 		std::string server, user, password, mailbox, machine;
 	};
@@ -274,7 +274,7 @@ namespace mail
 
 	void Message::post()
 	{
-		FLOG << "Generating the message.";
+		FLOG << "[SMTP] Generating the message.";
 		addHeader("Subject", Base64::header(m_subject));
 		addHeader("From", m_from.format());
 		addHeader("To", join(m_to));
@@ -282,11 +282,12 @@ namespace mail
 		if (!m_bcc.empty()) addHeader("Bcc", join(m_bcc));
 		echo();
 		m_downstream->close();
-		FLOG << "Message generated";
+		FLOG << "[SMTP] Message generated";
 	}
 
 	void Message::setFrom(const std::string& name)
 	{
+		Synchronize on(g_smtp);
 		m_from.assign(name, g_smtp.mailbox + "@" + g_smtp.machine);
 	}
 
@@ -353,10 +354,10 @@ namespace mail
 		g_smtp.machine = read(props, "machine");
 
 		if (g_smtp.server.empty())
-			FLOG << "SMTP config is missing server key";
+			FLOG << "[SMTP] Config is missing server key";
 
 		if (g_smtp.user.empty())
-			FLOG << "SMTP config is missing user key";
+			FLOG << "[SMTP] Config is missing user key";
 
 		if (g_smtp.mailbox.empty())
 		{
@@ -367,6 +368,14 @@ namespace mail
 		{
 			g_smtp.machine = g_smtp.server.substr(0, g_smtp.server.find(':'));
 		}
+
+		FLOG << "[SMTP] e-mail: " << g_smtp.mailbox << "@" << g_smtp.machine << " (via " << g_smtp.server << ')';
+	}
+
+	void PostOffice::reload(const filesystem::path& ini)
+	{
+		Synchronize on(g_smtp);
+		init(ini);
 	}
 
 	void PostOffice::post(const MessagePtr& ptr, bool async)
@@ -411,14 +420,14 @@ namespace mail
 
 	int PostOffice::send(const std::string& from, const std::vector<std::string>& to, const MessagePtr& ptr)
 	{
-		FLOG << "Sending a message...";
+		FLOG << "[SMTP] Sending a message...";
 		if (to.empty())
 			return -1;
 
 		Curl smtp;
 		if (!smtp.open())
 		{
-			FLOG << "Could not open SMTP object";
+			FLOG << "[SMTP] Could not open SMTP object";
 			return -1;
 		}
 
@@ -428,7 +437,7 @@ namespace mail
 		filter::Pipe pipe;
 		if (!pipe.open())
 		{
-			FLOG << "Could not create pipe.";
+			FLOG << "[SMTP] Could not create pipe.";
 			return -1;
 		}
 
@@ -440,11 +449,11 @@ namespace mail
 		auto res = smtp.transfer();
 
 		if (res != CURLE_OK)
-			FLOG << "curl_easy_perform() failed: " << curl_easy_strerror(res);
+			FLOG << "[SMTP] curl_easy_perform() failed: " << curl_easy_strerror(res);
 
 		smtp.closeFd();
 		thread.join();
-		FLOG << "Message sent...";
+		FLOG << "[SMTP] Message sent...";
 		return res;
 	}
 
@@ -539,6 +548,9 @@ namespace mail
 
 		if (!m_curl)
 			return false;
+
+		Synchronize on(g_smtp);
+
 		curl_easy_setopt(m_curl, CURLOPT_URL, ("smtp://" + g_smtp.server).c_str());
 		curl_easy_setopt(m_curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
 		curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -591,7 +603,6 @@ namespace mail
 
 	CURLcode Curl::transfer()
 	{
-		FLOG << "Transferring the data from descriptor";
 		return curl_easy_perform(m_curl);
 	}
 
@@ -605,6 +616,8 @@ namespace mail
 
 		Crypt::md5_t boundary;
 		Crypt::md5(now, boundary);
+
+		Synchronize on(g_smtp);
 
 		auto msg = std::make_shared<Message>(subject, boundary, g_smtp.machine, producer);
 		producer->setMessage(msg);

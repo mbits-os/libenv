@@ -77,6 +77,13 @@ namespace lng
 		m_fileRoot = fileRoot;
 	}
 
+	void Locale::reload(const filesystem::path& fileRoot)
+	{
+		Translations empty;
+		m_translations.swap(empty);
+		m_fileRoot = fileRoot;
+	}
+
 	inline bool inside(const std::list<std::string>& langs, const std::string& key)
 	{
 		for (auto&& lang : langs)

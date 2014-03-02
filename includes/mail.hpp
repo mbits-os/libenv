@@ -290,6 +290,7 @@ namespace mail
 		static int send(const std::string& from, const std::vector<std::string>& to, const MessagePtr& ptr);
 	public:
 		static void init(const filesystem::path& ini);
+		static void reload(const filesystem::path& ini);
 		static void post(const MessagePtr& ptr, bool async);
 		static MessagePtr newMessage(const std::string& subject, const MessageProducerPtr& producer);
 	};

@@ -46,11 +46,16 @@ namespace FastCGI
 
 	bool Thread::init()
 	{
-		if (!m_backend.get() || !m_app)
+		if (!m_backend || !m_app)
 			return false;
 
 		m_backend->init();
 		return true;
+	}
+
+	void Thread::reload()
+	{
+		m_dbConn.reset(); // reopen it next time...
 	}
 
 	bool Thread::accept()
@@ -117,7 +122,7 @@ namespace FastCGI
 		Synchronize on (*this);
 
 		//restart if needed
-		if (!m_dbConn.get())
+		if (!m_dbConn)
 		{
 			if (!m_app)
 				request.on500("No application to get DB config from");
@@ -126,7 +131,7 @@ namespace FastCGI
 		else if (!m_dbConn->isStillAlive())
 			m_dbConn->reconnect();
 
-		if (!m_dbConn.get() || !m_dbConn->isStillAlive())
+		if (!m_dbConn || !m_dbConn->isStillAlive())
 			request.on500("DB connection lost");
 
 		return m_dbConn;

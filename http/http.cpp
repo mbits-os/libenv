@@ -43,6 +43,7 @@
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <mt.hpp>
 
 namespace http
 {
@@ -59,7 +60,7 @@ namespace http
 		}
 	};
 
-	class EncodingDB
+	class EncodingDB: public mt::AsyncData
 	{
 		typedef std::vector<Encoding> Encodings;
 
@@ -127,6 +128,8 @@ namespace http
 
 			delete [] m_data;
 			m_data = nullptr;
+
+			m_opened = false;
 		}
 
 		bool _open()
@@ -207,6 +210,7 @@ namespace http
 		{
 		}
 	public:
+		static mt::AsyncData& guard() { return get(); }
 		static void init(const filesystem::path& path) { get().m_dbPath = path; close(); }
 		static void close() { get()._close(); }
 		static bool open() { return get()._open(); }
@@ -217,11 +221,22 @@ namespace http
 
 	void init(const filesystem::path& path)
 	{
+		Synchronize on(EncodingDB::guard());
+
 		EncodingDB::init(path);
 	}
 
-	bool loadCharset(const std::string& encoding, int (&table)[256])
+	void reload(const filesystem::path& path)
 	{
+		Synchronize on(EncodingDB::guard());
+
+		EncodingDB::init(path); // re-init.
+	}
+
+	bool loadCharset(const std::string& encoding, int(&table)[256])
+	{
+		Synchronize on(EncodingDB::guard());
+
 		if (!EncodingDB::open())
 			return false;
 

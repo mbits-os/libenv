@@ -64,7 +64,7 @@ namespace db { namespace mysql {
 		DriverData data;
 		if (!data.read(props))
 		{
-			std::cerr << "MySQL: invalid configuration";
+			MYSQL_LOG("[MySQL] invalid configuration");
 			return nullptr;
 		}
 
@@ -76,10 +76,11 @@ namespace db { namespace mysql {
 
 			if (!conn->connect(data.user, data.password, data.server, data.database))
 			{
-				std::cerr << "MySQL: cannot connect to " << data.user << "@" << data.server << std::endl;
+				MYSQL_LOG("[MySQL] cannot connect to %s@%s", data.user.c_str(), data.server.c_str());
 				return nullptr;
 			}
 
+			MYSQL_LOG("[MySQL] connected to %s@%s", data.user.c_str(), data.server.c_str());
 			return conn;
 		} catch(std::bad_alloc) { return nullptr; }
 	}

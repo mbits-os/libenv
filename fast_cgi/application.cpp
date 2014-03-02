@@ -94,6 +94,16 @@ namespace FastCGI
 		return 0;
 	}
 
+	void Application::reload(const filesystem::path& localeRoot)
+	{
+		m_locale.reload(localeRoot);
+
+		m_sessions.clear(); // dropping all sessions will restart them from DB, with new settings...
+
+		for (auto&& thread : m_threads)
+			thread->reload();
+	}
+
 	void Application::run()
 	{
 		auto first = m_threads.begin(), end = m_threads.end();

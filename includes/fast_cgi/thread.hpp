@@ -71,6 +71,7 @@ namespace FastCGI
 		virtual ~Thread();
 
 		bool init();
+		void reload();
 		void setApplication(Application& app) { m_app = &app; }
 
 		Application* app() { return m_app; }
