@@ -37,6 +37,13 @@
 #define DEBUG_NAME(handler_name)
 #endif
 
+#ifdef MEMORY_DEBUGGER
+void newlog_print(const char* fmt, ...);
+#define KLASS_NAME
+#else
+#define newlog_print(...)
+#endif
+
 namespace FastCGI { namespace app
 {
 	class Handler
@@ -174,21 +181,29 @@ namespace FastCGI { namespace app
 
 		template <typename T, typename... Args>
 		static void registerRaw(const std::string& resource,
+#ifdef KLASS_NAME
+			const char* klass,
+#endif
 #if DEBUG_CGI
 			const char* file, size_t line,
 #endif
 			Args&&... args
 			)
 		{
-			HandlerPtr ptr = std::make_shared<T>(std::forward<Args>(args)...);
-			if (!ptr)
-				return;
-
-			get()._register(resource, ptr
+			newlog_print(">> %s\n", klass);
+			try
+			{
+				HandlerPtr ptr = std::make_shared<T>(std::forward<Args>(args)...);
+				get()._register(resource, ptr
 #if DEBUG_CGI
-				, file, line
+					, file, line
 #endif
-				);
+					);
+			}
+			catch (std::bad_alloc&)
+			{
+			}
+			newlog_print("<< %s\n", klass);
 		}
 
 		static void redirect(const std::string& resource, const std::string& uri
@@ -198,6 +213,9 @@ namespace FastCGI { namespace app
 			)
 		{
 			registerRaw<RedirectHandler>(resource,
+#ifdef KLASS_NAME
+				uri.c_str(),
+#endif
 #if DEBUG_CGI
 				file, line,
 #endif
@@ -215,12 +233,18 @@ namespace FastCGI { namespace app
 	struct HandlerRegistrar
 	{
 		HandlerRegistrar(const std::string& resource
+#ifdef KLASS_NAME
+			, const char* klass
+#endif
 #if DEBUG_CGI
 			, const char* file, size_t line
 #endif
 			)
 		{
 			Handlers::registerRaw<PageImpl>(resource
+#ifdef KLASS_NAME
+				, klass
+#endif
 #if DEBUG_CGI
 				, file, line
 #endif
@@ -251,10 +275,16 @@ namespace FastCGI { namespace app
 #define REGISTRAR_ARGS
 #endif
 
+#ifdef KLASS_NAME
+#define KLASS_NAME_ARG(type) , #type
+#else
+#define KLASS_NAME_ARG(type)
+#endif
+
 #define REGISTRAR_NAME_2(name, line) name ## _ ## line
 #define REGISTRAR_NAME_1(name, line) REGISTRAR_NAME_2(name, line)
 #define REGISTRAR_NAME(name) REGISTRAR_NAME_1(name, __LINE__)
-#define REGISTER_HANDLER(resource, type) static FastCGI::app::HandlerRegistrar<type> REGISTRAR_NAME(handler) (resource REGISTRAR_ARGS)
+#define REGISTER_HANDLER(resource, type) static FastCGI::app::HandlerRegistrar<type> REGISTRAR_NAME(handler) (resource KLASS_NAME_ARG(type) REGISTRAR_ARGS)
 #define REGISTER_REDIRECT(resource, uri) static FastCGI::app::RedirectRegistrar REGISTRAR_NAME(redirect) (resource, uri REGISTRAR_ARGS)
 
 #endif
