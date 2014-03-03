@@ -28,6 +28,13 @@
 
 namespace FastCGI {
 
+	void Input::getSimpleControlString(Request& request, BasicRenderer& renderer)
+	{
+		if (getLabelString(request, renderer))
+			request << ": ";
+		getElement(request, renderer, "input");
+	}
+
 	void CheckboxBase::bindData(Request& request, const Strings& data, const std::string& name, std::string& value, bool& userValue)
 	{
 		if (name.empty()) return;

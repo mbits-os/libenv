@@ -27,14 +27,18 @@
 
 #include <map>
 #include <string>
+#include <functional>
 
 namespace FastCGI {
-	template <typename Renderer> class Control;
-	template <typename Renderer> using ControlPtr = std::shared_ptr<Control<Renderer>>;
-	template <typename Renderer> using Controls = std::list<ControlPtr<Renderer>>;
+	class Control;
+	using ControlPtr = std::shared_ptr<Control>;
+	using Controls = std::list<ControlPtr>;
 
 	class Request;
 	inline std::ostream& req_ostream(Request&);
+
+	struct BasicRenderer;
+	using ChildrenCallback = std::function<void(Request&, BasicRenderer&)>;
 
 #ifndef REQUEST_OSTREAM
 #define REQUEST_OSTREAM
@@ -55,23 +59,15 @@ namespace FastCGI {
 		bool        m_hasError;
 
 	public:
-		virtual void getControlString(Request& request) = 0;
-		virtual void getSimpleControlString(Request& request) { getControlString(request); }
-		virtual bool getLabelString(Request& request) = 0;
-		virtual bool getHintString(Request& request) = 0;
+		virtual void getControlString(Request& request, BasicRenderer& renderer) = 0;
+		virtual void getSimpleControlString(Request& request, BasicRenderer& renderer) { getControlString(request, renderer); }
+		virtual bool getLabelString(Request& request, BasicRenderer& renderer) = 0;
+		virtual bool getHintString(Request& request, BasicRenderer& renderer) = 0;
 
-		void getAttributes(Request& request);
-		void getElement(Request& request, const std::string& name);
-		void getElement(Request& request, const std::string& name, const std::string& content);
-		template <typename Callable>
-		void getElement(Request& request, const std::string& name, Callable op)
-		{
-			request << "<" << name;
-			getAttributes(request);
-			request << " >\r\n";
-			op(request);
-			request << "</" << name << ">";
-		}
+		void getAttributes(Request& request, BasicRenderer& renderer);
+		void getElement(Request& request, BasicRenderer& renderer, const std::string& name);
+		void getElement(Request& request, BasicRenderer& renderer, const std::string& name, const std::string& content);
+		void getElement(Request& request, BasicRenderer& renderer, const std::string& name, const ChildrenCallback& op);
 
 	public:
 		ControlBase(const std::string& name, const std::string& label, const std::string& hint)
@@ -109,6 +105,13 @@ namespace FastCGI {
 			return it->second;
 		}
 
+		void removeAttr(const std::string& key)
+		{
+			auto it = m_attrs.find(key);
+			if (it != m_attrs.end())
+				m_attrs.erase(it);
+		}
+
 		virtual void bindData(Request& request, const Strings& data);
 		virtual void bindUI()
 		{
@@ -123,8 +126,8 @@ namespace FastCGI {
 			bindUI();
 		}
 
-		virtual void render(Request& request) = 0;
-		virtual void renderSimple(Request& request) = 0;
+		virtual void render(Request& request, BasicRenderer& renderer) = 0;
+		virtual void renderSimple(Request& request, BasicRenderer& renderer) = 0;
 
 		bool hasUserData() const { return m_userValue && !m_value.empty(); }
 		const std::string& getData() const { return m_value; }

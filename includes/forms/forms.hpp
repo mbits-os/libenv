@@ -30,16 +30,16 @@
 
 namespace FastCGI {
 
-	template <typename Renderer> class Section;
-	template <typename Renderer> using Sections = std::list<Section<Renderer>>;
+	class Section;
+	using Sections = std::list<Section>;
 
-	template <typename Renderer> class Fieldset;
-	template <typename Renderer> using FieldsetPtr = std::shared_ptr<Fieldset<Renderer>>;
+	class Fieldset;
+	using FieldsetPtr = std::shared_ptr<Fieldset>;
 
-	template <typename Renderer = BasicRenderer>
 	class ControlContainer
 	{
-		Controls<Renderer> m_controls;
+	protected:
+		Controls m_controls;
 	public:
 		template <typename Class>
 		std::shared_ptr<Class> control(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
@@ -50,51 +50,51 @@ namespace FastCGI {
 			return obj;
 		}
 
-		TextPtr<Renderer> text(const std::string& name, const std::string& label = std::string(), bool pass = false, const std::string& hint = std::string())
+		TextPtr text(const std::string& name, const std::string& label = std::string(), bool pass = false, const std::string& hint = std::string())
 		{
-			auto obj = std::make_shared<Text<Renderer>>(name, label, pass, hint);
+			auto obj = std::make_shared<Text>(name, label, pass, hint);
 			if (obj)
 				m_controls.push_back(obj);
 			return obj;
 		}
 
-		SelectionPtr<Renderer> selection(const std::string& name, const std::string& label, const Options& options, const std::string& hint = std::string())
+		SelectionPtr selection(const std::string& name, const std::string& label, const Options& options, const std::string& hint = std::string())
 		{
-			auto obj = std::make_shared<Selection<Renderer>>(name, label, options, hint);
+			auto obj = std::make_shared<Selection>(name, label, options, hint);
 			if (obj)
 				m_controls.push_back(obj);
 			return obj;
 		}
 
-		CheckboxPtr<Renderer> checkbox(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
+		CheckboxPtr checkbox(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			return control<Checkbox<Renderer>>(name, label, hint);
+			return control<Checkbox>(name, label, hint);
 		}
 
-		RadioPtr<Renderer> radio(const std::string& group, const std::string& value, const std::string& label = std::string())
+		RadioPtr radio(const std::string& group, const std::string& value, const std::string& label = std::string())
 		{
-			auto obj = std::make_shared<Radio<Renderer>>(group, value, label);
+			auto obj = std::make_shared<Radio>(group, value, label);
 			if (obj)
 				m_controls.push_back(obj);
 			return obj;
 		}
 
-		RadioGroupPtr<Renderer> radio_group(const std::string& group, const std::string& label = std::string())
+		RadioGroupPtr radio_group(const std::string& group, const std::string& label = std::string())
 		{
-			auto obj = std::make_shared<RadioGroup<Renderer>>(group, label);
+			auto obj = std::make_shared<RadioGroup>(group, label);
 			if (obj)
 				m_controls.push_back(obj);
 			return obj;
 		}
 
-		FieldsetPtr<Renderer> fieldset(const std::string& label = std::string(), const std::string& hint = std::string())
+		FieldsetPtr fieldset(const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			return control<Fieldset<Renderer>>(std::string(), label, hint);
+			return control<Fieldset>(std::string(), label, hint);
 		}
 
-		LinkPtr<Renderer> ctrl_link(const std::string& name, const std::string& link, const std::string& text)
+		LinkPtr link(const std::string& name, const std::string& link, const std::string& text)
 		{
-			auto ptr = std::make_shared<Link<Renderer>>(name, link, text);
+			auto ptr = std::make_shared<Link>(name, link, text);
 			if (ptr)
 				m_controls.push_back(ptr);
 			return ptr;
@@ -111,16 +111,16 @@ namespace FastCGI {
 			return nullptr;
 		}
 
-		void renderControls(Request& request)
+		void renderControls(Request& request, BasicRenderer& renderer)
 		{
 			for (auto&& ctrl : m_controls)
-				ctrl->render(request);
+				ctrl->render(request, renderer);
 		}
 
-		void renderControlsSimple(Request& request)
+		void renderControlsSimple(Request& request, BasicRenderer& renderer)
 		{
 			for (auto&& ctrl : m_controls)
-				ctrl->renderSimple(request);
+				ctrl->renderSimple(request, renderer);
 		}
 
 		void bind(Request& request, const Strings& data)
@@ -130,31 +130,29 @@ namespace FastCGI {
 		}
 	};
 
-	template <typename Renderer = BasicRenderer>
-	class Fieldset : public Control<Renderer>, public ControlContainer<Renderer>
+	class Fieldset : public Control, public ControlContainer
 	{
 	public:
 		Fieldset(const std::string& name, const std::string& label, const std::string& hint)
-			: Control<Renderer>(name, label, hint)
+			: Control(name, label, hint)
 		{
 		}
 
-		void getControlString(Request& request)
+		void getControlString(Request& request, BasicRenderer& renderer) override
 		{
-			Renderer::getFieldsetStart(request, this->m_label);
-			this->renderControls(request);
-			Renderer::getFieldsetEnd(request);
+			renderer.getFieldsetStart(request, m_label);
+			renderControls(request, renderer);
+			renderer.getFieldsetEnd(request);
 		}
 	};
 
-	template <typename Renderer = BasicRenderer>
 	class ButtonContainer
 	{
-		Controls<Renderer> m_buttons;
+		Controls m_buttons;
 	public:
-		SubmitPtr<Renderer> submit(const std::string& name, const std::string& label = std::string(), bool narrow = false, const std::string& hint = std::string())
+		SubmitPtr submit(const std::string& name, const std::string& label = std::string(), bool narrow = false, const std::string& hint = std::string())
 		{
-			auto ptr = std::make_shared<Submit<Renderer>>(name, label, narrow, hint);
+			auto ptr = std::make_shared<Submit>(name, label, narrow, hint);
 
 			if (ptr)
 				m_buttons.push_back(ptr);
@@ -162,9 +160,9 @@ namespace FastCGI {
 			return ptr;
 		}
 
-		ResetPtr<Renderer> reset(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
+		ResetPtr reset(const std::string& name, const std::string& label = std::string(), const std::string& hint = std::string())
 		{
-			auto ptr = std::make_shared<Reset<Renderer>>(name, label, hint);
+			auto ptr = std::make_shared<Reset>(name, label, hint);
 
 			if (ptr)
 				m_buttons.push_back(ptr);
@@ -172,9 +170,9 @@ namespace FastCGI {
 			return ptr;
 		}
 
-		LinkPtr<Renderer> cmd_link(const std::string& name, const std::string& link, const std::string& text)
+		LinkPtr link(const std::string& name, const std::string& link, const std::string& text)
 		{
-			auto ptr = std::make_shared<Link<Renderer>>(name, link, text);
+			auto ptr = std::make_shared<Link>(name, link, text);
 			if (ptr)
 				m_buttons.push_back(ptr);
 			return ptr;
@@ -191,9 +189,9 @@ namespace FastCGI {
 			return nullptr;
 		}
 
-		void renderControls(Request& request)
+		void renderControls(Request& request, BasicRenderer& renderer)
 		{
-			Renderer::getButtons(request, m_buttons);
+			renderer.getButtons(request, m_buttons);
 		}
 
 		void bind(Request& request, const Strings& data)
@@ -203,8 +201,7 @@ namespace FastCGI {
 		}
 	};
 
-	template <typename Renderer = BasicRenderer>
-	class Section : public ControlContainer<Renderer>
+	class Section : public ControlContainer
 	{
 		std::string m_name;
 	public:
@@ -212,7 +209,7 @@ namespace FastCGI {
 
 		ControlBase* findControl(const std::string& name)
 		{
-			for (auto&& ctrl : this->m_controls)
+			for (auto&& ctrl : m_controls)
 			{
 				auto ptr = ctrl->findControl(name);
 				if (ptr)
@@ -223,27 +220,26 @@ namespace FastCGI {
 
 		void bind(Request& request, const Strings& data)
 		{
-			for (auto&& ctrl : this->m_controls)
+			for (auto&& ctrl : m_controls)
 				ctrl->bind(request, data);
 		}
 
-		void render(Request& request, size_t pageId)
+		void render(Request& request, BasicRenderer& renderer, size_t pageId)
 		{
-			Renderer::getSectionStart(request, pageId, m_name);
-			ControlContainer<Renderer>::renderControls(request);
-			Renderer::getSectionEnd(request, pageId, m_name);
+			renderer.getSectionStart(request, pageId, m_name);
+			ControlContainer::renderControls(request, renderer);
+			renderer.getSectionEnd(request, pageId, m_name);
 		}
 
 	};
 
-	template <typename Renderer = BasicRenderer>
-	class SectionContainer
+	class SectionsContainer
 	{
-		Sections<Renderer> m_sections;
+		Sections m_sections;
 	public:
-		Section<Renderer>& section(const std::string& name)
+		Section& section(const std::string& name)
 		{
-			m_sections.push_back(Section<Renderer>(name));
+			m_sections.push_back(Section(name));
 			return m_sections.back();
 		}
 
@@ -258,17 +254,67 @@ namespace FastCGI {
 			return nullptr;
 		}
 
-		void renderControls(Request& request)
+		void renderControls(Request& request, BasicRenderer& renderer)
 		{
 			size_t pageId = 0;
 			for (auto&& s : m_sections)
-				s.render(request, ++pageId);
+				s.render(request, renderer, ++pageId);
 		}
 
 		void bind(Request& request, const Strings& data)
 		{
 			for (auto&& section : m_sections)
 				section.bind(request, data);
+		}
+	};
+
+	class ControlsContainer
+	{
+		ControlContainer m_container;
+	public:
+		ControlContainer& controls()
+		{
+			return m_container;
+		}
+
+		ControlBase* findControl(const std::string& name)
+		{
+			return m_container.findControl(name);
+		}
+
+		void renderControls(Request& request, BasicRenderer& renderer)
+		{
+			return m_container.renderControls(request, renderer);
+		}
+
+		void bind(Request& request, const Strings& data)
+		{
+			return m_container.bind(request, data);
+		}
+	};
+
+	class ButtonsContainer
+	{
+		ButtonContainer m_container;
+	public:
+		ButtonContainer& buttons()
+		{
+			return m_container;
+		}
+
+		ControlBase* findControl(const std::string& name)
+		{
+			return m_container.findControl(name);
+		}
+
+		void renderControls(Request& request, BasicRenderer& renderer)
+		{
+			return m_container.renderControls(request, renderer);
+		}
+
+		void bind(Request& request, const Strings& data)
+		{
+			return m_container.bind(request, data);
 		}
 	};
 
@@ -292,13 +338,13 @@ namespace FastCGI {
 		void addMessage(const std::string& message) { m_messages.push_back(message); }
 	};
 
-	template <typename Renderer = BasicRenderer, template <typename R> class Controls = ControlContainer, typename Base = Content>
-	class FormImpl : public Base, public ButtonContainer<Renderer>, public Controls<Renderer>, public FormBase
+	template <typename Renderer, class Controls, typename Base>
+	class FormImpl : public Base, public ButtonsContainer, public Controls, public FormBase
 	{
 	public:
 		using RendererT = Renderer;
-		using ButtonsT = ButtonContainer<Renderer>;
-		using ControlsT = Controls<Renderer>;
+		using ButtonsT = ButtonsContainer;
+		using ControlsT = Controls;
 
 		FormImpl(const std::string& title, const std::string& method = "POST", const std::string& action = std::string(), const std::string& mime = std::string())
 			: FormBase(title, method, action, mime)
@@ -309,18 +355,19 @@ namespace FastCGI {
 		virtual const char* getFormTitle(PageTranslation& tr) { return getPageTitle(tr); }
 		void render(const SessionPtr& session, Request& request, PageTranslation& tr) override
 		{
+			RendererT renderer;
 			FormBase::formStart(session, request, tr);
-			RendererT::getFormStart(request, getFormTitle(tr));
+			renderer.getFormStart(request, getFormTitle(tr));
 
-			RendererT::getMessagesString(request, m_messages);
+			renderer.getMessagesString(request, m_messages);
 
 			if (!m_error.empty())
-				RendererT::getErrorString(request, m_error);
+				renderer.getErrorString(request, m_error);
 
-			ControlsT::renderControls(request);
-			ButtonsT::renderControls(request);
+			ControlsT::renderControls(request, renderer);
+			ButtonsT::renderControls(request, renderer);
 
-			RendererT::getFormEnd(request);
+			renderer.getFormEnd(request);
 			FormBase::formEnd(session, request, tr);
 		}
 
@@ -341,11 +388,11 @@ namespace FastCGI {
 		}
 	};
 
-	template <typename Renderer = BasicRenderer, typename Base = Content>
-	using SectionForm = FormImpl<Renderer, SectionContainer, Base>;
+	template <typename Renderer>
+	using SectionForm = FormImpl<Renderer, SectionsContainer, Content>;
 
-	template <typename Renderer = BasicRenderer, typename Base = Content>
-	using SimpleForm = FormImpl<Renderer, ControlContainer, Base>;
+	template <typename Renderer>
+	using SimpleForm = FormImpl<Renderer, ControlsContainer, Content>;
 
 } // FastCGI
 

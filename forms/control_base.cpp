@@ -27,27 +27,36 @@
 #include <fast_cgi/request.hpp>
 
 namespace FastCGI {
-	void ControlBase::getAttributes(Request& request)
+	void ControlBase::getAttributes(Request& request, BasicRenderer& renderer)
 	{
 		for (auto&& pair : m_attrs)
 			request << " " << pair.first << "='" << url::htmlQuotes(pair.second) << "'";
 	}
 
-	void ControlBase::getElement(Request& request, const std::string& name)
+	void ControlBase::getElement(Request& request, BasicRenderer& renderer, const std::string& name)
 	{
 		request << "<" << name;
-		getAttributes(request);
+		getAttributes(request, renderer);
 		request << " />";
 	}
 
-	void ControlBase::getElement(Request& request, const std::string& name, const std::string& content)
+	void ControlBase::getElement(Request& request, BasicRenderer& renderer, const std::string& name, const std::string& content)
 	{
 		request << "<" << name;
-		getAttributes(request);
+		getAttributes(request, renderer);
 		if (!content.empty())
 			request << " >" << content << "</" << name << ">";
 		else
 			request << " />";
+	}
+
+	void ControlBase::getElement(Request& request, BasicRenderer& renderer, const std::string& name, const ChildrenCallback& op)
+	{
+		request << "<" << name;
+		getAttributes(request, renderer);
+		request << " >\r\n";
+		op(request, renderer);
+		request << "</" << name << ">";
 	}
 
 	void ControlBase::bindData(Request& request, const Strings& data)
