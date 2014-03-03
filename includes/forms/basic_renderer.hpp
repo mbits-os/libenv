@@ -31,40 +31,39 @@ namespace FastCGI {
 
 	struct BasicRenderer
 	{
-		static void render(Request& request, ControlBase* ctrl, bool) {}
-		static void renderSimple(Request& request, ControlBase* ctrl)
+		virtual void render(Request& request, ControlBase* ctrl, bool, const std::string& = std::string()) {}
+		virtual void renderCheckbox(Request& request, ControlBase* ctrl, bool hasError) {}
+		virtual void renderSimple(Request& request, ControlBase* ctrl)
 		{
-			ctrl->getSimpleControlString(request);
+			ctrl->getSimpleControlString(request, *this);
 		}
 
-		static void setPlaceholder(ControlBase* ctrl, const std::string& placeholder) {}
-		static void getLabelString(Request& request, const std::string& name, const std::string& label);
-		static void getErrorString(Request& request, const std::string& error) {}
-		static void getMessagesString(Request& request, const std::list<std::string>& messages) {}
-		static void getHintString(Request& request, const std::string& hint) {}
-		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError) {}
-		static void selectionLabelString(Request& request, const std::string& name, const std::string& label)
+		virtual void setPlaceholder(ControlBase* ctrl, const std::string& placeholder) {}
+		virtual void getLabelString(Request& request, const std::string& name, const std::string& label);
+		virtual void selectionLabelString(Request& request, const std::string& name, const std::string& label)
 		{
 			getLabelString(request, name, label);
 		}
-		template <typename Arg>
-		static void getControlString(Request& request, ControlBase* control, bool hasError, Arg&& arg) {}
-		static void checkboxControlString(Request& request, ControlBase* control, bool hasError) {}
-		static void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError) {}
-		static void radioControlString(Request& request, ControlBase* control, bool hasError) {}
-		static void getSectionStart(Request& request, size_t sectionId, const std::string& name) {}
-		static void getSectionEnd(Request& request, size_t sectionId, const std::string& name) {}
-		static void getFormStart(Request& request, const std::string& title) {}
-		static void getFormEnd(Request& request) {}
-		static void getFieldsetStart(Request& request, const std::string& title);
-		static void getFieldsetEnd(Request& request);
+		virtual void getErrorString(Request& request, const std::string& error) {}
+		virtual void getMessagesString(Request& request, const std::list<std::string>& messages) {}
+		virtual void getHintString(Request& request, const std::string& hint) {}
+		virtual void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError) {}
+		virtual void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& content) {}
+		virtual void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& op) {}
+		virtual void selectionControlString(Request& request, ControlBase* control, bool, const ChildrenCallback& op){}
+		virtual void checkboxControlString(Request& request, ControlBase* control, bool hasError) {}
+		virtual void checkboxLabelString(Request& request, const std::string& name, const std::string& label){}
+		virtual void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError) {}
+		virtual void radioGroupLabelString(Request& request, const std::string& hint) {}
+		virtual void radioControlString(Request& request, ControlBase* control, bool hasError) {}
+		virtual void getSectionStart(Request& request, size_t sectionId, const std::string& name) {}
+		virtual void getSectionEnd(Request& request, size_t sectionId, const std::string& name) {}
+		virtual void getFormStart(Request& request, const std::string& title) {}
+		virtual void getFormEnd(Request& request) {}
+		virtual void getFieldsetStart(Request& request, const std::string& title);
+		virtual void getFieldsetEnd(Request& request);
 
-		template <typename Renderer>
-		static void getButtons(Request& request, const Controls<Renderer>& buttons)
-		{
-			for (auto&& ctrl : buttons)
-				ctrl->renderSimple(request);
-		}
+		virtual void getButtons(Request& request, const Controls& buttons);
 	};
 
 } // FastCGI

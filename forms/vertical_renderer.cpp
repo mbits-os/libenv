@@ -24,19 +24,34 @@
 
 #include "pch.h"
 #include <forms/vertical_renderer.hpp>
+#include <forms/controls.hpp>
 #include <fast_cgi/request.hpp>
 
 namespace FastCGI {
 
-	void VerticalRenderer::render(Request& request, ControlBase* ctrl, bool hasError)
+	void VerticalRenderer::render(Request& request, ControlBase* ctrl, bool hasError, const std::string& additional_classes)
+	{
+		request <<
+			"      <div class='item";
+		if (!additional_classes.empty())
+			request << ' ' << additional_classes;
+		if (hasError)
+			request << " error";
+		request << "'>\r\n";
+		ctrl->getLabelString(request, *this);
+		ctrl->getControlString(request, *this);
+		request <<
+			"      </div>\r\n";
+	}
+
+	void VerticalRenderer::renderCheckbox(Request& request, ControlBase* ctrl, bool hasError)
 	{
 		request <<
 			"      <div class='item";
 		if (hasError)
 			request << " error";
 		request << "'>\r\n";
-		ctrl->getLabelString(request);
-		ctrl->getControlString(request);
+		ctrl->getControlString(request, *this);
 		request <<
 			"      </div>\r\n";
 	}
@@ -71,35 +86,62 @@ namespace FastCGI {
 	void VerticalRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool)
 	{
 		request << "        <div class='control'>";
-		control->getElement(request, element);
-		control->getHintString(request);
+		control->getElement(request, *this, element);
+		control->getHintString(request, *this);
 		request << "</div>\r\n";
 	}
 
+	void VerticalRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& arg)
+	{
+		request << "        <div class='control'>";
+		control->getElement(request, *this, element, arg);
+		control->getHintString(request, *this);
+		request << "</div>\r\n";
+	}
+
+	void VerticalRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& arg)
+	{
+		request << "        <div class='control'>";
+		control->getElement(request, *this, element, arg);
+		control->getHintString(request, *this);
+		request << "</div>\r\n";
+	}
+
+
 	void VerticalRenderer::checkboxControlString(Request& request, ControlBase* control, bool hasError)
 	{
-		if (hasError)
-			request << "<li class='error'>";
-		else
-			request << "<li>";
-		control->getElement(request, "input");
-		control->getLabelString(request);
-		request << "</li>";
+		request << "        <div class='control'>";
+		control->getElement(request, *this, "input");
+		control->getLabelString(request, *this);
+		control->getHintString(request, *this);
+		request << "</div>\r\n";
+	}
+
+	void VerticalRenderer::checkboxLabelString(Request& request, const std::string& name, const std::string& label)
+	{
+		request << "<label for='" << name << "'>" << label << "</label>";
 	}
 
 	void VerticalRenderer::radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError)
 	{
-		if (hasError)
-			request << "<li class='error'>";
-		else
-			request << "<li>";
-		control->getElement(request, "span", title);
-		request << "</li>";
+	}
+
+	void VerticalRenderer::radioGroupLabelString(Request& request, const std::string& label)
+	{
+		request << "        <div class='label'>" << label << ":</div>\r\n";
 	}
 
 	void VerticalRenderer::selectionLabelString(Request& request, const std::string& name, const std::string& label)
 	{
 		request << "        <div class='label retain'><label for='" << name << "'>" << label << ":</label></div>\r\n";
+	}
+
+	void VerticalRenderer::selectionControlString(Request& request, ControlBase* control, bool, const ChildrenCallback& op)
+	{
+		request << "        <div class='control'>";
+		control->getElement(request, *this, "select", op);
+		control->getHintString(request, *this);
+		request << "</div>\r\n";
 	}
 
 	void VerticalRenderer::getSectionStart(Request& request, size_t sectionId, const std::string& name)
@@ -140,6 +182,21 @@ namespace FastCGI {
 
 		request <<
 			"  </div> <!-- class='form' -->\r\n";
+	}
+
+	void VerticalRenderer::getButtons(Request& request, const Controls& buttons)
+	{
+
+		if (!buttons.empty())
+		{
+			request << "\r\n"
+				"<tr><td colspan='2' class='buttons'>\r\n";
+
+			for (auto&& ctrl : buttons)
+				ctrl->renderSimple(request, *this);
+
+			request << "\r\n</td></tr>\r\n";
+		}
 	}
 
 } // FastCGI

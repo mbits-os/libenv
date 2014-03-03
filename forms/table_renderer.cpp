@@ -24,15 +24,16 @@
 
 #include "pch.h"
 #include <forms/table_renderer.hpp>
+#include <forms/controls.hpp>
 #include <fast_cgi/request.hpp>
 
 namespace FastCGI {
-	void TableRenderer::render(Request& request, ControlBase* ctrl, bool)
+	void TableRenderer::render(Request& request, ControlBase* ctrl, bool, const std::string&)
 	{
 		request << "<tr>";
-		ctrl->getControlString(request);
+		ctrl->getControlString(request, *this);
 		request << "</tr>\r\n";
-		ctrl->getHintString(request);
+		ctrl->getHintString(request, *this);
 	}
 
 	void TableRenderer::getErrorString(Request& request, const std::string& error)
@@ -48,18 +49,45 @@ namespace FastCGI {
 	void TableRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError)
 	{
 		request << "<td>";
-		control->getLabelString(request);
+		control->getLabelString(request, *this);
 		request << "</td><td>";
-		control->getElement(request, element);
+		control->getElement(request, *this, element);
+		request << "</td>";
+	}
+
+	void TableRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& arg)
+	{
+		request << "<td>";
+		control->getLabelString(request, *this);
+		request << "</td><td>";
+		control->getElement(request, *this, element, arg);
+		request << "</td>";
+	}
+
+	void TableRenderer::getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& arg)
+	{
+		request << "<td>";
+		control->getLabelString(request, *this);
+		request << "</td><td>";
+		control->getElement(request, *this, element, arg);
 		request << "</td>";
 	}
 
 	void TableRenderer::checkboxControlString(Request& request, ControlBase* control, bool hasError)
 	{
 		request << "<td>";
-		control->getElement(request, "input");
+		control->getElement(request, *this, "input");
 		request << "</td><td>";
-		control->getLabelString(request);
+		control->getLabelString(request, *this);
+		request << "</td>";
+	}
+
+	void TableRenderer::selectionControlString(Request& request, ControlBase* control, bool hasError, const ChildrenCallback& op)
+	{
+		request << "<td>";
+		control->getLabelString(request, *this);
+		request << "</td><td>";
+		control->getElement(request, *this, "select", op);
 		request << "</td>";
 	}
 
@@ -82,4 +110,20 @@ namespace FastCGI {
 			"</table>\r\n"
 			"</div>\r\n";
 	}
+
+	void TableRenderer::getButtons(Request& request, const Controls& buttons)
+	{
+
+		if (!buttons.empty())
+		{
+			request << "\r\n"
+				"<tr><td colspan='2' class='buttons'>\r\n";
+
+			for (auto&& ctrl : buttons)
+				ctrl->renderSimple(request, *this);
+
+			request << "\r\n</td></tr>\r\n";
+		}
+	}
+
 } // FastCGI

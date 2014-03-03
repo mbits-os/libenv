@@ -30,51 +30,23 @@
 namespace FastCGI {
 	struct TableRenderer : BasicRenderer
 	{
-		static void render(Request& request, ControlBase* ctrl, bool);
-		static void getErrorString(Request& request, const std::string& error);
-		static void getHintString(Request& request, const std::string& hint);
-		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError);
-		template <typename Arg>
-		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, Arg&& arg)
-		{
-			request << "<td>";
-			control->getLabelString(request);
-			request << "</td><td>";
-			control->getElement(request, element, std::forward<Arg>(arg));
-			request << "</td>";
-		}
+		void render(Request& request, ControlBase* ctrl, bool, const std::string& = std::string()) override;
+		void getErrorString(Request& request, const std::string& error) override;
+		void getHintString(Request& request, const std::string& hint) override;
+		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError) override;
+		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& arg) override;
+		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& arg) override;
 
-		static void checkboxControlString(Request& request, ControlBase* control, bool hasError);
-		static void radioControlString(Request& request, ControlBase* control, bool hasError);
-		template <typename Callabale>
-		static void selectionControlString(Request& request, ControlBase* control, bool hasError, Callabale&& op)
-		{
-			request << "<td>";
-			control->getLabelString(request);
-			request << "</td><td>";
-			control->getElement(request, "select", std::forward<Callabale>(op));
-			request << "</td>";
-		}
+		void checkboxControlString(Request& request, ControlBase* control, bool hasError) override;
+		void radioControlString(Request& request, ControlBase* control, bool hasError) override;
 
-		static void getSectionStart(Request& request, size_t sectionId, const std::string& name);
-		static void getFormStart(Request& request, const std::string& title);
-		static void getFormEnd(Request& request);
+		void selectionControlString(Request& request, ControlBase* control, bool hasError, const ChildrenCallback& op) override;
 
-		template <typename Renderer>
-		static void getButtons(Request& request, const Controls<Renderer>& buttons)
-		{
+		void getSectionStart(Request& request, size_t sectionId, const std::string& name) override;
+		void getFormStart(Request& request, const std::string& title) override;
+		void getFormEnd(Request& request) override;
 
-			if (!buttons.empty())
-			{
-				request << "\r\n"
-					"<tr><td colspan='2' class='buttons'>\r\n";
-
-				for (auto&& ctrl : buttons)
-					ctrl->renderSimple(request);
-
-				request << "\r\n</td></tr>\r\n";
-			}
-		}
+		void getButtons(Request& request, const Controls& buttons) override;
 	};
 } // FastCGI
 

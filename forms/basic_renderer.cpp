@@ -24,6 +24,7 @@
 
 #include "pch.h"
 #include <forms/basic_renderer.hpp>
+#include <forms/controls.hpp>
 #include <fast_cgi/request.hpp>
 
 namespace FastCGI {
@@ -45,4 +46,9 @@ namespace FastCGI {
 		request << "</fieldset>\r\n";
 	}
 
+	void BasicRenderer::getButtons(Request& request, const Controls& buttons)
+	{
+		for (auto&& ctrl : buttons)
+			ctrl->renderSimple(request, *this);
+	}
 } // FastCGI

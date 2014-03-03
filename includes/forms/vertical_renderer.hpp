@@ -31,57 +31,32 @@ namespace FastCGI {
 
 	struct VerticalRenderer : BasicRenderer
 	{
-		static void render(Request& request, ControlBase* ctrl, bool hasError);
-		static void setPlaceholder(ControlBase* ctrl, const std::string& placeholder);
-		static void getLabelString(Request& request, const std::string& name, const std::string& label);
-		static void getErrorString(Request& request, const std::string& error);
-		static void getMessagesString(Request& request, const std::list<std::string>& messages);
-		static void getHintString(Request& request, const std::string& hint);
-		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError);
+		void render(Request& request, ControlBase* ctrl, bool hasError, const std::string& additional_classes = std::string()) override;
+		void renderCheckbox(Request& request, ControlBase* ctrl, bool hasError) override;
+		void setPlaceholder(ControlBase* ctrl, const std::string& placeholder) override;
+		void getLabelString(Request& request, const std::string& name, const std::string& label) override;
+		void getErrorString(Request& request, const std::string& error) override;
+		void getMessagesString(Request& request, const std::list<std::string>& messages) override;
+		void getHintString(Request& request, const std::string& hint) override;
+		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError) override;
+		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& arg) override;
+		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& arg) override;
 
-		template <typename Arg>
-		static void getControlString(Request& request, ControlBase* control, const std::string& element, bool, Arg&& arg)
-		{
-			request << "        <div class='control'>";
-			control->getElement(request, element, std::forward<Arg>(arg));
-			control->getHintString(request);
-			request << "</div>\r\n";
-		}
+		void checkboxControlString(Request& request, ControlBase* control, bool hasError) override;
+		void checkboxLabelString(Request& request, const std::string& name, const std::string& label) override;
+		void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError) override;
+		void radioGroupLabelString(Request& request, const std::string& label) override;
 
-		static void checkboxControlString(Request& request, ControlBase* control, bool hasError);
-		static void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError);
+		void selectionLabelString(Request& request, const std::string& name, const std::string& label) override;
+		void selectionControlString(Request& request, ControlBase* control, bool, const ChildrenCallback& op) override;
 
-		static void selectionLabelString(Request& request, const std::string& name, const std::string& label);
-		template <typename Callabale>
-		static void selectionControlString(Request& request, ControlBase* control, bool, Callabale&& op)
-		{
-			request << "        <div class='control'>";
-			control->getElement(request, "select", std::forward<Callabale>(op));
-			control->getHintString(request);
-			request << "</div>\r\n";
-		}
+		void getSectionStart(Request& request, size_t sectionId, const std::string& name) override;
+		void getSectionEnd(Request& request, size_t sectionId, const std::string& name) override;
 
-		static void getSectionStart(Request& request, size_t sectionId, const std::string& name);
-		static void getSectionEnd(Request& request, size_t sectionId, const std::string& name);
+		void getFormStart(Request& request, const std::string& title) override;
+		void getFormEnd(Request& request) override;
 
-		static void getFormStart(Request& request, const std::string& title);
-		static void getFormEnd(Request& request);
-
-		template <typename Renderer>
-		static void getButtons(Request& request, const Controls<Renderer>& buttons)
-		{
-
-			if (!buttons.empty())
-			{
-				request << "\r\n"
-					"<tr><td colspan='2' class='buttons'>\r\n";
-
-				for (auto&& ctrl : buttons)
-					ctrl->renderSimple(request);
-
-				request << "\r\n</td></tr>\r\n";
-			}
-		}
+		void getButtons(Request& request, const Controls& buttons) override;
 	};
 } // FastCGI
 
