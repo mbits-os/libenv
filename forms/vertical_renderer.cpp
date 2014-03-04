@@ -190,12 +190,16 @@ namespace FastCGI {
 		if (!buttons.empty())
 		{
 			request << "\r\n"
-				"<tr><td colspan='2' class='buttons'>\r\n";
+				"    <div class='item buttons'>\r\n";
 
 			for (auto&& ctrl : buttons)
+			{
+				request << "      ";
 				ctrl->renderSimple(request, *this);
+				request << "\r\n";
+			}
 
-			request << "\r\n</td></tr>\r\n";
+			request << "    </div> <!-- buttons -->\r\n";
 		}
 	}
 
