@@ -108,6 +108,17 @@ namespace FastCGI {
 	}
 
 
+	void VerticalRenderer::linkControlString(Request& request, ControlBase* control, bool hasError, bool isButton, const std::string& content)
+	{
+		if (!isButton)
+			return getControlString(request, control, "a", hasError, content);
+
+		request << "<div class='control link'>";
+		control->getElement(request, *this, "a", content);
+		control->getHintString(request, *this);
+		request << "</div>";
+	}
+
 	void VerticalRenderer::checkboxControlString(Request& request, ControlBase* control, bool hasError)
 	{
 		request << "        <div class='control'>";

@@ -42,6 +42,7 @@ namespace FastCGI {
 		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& arg) override;
 		void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& arg) override;
 
+		void linkControlString(Request& request, ControlBase* control, bool hasError, bool isButton, const std::string& content) override;
 		void checkboxControlString(Request& request, ControlBase* control, bool hasError) override;
 		void checkboxLabelString(Request& request, const std::string& name, const std::string& label) override;
 		void radioGroupControlString(Request& request, ControlBase* control, const std::string& title, bool hasError) override;

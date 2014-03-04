@@ -94,7 +94,7 @@ namespace FastCGI {
 
 		LinkPtr link(const std::string& name, const std::string& link, const std::string& text)
 		{
-			auto ptr = std::make_shared<Link>(name, link, text);
+			auto ptr = std::make_shared<Link>(name, link, text, false);
 			if (ptr)
 				m_controls.push_back(ptr);
 			return ptr;
@@ -150,9 +150,9 @@ namespace FastCGI {
 	{
 		Controls m_buttons;
 	public:
-		SubmitPtr submit(const std::string& name, const std::string& label = std::string(), bool narrow = false, const std::string& hint = std::string())
+		SubmitPtr submit(const std::string& name, const std::string& label = std::string(), ButtonType buttonType = ButtonType::OK, const std::string& hint = std::string())
 		{
-			auto ptr = std::make_shared<Submit>(name, label, narrow, hint);
+			auto ptr = std::make_shared<Submit>(name, label, buttonType, hint);
 
 			if (ptr)
 				m_buttons.push_back(ptr);
@@ -172,7 +172,7 @@ namespace FastCGI {
 
 		LinkPtr link(const std::string& name, const std::string& link, const std::string& text)
 		{
-			auto ptr = std::make_shared<Link>(name, link, text);
+			auto ptr = std::make_shared<Link>(name, link, text, true);
 			if (ptr)
 				m_buttons.push_back(ptr);
 			return ptr;

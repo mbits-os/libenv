@@ -50,6 +50,7 @@ namespace FastCGI {
 		virtual void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError) {}
 		virtual void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const std::string& content) {}
 		virtual void getControlString(Request& request, ControlBase* control, const std::string& element, bool hasError, const ChildrenCallback& op) {}
+		virtual void linkControlString(Request& request, ControlBase* control, bool hasError, bool isButton, const std::string& content) {}
 		virtual void selectionControlString(Request& request, ControlBase* control, bool, const ChildrenCallback& op){}
 		virtual void checkboxControlString(Request& request, ControlBase* control, bool hasError) {}
 		virtual void checkboxLabelString(Request& request, const std::string& name, const std::string& label){}

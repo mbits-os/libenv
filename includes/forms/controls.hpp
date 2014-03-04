@@ -314,14 +314,24 @@ namespace FastCGI {
 		}
 	};
 
+	enum class ButtonType
+	{
+		OK,
+		Narrow,
+		Full
+	};
+
 	class Submit : public Input
 	{
 	public:
-		Submit(const std::string& name, const std::string& label, bool narrow, const std::string& hint)
+		Submit(const std::string& name, const std::string& label, ButtonType buttonType, const std::string& hint)
 			: Input("submit", name, std::string(), hint)
 		{
-			if (narrow)
-				setAttr("class", "narrow");
+			switch (buttonType)
+			{
+			case ButtonType::Narrow: setAttr("class", "narrow"); break;
+			case ButtonType::Full: setAttr("class", "full"); break;
+			}
 			setAttr("value", label);
 		}
 
@@ -343,16 +353,19 @@ namespace FastCGI {
 	class Link : public Control
 	{
 		std::string m_text;
+		bool m_isButton;
 	public:
-		Link(const std::string& name, const std::string& link, const std::string& text)
+		Link(const std::string& name, const std::string& link, const std::string& text, bool isButton)
 			: Control(name, std::string(), std::string())
 			, m_text(text)
+			, m_isButton(isButton)
 		{
 			setAttr("href", link);
 		}
-		virtual void getControlString(Request& request, BasicRenderer& renderer) override
+
+		void getControlString(Request& request, BasicRenderer& renderer) override
 		{
-			renderer.getControlString(request, this, "a", m_hasError, m_text);
+			renderer.linkControlString(request, this, m_hasError, m_isButton, m_text);
 		}
 		void bindUI() override {}
 	};
