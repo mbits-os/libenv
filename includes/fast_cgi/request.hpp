@@ -46,6 +46,10 @@ namespace lng
 
 namespace FastCGI
 {
+#define HTTP_X_AJAX_FRAGMENT "HTTP_X_AJAX_FRAGMENT"
+#define ATTR_X_AJAX_FRAGMENT "x-ajax-fragment"
+
+
 	class Application;
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;

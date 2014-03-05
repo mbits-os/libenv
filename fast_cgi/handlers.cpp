@@ -50,10 +50,22 @@ namespace FastCGI { namespace app {
 		if (!tr.init(session, request))
 			request.on500("No translation found for the PageHandler");
 
+		bool fromXHR = request.getParam(HTTP_X_AJAX_FRAGMENT);
+
 		prerender(session, request, tr);
-		header(session, request, tr);
+#if DEBUG_CGI
+		if (fromXHR)
+		{
+			auto icicle = request.getIcicle();
+			if (!icicle.empty())
+				request.setHeader("X-Debug-Icicle", icicle);
+		}
+#endif
+		if (!fromXHR)
+			header(session, request, tr);
 		render(session, request, tr);
-		footer(session, request, tr);
+		if (!fromXHR)
+			footer(session, request, tr);
 		postrender(session, request, tr);
 	}
 
