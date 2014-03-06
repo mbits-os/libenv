@@ -61,7 +61,9 @@ namespace FastCGI { namespace app {
 				request.setHeader("X-Debug-Icicle", icicle);
 		}
 #endif
-		if (!fromXHR)
+		if (fromXHR)
+			title(session, request, tr);
+		else
 			header(session, request, tr);
 		render(session, request, tr);
 		if (!fromXHR)
@@ -70,6 +72,11 @@ namespace FastCGI { namespace app {
 	}
 
 	const char* getDTD() { return ""; }
+
+	void PageHandler::title(const SessionPtr& session, Request& request, PageTranslation& tr)
+	{
+		request << "<title>" << getTitle(request, tr) << "</title>\r\n";
+	}
 
 	void PageHandler::header(const SessionPtr& session, Request& request, PageTranslation& tr)
 	{

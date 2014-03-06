@@ -80,6 +80,7 @@ namespace FastCGI { namespace app
 		} 
 		//rendering the page
 		virtual void prerender(const SessionPtr& session, Request& request, PageTranslation& tr) {}
+		virtual void title(const SessionPtr& session, Request& request, PageTranslation& tr);
 		virtual void header(const SessionPtr& session, Request& request, PageTranslation& tr);
 		virtual void headElement(const SessionPtr& session, Request& request, PageTranslation& tr);
 		virtual void buildTopMenu(TopMenu::TopBar& menu, const SessionPtr& session, Request& request, PageTranslation& tr);
