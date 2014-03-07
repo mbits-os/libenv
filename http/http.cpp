@@ -319,9 +319,8 @@ namespace http
 		class XmlHttpRequest
 			: public http::XmlHttpRequest
 			, public http::HttpCallback
+			, public std::enable_shared_from_this<XmlHttpRequest>
 		{
-			std::weak_ptr<HttpCallback> m_self;
-
 			ONREADYSTATECHANGE handler;
 			void* handler_data;
 
@@ -386,7 +385,6 @@ namespace http
 			{
 			}
 
-			void setSelfRef(HttpCallbackPtr self) { m_self = self; }
 			void onreadystatechange(ONREADYSTATECHANGE handler, void* userdata);
 			READY_STATE getReadyState() const;
 
@@ -520,7 +518,7 @@ namespace http
 
 			send_flag = true;
 			done_flag = false;
-			http::Send(m_self.lock(), async);
+			http::Send(shared_from_this(), async);
 		}
 
 		void XmlHttpRequest::abort()
@@ -808,10 +806,9 @@ namespace http
 	XmlHttpRequestPtr XmlHttpRequest::Create()
 	{
 		try {
-		auto xhr = std::make_shared<impl::XmlHttpRequest>();
-		HttpCallbackPtr self(xhr);
-		xhr->setSelfRef(self);
-		return xhr;
-		} catch(std::bad_alloc) { return nullptr; }
+			return std::make_shared<impl::XmlHttpRequest>();
+		} catch(std::bad_alloc) {
+			return nullptr;
+		}
 	}
 }
