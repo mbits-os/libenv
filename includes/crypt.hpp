@@ -130,11 +130,13 @@ namespace Crypt
 	struct SHA512Hash: HashBase<SHA512Hash, 16, 64, '5'>
 	{
 		static bool __crypt(const char* salt, const char* message, size_t len, digest_t &digest);
+		static bool simple(const char* message, size_t len, digest_t &digest);
 	};
 
 	struct MD5Hash: HashBase<MD5Hash, 12, 16, 'M'>
 	{
 		static bool __crypt(const char* salt, const char* message, size_t len, digest_t &digest);
+		static bool simple(const char* message, size_t len, digest_t &digest);
 	};
 
 	typedef SHA512Hash PasswordHash;

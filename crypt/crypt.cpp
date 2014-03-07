@@ -91,10 +91,24 @@ namespace Crypt
 		return alg.Final(digest);
 	}
 
+	bool SHA512Hash::simple(const char* message, size_t len, digest_t &digest)
+	{
+		algorithm::SHA512 alg;
+		if (!alg.Update(message, len)) return false;
+		return alg.Final(digest);
+	}
+
 	bool MD5Hash::__crypt(const char* salt, const char* message, size_t len, digest_t &digest)
 	{
 		algorithm::MD5 alg;
 		if (!alg.Update(salt, SALT_LENGTH)) return false;
+		if (!alg.Update(message, len)) return false;
+		return alg.Final(digest);
+	}
+
+	bool MD5Hash::simple(const char* message, size_t len, digest_t &digest)
+	{
+		algorithm::MD5 alg;
 		if (!alg.Update(message, len)) return false;
 		return alg.Final(digest);
 	}
