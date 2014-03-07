@@ -87,7 +87,7 @@ namespace FastCGI { namespace TopMenu {
 				link = " href=\"" + url::htmlQuotes(m_url) + "\"";
 			}
 
-			if (m_iconPosition != -1)
+			if (m_iconPosition != -1 || !m_icon.empty())
 				image = "<span class=\"bar-icon\"></span>";
 
 			if (!m_label.empty())
@@ -265,8 +265,8 @@ namespace FastCGI { namespace TopMenu {
 	class UserMenu: public PopupItem
 	{
 	public:
-		UserMenu(const std::string& id, const std::string& subId, int iconPosition = -1, const std::string& label = std::string(), const std::string& tip = std::string())
-			: PopupItem(id, subId, iconPosition, label, tip)
+		UserMenu(const std::string& id, const std::string& subId, const std::string& tip = std::string())
+			: PopupItem(id, subId, -1, std::string(), tip)
 		{
 		}
 	
@@ -278,7 +278,7 @@ namespace FastCGI { namespace TopMenu {
 				title = " title=\"" + m_tip + "\"";
 
 			std::string image = "";
-			if (m_iconPosition != -1)
+			if (m_iconPosition != -1 || !m_icon.empty())
 				image = "<span class=\"bar-icon\"></span>";
 			request << "          " << pre << "<a" << link << title << " class=\"bar-item\">" << image << "<span class=\"bar-chevron\"></span></a>\r\n";
 			echoSubItems(request, topbarId, menuId, pre);

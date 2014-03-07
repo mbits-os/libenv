@@ -111,7 +111,8 @@ namespace FastCGI { namespace app {
 		}
 #endif
 
-		auto user = std::make_shared<TopMenu::UserMenu>("user", "user-menu", 4, std::string(), display_name);
+		auto user = std::make_shared<TopMenu::UserMenu>("user", "user-menu", display_name);
+		user->setIcon("/icon.png?s=24");
 		menu.left().home("home", 0, tr(lng::LNG_GLOBAL_PRODUCT), tr(lng::LNG_GLOBAL_DESCRIPTION));
 		menu.right()
 			.item("search", 7, std::string(), tr(lng::LNG_NAV_SEARCH))
