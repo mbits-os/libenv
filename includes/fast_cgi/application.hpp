@@ -135,6 +135,14 @@ namespace FastCGI
 	using Iceberg = std::map<std::string, FrozenStatePtr>;
 #endif
 
+	struct ErrorHandler
+	{
+		virtual ~ErrorHandler() {}
+		virtual void onError(int errorCode, Request& request) = 0;
+	};
+
+	using ErrorHandlerPtr = std::shared_ptr<ErrorHandler>;
+
 	class Application: public mt::AsyncData
 	{
 		typedef std::pair<tyme::time_t, SessionPtr> SessionCacheItem;
@@ -150,6 +158,7 @@ namespace FastCGI
 		Sessions m_sessions;
 		Threads m_threads;
 		lng::Locale m_locale;
+		std::map<int, ErrorHandlerPtr> m_errorHandlers;
 
 		void cleanSessionCache();
 	public:
@@ -197,6 +206,17 @@ namespace FastCGI
 
 		void setAccessLog(const filesystem::path& log) { m_accessLog = log; }
 		const filesystem::path& getAccessLog() const { return m_accessLog; }
+
+		void setErrorHandler(int error, const ErrorHandlerPtr& ptr) { m_errorHandlers[error] = ptr; }
+		ErrorHandlerPtr getErrorHandler(int error)
+		{
+			auto it = m_errorHandlers.find(error);
+			if (it == m_errorHandlers.end()) it = m_errorHandlers.find(error / 100);
+			if (it == m_errorHandlers.end()) it = m_errorHandlers.find(0);
+			if (it == m_errorHandlers.end()) return nullptr;
+
+			return it->second;
+		}
 
 #if DEBUG_CGI
 		struct ReqInfo

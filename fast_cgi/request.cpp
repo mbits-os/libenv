@@ -451,18 +451,25 @@ namespace FastCGI
 			setHeader("Status", msg.c_str());
 		}
 		setHeader("Content-Type", "text/html; charset=utf-8");
-		*this
-			<< "<tt>400: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
-		if (reason && *reason)
-			*this << "<br/>" << reason;
-#if DEBUG_CGI
-		*this << "<br/>\n<a href='/debug/'>Debug</a>";
-		if (!m_icicle.empty())
+
+		auto handler = app().getErrorHandler(400);
+		if (handler)
+			handler->onError(400, *this);
+		else
 		{
-			*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
-		}
-		*this << ".";
+			*this
+				<< "<tt>400: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
+			if (reason && *reason)
+				*this << "<br/>" << reason;
+#if DEBUG_CGI
+			*this << "<br/>\n<a href='/debug/'>Debug</a>";
+			if (!m_icicle.empty())
+			{
+				*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
+			}
+			*this << ".";
 #endif
+		}
 		die();
 	}
 
@@ -470,16 +477,23 @@ namespace FastCGI
 	{
 		setHeader("Status", "404 Not Found");
 		setHeader("Content-Type", "text/html; charset=utf-8");
-		*this
-			<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
-#if DEBUG_CGI
-		*this << "<br/>\n<a href='/debug/'>Debug</a>";
-		if (!m_icicle.empty())
+
+		auto handler = app().getErrorHandler(404);
+		if (handler)
+			handler->onError(404, *this);
+		else
 		{
-			*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
-		}
-		*this << ".";
+			*this
+				<< "<tt>404: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
+#if DEBUG_CGI
+			*this << "<br/>\n<a href='/debug/'>Debug</a>";
+			if (!m_icicle.empty())
+			{
+				*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
+			}
+			*this << ".";
 #endif
+		}
 		die();
 	}
 
@@ -490,16 +504,23 @@ namespace FastCGI
 
 		setHeader("Status", "500 Internal Error");
 		setHeader("Content-Type", "text/html; charset=utf-8");
-		*this
-			<< "<tt>500: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
-#if DEBUG_CGI
-		*this << "<br/>\n<a href='/debug/'>Debug</a>";
-		if (!m_icicle.empty())
+
+		auto handler = app().getErrorHandler(500);
+		if (handler)
+			handler->onError(500, *this);
+		else
 		{
-			*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
-		}
-		*this << ".";
+			*this
+				<< "<tt>500: Oops! (URL: " << getParam("REQUEST_URI") << ")</tt>";
+#if DEBUG_CGI
+			*this << "<br/>\n<a href='/debug/'>Debug</a>";
+			if (!m_icicle.empty())
+			{
+				*this << ", <a href='/debug/?frozen=" + url::encode(m_icicle) + "'>[F]</a>";
+			}
+			*this << ".";
 #endif
+		}
 		die();
 	}
 
