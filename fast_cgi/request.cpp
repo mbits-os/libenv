@@ -501,6 +501,10 @@ namespace FastCGI
 	{
 		if (!log.empty())
 			FastCGI::ApplicationLog(file, line) << "on500: " << log;
+#ifdef DEBUG_CGI
+		if (!m_icicle.empty())
+			FastCGI::ApplicationLog(file, line) << "on500 icicle: " << m_icicle;
+#endif
 
 		setHeader("Status", "500 Internal Error");
 		setHeader("Content-Type", "text/html; charset=utf-8");
