@@ -499,11 +499,13 @@ namespace FastCGI
 
 	void Request::__on500(const char* file, int line, const std::string& log)
 	{
+		if (getParam("REQUEST_URI"))
+			FastCGI::ApplicationLog(file, line) << "[500] URI: " << getParam("REQUEST_URI");
 		if (!log.empty())
-			FastCGI::ApplicationLog(file, line) << "on500: " << log;
+			FastCGI::ApplicationLog(file, line) << "[500] msg: " << log;
 #ifdef DEBUG_CGI
 		if (!m_icicle.empty())
-			FastCGI::ApplicationLog(file, line) << "on500 icicle: " << m_icicle;
+			FastCGI::ApplicationLog(file, line) << "[500] icicle: " << m_icicle;
 #endif
 
 		setHeader("Status", "500 Internal Error");
