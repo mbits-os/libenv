@@ -25,12 +25,13 @@
 #ifndef __LOCALE_H__
 #define __LOCALE_H__
 
-#include "site_strings.h"
 #include <filesystem.hpp>
 #include <vector>
 
 namespace lng
 {
+	enum LNG;
+
 	struct LangFile;
 	class Translation;
 	class Locale;
@@ -109,6 +110,10 @@ namespace lng
 		filesystem::path getFilename(const char* header, const filesystem::path& filename);
 		LocaleInfos knownLanguages();
 	};
+
+	// special "magic" values for the lang id enum
+	static inline LNG Culture() { return LNG(0); }
+	static inline LNG LanguageName() { return LNG(1); }
 }
 
 #endif // __LOCALE_H__

@@ -163,7 +163,7 @@ namespace lng
 			if (candidate)
 			{
 				refreshed = true;
-				FLOG << "[LNG:" << candidate->tr(lng::CULTURE) << "] Refreshing strings";
+				FLOG << "[LNG:" << candidate->tr(lng::Culture()) << "] Refreshing strings";
 			}
 		}
 
@@ -174,7 +174,7 @@ namespace lng
 		if (candidate->open(m_fileRoot / lang / "site_strings.lng"))
 		{
 			if (!refreshed)
-				FLOG << "[LNG:" << candidate->tr(lng::CULTURE) << "] Loading strings";
+				FLOG << "[LNG:" << candidate->tr(lng::Culture()) << "] Loading strings";
 
 			m_translations[lang] = candidate;
 			return candidate;
@@ -235,7 +235,7 @@ namespace lng
 					continue;
 			}
 
-			LocaleInfo nfo = { translation->tr(lng::CULTURE), translation->tr(lng::LANGUAGE_NAME) };
+			LocaleInfo nfo = { translation->tr(lng::Culture()), translation->tr(lng::LanguageName()) };
 			out.emplace_back(nfo);
 		}
 
