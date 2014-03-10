@@ -30,7 +30,7 @@
 
 namespace lng
 {
-	enum LNG;
+	using lng_t = unsigned int;
 
 	struct LangFile;
 	class Translation;
@@ -55,7 +55,7 @@ namespace lng
 		~LangFile() { close(); }
 		ERR open(const filesystem::path& path);
 		void close();
-		const char* getString(unsigned int i);
+		const char* getString(lng_t i);
 		offset_t size() const { return m_count; }
 	private:
 		char* m_content;
@@ -79,7 +79,7 @@ namespace lng
 
 			return m_file.open(path) == ERR_OK;
 		}
-		const char* tr(LNG stringId) { return m_file.getString(stringId); }
+		const char* tr(lng_t stringId) { return m_file.getString(stringId); }
 		bool fresh() const
 		{
 			return mtime() == m_mtime;
@@ -112,8 +112,8 @@ namespace lng
 	};
 
 	// special "magic" values for the lang id enum
-	static inline LNG Culture() { return LNG(0); }
-	static inline LNG LanguageName() { return LNG(1); }
+	static inline lng_t Culture() { return 0; }
+	static inline lng_t LanguageName() { return 1; }
 }
 
 #endif // __LOCALE_H__

@@ -102,7 +102,7 @@ namespace FastCGI
 		return !!m_translation;
 	}
 
-	static const char* error(std::string& s, lng::LNG stringId)
+	static const char* error(std::string& s, lng::lng_t stringId)
 	{
 		char buffer[100];
 		printf(":%d:", stringId);
@@ -110,7 +110,7 @@ namespace FastCGI
 		return s.c_str();
 	}
 
-	const char* PageTranslation::operator()(lng::LNG stringId)
+	const char* PageTranslation::operator()(lng::lng_t stringId)
 	{
 		if (!m_translation)
 			return error(m_badString, stringId);

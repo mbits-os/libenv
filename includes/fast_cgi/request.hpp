@@ -38,7 +38,6 @@ namespace lng
 {
 	class Translation;
 	typedef std::shared_ptr<Translation> TranslationPtr;
-	enum LNG;
 };
 
 #define on500(log) __on500(__FILE__, __LINE__, log)
@@ -73,10 +72,10 @@ namespace FastCGI
 		std::string m_badString;
 	public:
 		bool init(SessionPtr session, Request& request);
-		const char* operator()(lng::LNG stringId);
+		const char* operator()(lng::lng_t stringId);
 
 		template <typename AtLeastOne, typename... Args>
-		std::string operator()(lng::LNG stringId, AtLeastOne&& arg, Args&&... args)
+		std::string operator()(lng::lng_t stringId, AtLeastOne&& arg, Args&&... args)
 		{
 			return str::format(operator()(stringId), std::forward<AtLeastOne>(arg), std::forward<Args>(args)...);
 		}
@@ -119,7 +118,7 @@ namespace FastCGI
 		Recipients to, cc;
 		Variables variables;
 
-		MailInfo(filesystem::path&& mailFile, PageTranslation& tr, lng::LNG subject, lng::LNG emailName)
+		MailInfo(filesystem::path&& mailFile, PageTranslation& tr, lng::lng_t subject, lng::lng_t emailName)
 			: mailFile(std::move(mailFile))
 			, subject(std::move(tr(subject)))
 			, userName(std::move(tr(emailName)))
