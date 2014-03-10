@@ -119,10 +119,10 @@ namespace FastCGI
 		Recipients to, cc;
 		Variables variables;
 
-		MailInfo(filesystem::path&& mailFile, PageTranslation& tr, lng::LNG subject)
+		MailInfo(filesystem::path&& mailFile, PageTranslation& tr, lng::LNG subject, lng::LNG emailName)
 			: mailFile(std::move(mailFile))
 			, subject(std::move(tr(subject)))
-			, userName(std::move(tr(lng::LNG_MAIL_SUPPORT)))
+			, userName(std::move(tr(emailName)))
 		{}
 
 		void add_to(const std::string& name, const std::string& email) { to.emplace_back(name, email); }

@@ -70,7 +70,7 @@ namespace FastCGI
 			m_translation = session->getTranslation();
 			if (m_translation)
 			{
-				auto culture = m_translation->tr(lng::CULTURE);
+				auto culture = m_translation->tr(lng::Culture());
 				if (!preferred.empty() && preferred != culture)
 					m_translation = nullptr;
 
