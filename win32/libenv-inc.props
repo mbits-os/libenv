@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <_PropertySheetDisplayName>Aggregate Environment Library API</_PropertySheetDisplayName>
-    <IncludePath>$(SolutionDir)..\..\libenv\includes;$(IncludePath)</IncludePath>
+    <_PropertySheetDisplayName>FastCGI Environment Library API</_PropertySheetDisplayName>
+    <IncludePath>$(MSBuildThisFileDirectory)..\includes;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
