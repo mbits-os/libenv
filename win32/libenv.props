@@ -16,7 +16,7 @@
       <ProgramDatabaseFile>$(TargetDir)$(TargetName).pdb</ProgramDatabaseFile>
     </Link>
     <PreBuildEvent>
-      <Command>"$(SolutionDir)build_directory.py"</Command>
+      <Command>"$(MSBuildThisFileDirectory)build_directory.py"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup />
