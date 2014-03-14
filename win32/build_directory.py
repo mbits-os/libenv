@@ -1,7 +1,7 @@
 import sys, os, re
 
 __dir__ = os.path.dirname(__file__)
-parent = os.path.dirname(os.path.realpath(os.path.join(__dir__, "..", "..", ".."))) + "\\"
+parent = os.path.dirname(os.path.realpath(os.path.join(__dir__, "..", ".."))) + "\\"
 
 include = os.path.join(__dir__, "..", "includes", "__file__.win32.hpp")
 
