@@ -111,6 +111,9 @@ namespace FastCGI
 		const std::string& remote_port() const { return m_remote_port; }
 		const std::string& session_user() const { return m_session_user; }
 		void session_user(const std::string& user) { m_session_user = user; }
+		const std::string& culture() const { return m_culture; }
+		bool culture_from_db() const { return m_culture_from_db; }
+		void culture(const std::string& culture, bool from_db) { m_culture = culture; m_culture_from_db = from_db; }
 
 		tyme::time_t now() const { return m_now; }
 
@@ -129,6 +132,8 @@ namespace FastCGI
 		std::string m_remote_addr;
 		std::string m_remote_port;
 		std::string m_session_user;
+		std::string m_culture;
+		bool m_culture_from_db;
 
 		duration_t m_duration;
 

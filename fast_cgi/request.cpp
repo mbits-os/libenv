@@ -63,6 +63,9 @@ namespace FastCGI
 
 	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
+#ifdef DEBUG_CGI
+		auto frozen = request.app().frozen(request.getIcicle());
+#endif
 		if (session)
 		{
 			auto preferred = session->preferredLanguage();
@@ -82,7 +85,13 @@ namespace FastCGI
 
 				// still survived? use it...
 				if (m_translation)
+				{
+#ifdef DEBUG_CGI
+					if (frozen)
+						frozen->culture(culture, !preferred.empty());
+#endif
 					return true;
+				}
 			}
 
 			if (!preferred.empty())
@@ -91,13 +100,24 @@ namespace FastCGI
 				session->setTranslation(m_translation);
 
 				if (m_translation)
+				{
+#ifdef DEBUG_CGI
+					if (frozen)
+						frozen->culture(preferred, true);
+#endif
 					return true;
+				}
 			}
 		}
 
 		m_translation = request.httpAcceptLanguage();
 		if (session)
 			session->setTranslation(m_translation);
+
+#ifdef DEBUG_CGI
+		if (frozen && m_translation)
+			frozen->culture(m_translation->tr(lng::Culture()), false);
+#endif
 
 		return !!m_translation;
 	}
