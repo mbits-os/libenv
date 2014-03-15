@@ -199,7 +199,7 @@ namespace FastCGI
 		info.server      = FCGX_GetParam("SERVER_NAME", envp);
 		info.remote_addr = FCGX_GetParam("REMOTE_ADDR", envp);
 		info.remote_port = FCGX_GetParam("REMOTE_PORT", envp);
-		info.now = tyme::now();
+		info.now         = tyme::now();
 		m_requs.push_back(info);
 	}
 
@@ -310,7 +310,14 @@ extern "C" void flog(const char* file, int line, const char* fmt, ...)
 	char buffer[8196];
 	va_list args;
 	va_start(args, fmt);
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 	vsprintf(buffer, fmt, args);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 	va_end(args);
 	FastCGI::ApplicationLog(file, line) << buffer;
 }

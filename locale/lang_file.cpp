@@ -84,7 +84,14 @@ namespace lng
 		auto_close anchor(*this);
 
 		auto nat = path.native();
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 		FILE* f = fopen(nat.c_str(), "rb");
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 		if (!f)
 		{
 			FLOG << "Could not open " << nat << ", errno: " << errno;

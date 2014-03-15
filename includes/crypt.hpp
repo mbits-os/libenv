@@ -121,7 +121,14 @@ namespace Crypt
 		static void pack(const digest_t& digest, const salt_t& salt, hash_t& hash)
 		{
 			base64_encode(digest, DIGEST_SIZE, hash);
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 			strcpy(hash + PAYLOAD_LENGTH, salt);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 			hash[HASH_SIZE - 2] = ALG_ID;
 			hash[HASH_SIZE - 1] = 0;
 		}

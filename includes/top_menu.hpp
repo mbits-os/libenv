@@ -112,7 +112,14 @@ namespace FastCGI { namespace TopMenu {
 			else if (m_iconPosition != -1)
 			{
 				char buffer[100];
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 				_itoa(m_iconPosition * 24, buffer, 10);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 				style = std::string("      background-position: 0px -") + buffer + "px;\r\n";
 			}
 			return style;
