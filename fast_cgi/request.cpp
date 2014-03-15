@@ -338,9 +338,17 @@ namespace FastCGI
 
 		buildCookieHeader();
 
+#ifdef DEBUG_CGI
+		bool hasIcicle = !m_icicle.empty();
+#endif
+
 		for (auto&& header: m_headers)
 		{
 			*this << header.second << "\r\n";
+#ifdef DEBUG_CGI
+			if (hasIcicle)
+				app().reportHeader(header.second, m_icicle);
+#endif
 		};
 
 		*this << "\r\n";

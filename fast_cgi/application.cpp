@@ -193,17 +193,30 @@ namespace FastCGI
 
 	void Application::report(char** envp, const std::string& icicle)
 	{
-		if (true) //turned off for now
-		{
-			ReqInfo info;
-			info.icicle      = icicle;
-			info.resource    = FCGX_GetParam("REQUEST_URI", envp);
-			info.server      = FCGX_GetParam("SERVER_NAME", envp);
-			info.remote_addr = FCGX_GetParam("REMOTE_ADDR", envp);
-			info.remote_port = FCGX_GetParam("REMOTE_PORT", envp);
-			info.now = tyme::now();
-			m_requs.push_back(info);
-		}
+		ReqInfo info;
+		info.icicle      = icicle;
+		info.resource    = FCGX_GetParam("REQUEST_URI", envp);
+		info.server      = FCGX_GetParam("SERVER_NAME", envp);
+		info.remote_addr = FCGX_GetParam("REMOTE_ADDR", envp);
+		info.remote_port = FCGX_GetParam("REMOTE_PORT", envp);
+		info.now = tyme::now();
+		m_requs.push_back(info);
+	}
+
+	void Application::reportHeader(const std::string& header, const std::string& icicle)
+	{
+		auto frozen = this->frozen(icicle);
+		if (frozen)
+			frozen->report_header(header);
+	}
+
+	void FrozenState::report_header(const std::string& header)
+	{
+		auto pos = header.find(':');
+		if (pos == std::string::npos)
+			m_response.emplace_back(std::trim(header), std::string());
+		else
+			m_response.emplace_back(std::trim(header.substr(0, pos)), std::trim(header.substr(pos + 1)));
 	}
 #endif
 

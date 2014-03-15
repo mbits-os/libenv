@@ -95,6 +95,7 @@ namespace FastCGI
 		using duration_t = clock_t::duration;
 
 		typedef std::map<std::string, std::string> string_map;
+		typedef std::vector<std::pair<std::string, std::string>> string_pair_list;
 
 		FrozenState(char** envp, const Request& req, const std::string& icicle);
 
@@ -102,6 +103,8 @@ namespace FastCGI
 		const string_map& environment() const { return m_environment; }
 		const string_map& get() const { return m_get; }
 		const string_map& cookies() const { return m_cookies; }
+		void report_header(const std::string& header);
+		const string_pair_list& response() const { return m_response; }
 		const std::string& resource() const { return m_resource; }
 		const std::string& server() const { return m_server; }
 		const std::string& remote_addr() const { return m_remote_addr; }
@@ -119,6 +122,7 @@ namespace FastCGI
 		string_map m_environment;
 		string_map m_get;
 		string_map m_cookies;
+		string_pair_list m_response;
 
 		std::string m_resource;
 		std::string m_server;
@@ -233,6 +237,7 @@ namespace FastCGI
 		FrozenStatePtr frozen(const std::string&);
 		std::string freeze(char** envp, const Request& req);
 		void report(char** envp, const std::string& icicle);
+		void reportHeader(const std::string& header, const std::string& icicle);
 		std::list<ThreadPtr> getThreads() const { return m_threads; }
 	private:
 		ReqList m_requs;

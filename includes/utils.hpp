@@ -29,6 +29,7 @@
 #include <list>
 #include <algorithm>
 #include <string.h>
+#include <cctype>
 
 template<class T, size_t N> size_t array_size(T (&)[N]){ return N; }
 
@@ -144,6 +145,36 @@ namespace std
 	{
 		std::string out = s;
 		toupper(out);
+		return out;
+	}
+
+	static inline void trim(std::string& inout)
+	{
+		auto c = inout.begin();
+		auto e = inout.end();
+		while (c != e && std::isspace((unsigned char)*c))
+			++c;
+
+		if (c == e)
+		{
+			inout.clear();
+			return;
+		}
+
+		while (std::isspace((unsigned char) *(e - 1)))
+			--e;
+
+		if (c != inout.begin() || e != inout.end())
+		{
+			std::string tmp{ c, e };
+			inout = std::move(tmp);
+		}
+	}
+
+	static inline std::string trim(const std::string& s)
+	{
+		std::string out = s;
+		trim(out);
 		return out;
 	}
 }
