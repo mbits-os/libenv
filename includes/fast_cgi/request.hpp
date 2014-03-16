@@ -265,6 +265,8 @@ namespace FastCGI
 			return m_backend->cin().gcount();
 		}
 
+		bool forAjaxFragment() const { return !!getParam(HTTP_X_AJAX_FRAGMENT); }
+
 #if DEBUG_CGI
 		const std::map<std::string, std::string>& cookieDebugData() const {
 			return m_reqCookies;
