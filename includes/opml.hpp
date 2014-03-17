@@ -39,7 +39,7 @@ namespace opml
 		std::list<Outline> m_children;
 	};
 
-	bool parse(dom::XmlDocumentPtr document, Outline& outline);
+	bool parse(const dom::XmlDocumentPtr& document, Outline& outline);
 };
 
 #endif //__OPML_H__

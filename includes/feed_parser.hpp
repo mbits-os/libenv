@@ -91,7 +91,7 @@ namespace feed
 		std::string m_lastModified;
 	};
 
-	bool parse(dom::XmlDocumentPtr document, Feed& feed);
+	bool parse(const dom::XmlDocumentPtr& document, Feed& feed);
 };
 
 #endif //__FEED_PARSER_H__

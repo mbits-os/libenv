@@ -27,12 +27,12 @@
 
 namespace feed
 {
-	namespace atom03 { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
-	namespace atom10 { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
-	namespace rdf10  { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
-	namespace rss20  { bool parse(dom::XmlDocumentPtr document, Feed& feed); }
+	namespace atom03 { bool parse(const dom::XmlDocumentPtr& document, Feed& feed); }
+	namespace atom10 { bool parse(const dom::XmlDocumentPtr& document, Feed& feed); }
+	namespace rdf10  { bool parse(const dom::XmlDocumentPtr& document, Feed& feed); }
+	namespace rss20  { bool parse(const dom::XmlDocumentPtr& document, Feed& feed); }
 
-	typedef bool (*Parser)(dom::XmlDocumentPtr, Feed&);
+	typedef bool (*Parser)(const dom::XmlDocumentPtr&, Feed&);
 	static Parser parsers[] = {
 		atom10::parse,
 		atom03::parse,
@@ -40,7 +40,7 @@ namespace feed
 		rdf10::parse
 	};
 
-	bool parse(dom::XmlDocumentPtr document, Feed& feed)
+	bool parse(const dom::XmlDocumentPtr& document, Feed& feed)
 	{
 		for (size_t i = 0; i < sizeof(parsers)/sizeof(parsers[0]); ++i)
 		{

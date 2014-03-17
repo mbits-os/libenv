@@ -51,7 +51,7 @@ namespace opml
 		{
 		}
 
-		bool parse(dom::XmlDocumentPtr document, Outline& outline)
+		bool parse(const dom::XmlDocumentPtr& document, Outline& outline)
 		{
 			feed::Parser<Outline> parser;
 			parser.setContext(&outline);
@@ -63,7 +63,7 @@ namespace opml
 		}
 	};
 
-	bool parse(dom::XmlDocumentPtr document, Outline& outline)
+	bool parse(const dom::XmlDocumentPtr& document, Outline& outline)
 	{
 		return Opml().parse(document, outline);
 	}

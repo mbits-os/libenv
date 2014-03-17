@@ -30,7 +30,7 @@
 
 /*
  * RDF (1.0)
- * ns = { 'rdf' : 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'a' : 'http://purl.org/rss/1.0/'}
+ * ns = { 'rdf' : 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'a' : 'http://purl.org/rss/1.0/', 'content': 'http://purl.org/rss/1.0/modules/content/'}
  * /rdf:RDF :: Feed
  *     a:channel             -> this
  *         a:title           ->     m_feed.m_title
@@ -57,6 +57,32 @@
 
 namespace feed
 {
+	namespace rdf10
+	{
+		using Sequence = std::list<std::string>;
+		struct RdfEntry : Entry
+		{
+			std::string  m_about;
+		};
+		typedef std::list<RdfEntry> RdfEntries;
+
+		struct Feed
+		{
+			NamedUrl    m_feed;
+			std::string m_self;
+			std::string m_description;
+			Author      m_author;
+			std::string m_language;
+			std::string m_copyright;
+			NamedUrl    m_image;
+			Categories  m_categories;
+			RdfEntries  m_entry;
+			std::string m_etag;
+			std::string m_lastModified;
+			Sequence    m_sequence;
+		};
+	}
+
 	RULE(Enclosure)
 	{
 		FIND("@url",    m_url);
@@ -64,8 +90,9 @@ namespace feed
 		FIND("@length", m_size);
 	}
 
-	RULE(Entry)
+	RULE(rdf10::RdfEntry)
 	{
+		FIND("@rdf:about",      m_about);
 		FIND_NAMED("a:title",   m_entry, m_title);
 		FIND_NAMED("a:link",    m_entry, m_url);
 		FIND("a:guid",          m_entryUniqueId);
@@ -74,9 +101,10 @@ namespace feed
 		FIND("a:category",      m_categories);
 		FIND_TIME("a:pubDate",  m_dateTime);
 		FIND("a:description",   m_description);
+		FIND("content:encoded", m_content);
 	}
 
-	RULE(Feed)
+	RULE(rdf10::Feed)
 	{
 		FIND_NAMED("a:title",           m_feed, m_title);
 		FIND_NAMED("a:link",            m_feed, m_url);
@@ -86,6 +114,7 @@ namespace feed
 		FIND("a:category",              m_categories);
 		FIND_AUTHOR("a:managingEditor", m_email);
 		//image                      -> m_image
+		FIND("a:items/rdf:Seq/rdf:li/@rdf:resource", m_sequence);
 		FIND("../a:item",               m_entry);
 	};
 
@@ -94,6 +123,7 @@ namespace feed
 		dom::NSData ns[] = {
 			{ "rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#" },
 			{ "a",   "http://purl.org/rss/1.0/" },
+			{ "content", "http://purl.org/rss/1.0/modules/content/" },
 			{ NULL }
 		};
 
@@ -106,9 +136,45 @@ namespace feed
 			FIND_ROOT;
 		};
 
-		bool parse(dom::XmlDocumentPtr document, Feed& feed)
+		// TODO:read sequence and use items referenced there...
+		bool parse(const dom::XmlDocumentPtr& document, feed::Feed& feed)
 		{
-			return RDF().parse(document, feed);
+			Feed tmp;
+			if (!RDF().parse(document, tmp))
+				return false;
+
+#define SWAP(fld) std::swap(feed.fld, tmp.fld)
+			SWAP(m_feed);
+			SWAP(m_self);
+			SWAP(m_description);
+			SWAP(m_author);
+			SWAP(m_language);
+			SWAP(m_copyright);
+			SWAP(m_image);
+			SWAP(m_categories);
+			//SWAP(m_entry);
+			SWAP(m_etag);
+			SWAP(m_lastModified);
+#undef SWAP
+
+			if (tmp.m_sequence.empty())
+			{
+				for (auto&& entry : tmp.m_entry)
+					feed.m_entry.push_back(entry);
+			}
+			else
+			{
+				for (auto&& item : tmp.m_sequence)
+				{
+					for (auto&& entry : tmp.m_entry)
+					{
+						if (entry.m_about != item) continue;
+						feed.m_entry.push_back(entry);
+						break;
+					}
+				}
+			}
+			return true;
 		}
 	}
 }

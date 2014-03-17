@@ -119,7 +119,7 @@ namespace feed
 			FIND_ROOT;
 		};
 
-		bool parse(dom::XmlDocumentPtr document, Feed& feed)
+		bool parse(const dom::XmlDocumentPtr& document, Feed& feed)
 		{
 			return RSS().parse(document, feed);
 		}
