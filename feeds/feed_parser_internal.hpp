@@ -38,6 +38,7 @@
 #define StructParser           NAMED(PARSER_TAG, _StructParser)
 #define ListSelector           NAMED(PARSER_TAG, _ListSelector)
 #define MemberSelector         NAMED(PARSER_TAG, _MemberSelector)
+#define MemberSelectorSuper    NAMED(PARSER_TAG, _MemberSelectorSuper)
 #define TimeMemberSelector     NAMED(PARSER_TAG, _TimeMemberSelector)
 #define IndirectMemberSelector NAMED(PARSER_TAG, _IndirectMemberSelector)
 
@@ -50,7 +51,18 @@
 	}; \
 	Parser<type>::Parser()
 
+#define RULE_INHERIT(type, super) \
+	template <> \
+	struct Parser<type>: Parser<super> \
+	{ \
+	Parser(); \
+	typedef type Type; \
+	typedef super Super; \
+	}; \
+	Parser<type>::Parser()
+
 #define FIND(xpath, dest) find(xpath, &Type::dest)
+#define FIND_INHERIT(xpath, dest) findInherit<Type>(xpath, &Type::dest)
 #define FIND_PRED(xpath, dest, pred) find(xpath, &Type::dest, pred)
 #define FIND_NAMED(xpath, parent, field) find(xpath, &Type::parent, &NamedUrl::field)
 #define FIND_AUTHOR(xpath, field) find(xpath, &Type::m_author, &Author::field)
@@ -188,6 +200,39 @@ namespace feed
 		std::string name() const override { return "MemberSelector(" + m_xpath + ")"; }
 	};
 
+	template <typename Type, typename Parent, typename Member, typename Pred>
+	struct MemberSelectorSuper : Selector
+	{
+		std::string m_xpath;
+		Member Type::* m_member;
+		Pred m_pred;
+		bool m_optional;
+
+		MemberSelectorSuper(const std::string& xpath, Member Type::* member, Pred pred, bool optional = true)
+			: m_xpath(xpath)
+			, m_member(member)
+			, m_pred(pred)
+			, m_optional(optional)
+		{
+		}
+
+		bool parse(const dom::XmlNodePtr& node, dom::Namespaces ns, void* context) override
+		{
+			dom::XmlNodePtr data = node->find(m_xpath, ns);
+			if (!data)
+				return m_optional;
+
+			Type* ctx = (Type*)(Parent*)context;
+			if (!ctx)
+				return false;
+
+			auto& new_ctx = ctx->*m_member;
+
+			return m_pred(data, ns, new_ctx);
+		}
+		std::string name() const override { return "MemberSelectorSuper(" + m_xpath + ")"; }
+	};
+
 	template <typename Type>
 	struct TimeMemberSelector: Selector
 	{
@@ -322,6 +367,18 @@ namespace feed
 		void find(const std::string& xpath, Member Type::* dest)
 		{
 			find(xpath, dest, ValueParser<Member>);
+		}
+
+		template <typename Subtype, typename Member, typename Pred>
+		void findInherit(const std::string& xpath, Member Subtype::* dest, Pred pred)
+		{
+			m_selectors.push_back(std::make_shared< MemberSelectorSuper<Subtype, Type, Member, Pred> >(xpath, dest, pred));
+		}
+
+		template <typename Subtype, typename Member>
+		void findInherit(const std::string& xpath, Member Subtype::* dest)
+		{
+			findInherit<Subtype>(xpath, dest, ValueParser<Member>);
 		}
 
 		void findTime(const std::string& xpath, tyme::time_t Type::* dest)

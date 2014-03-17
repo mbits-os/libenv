@@ -90,9 +90,8 @@ namespace feed
 		FIND("@length", m_size);
 	}
 
-	RULE(rdf10::RdfEntry)
+	RULE(Entry)
 	{
-		FIND("@rdf:about",      m_about);
 		FIND_NAMED("a:title",   m_entry, m_title);
 		FIND_NAMED("a:link",    m_entry, m_url);
 		FIND("a:guid",          m_entryUniqueId);
@@ -103,6 +102,12 @@ namespace feed
 		FIND("a:description",   m_description);
 		FIND("content:encoded", m_content);
 	}
+
+	RULE_INHERIT(rdf10::RdfEntry, Entry)
+	{
+		FIND_INHERIT("@rdf:about", m_about);
+	}
+
 
 	RULE(rdf10::Feed)
 	{
