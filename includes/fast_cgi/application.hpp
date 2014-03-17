@@ -194,7 +194,7 @@ namespace FastCGI
 		void run();
 		int pid() const { return m_pid; }
 		SessionPtr getSession(Request& request, const std::string& sessionId);
-		SessionPtr startSession(Request& request, const char* email);
+		SessionPtr startSession(Request& request, const char* login);
 		void endSession(Request& request, const std::string& sessionId);
 		lng::LocaleInfos knownLanguages() { return m_locale.knownLanguages(); }
 		lng::TranslationPtr getTranslation(const std::string& lang) { return m_locale.getTranslation(lang); }

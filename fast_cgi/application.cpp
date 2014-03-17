@@ -267,7 +267,7 @@ namespace FastCGI
 		return out;
 	}
 
-	SessionPtr Application::startSession(Request& request, const char* email)
+	SessionPtr Application::startSession(Request& request, const char* login)
 	{
 		Synchronize on (*this);
 
@@ -276,7 +276,7 @@ namespace FastCGI
 		SessionPtr out;
 		db::ConnectionPtr db = request.dbConn();
 		if (db.get())
-			out = Session::startSession(db, email);
+			out = Session::startSession(db, login);
 		// TODO: limits needed, or DoS eminent
 		if (out.get())
 			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));

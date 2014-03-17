@@ -222,7 +222,7 @@ namespace FastCGI
 		const std::string& getStaticResources();
 
 		SessionPtr getSession(bool require = true);
-		SessionPtr startSession(bool long_session, const char* email);
+		SessionPtr startSession(bool long_session, const char* login);
 		void endSession(const std::string& sessionId);
 
 		lng::TranslationPtr getTranslation(const std::string& lang);

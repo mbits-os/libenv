@@ -588,9 +588,9 @@ namespace FastCGI
 		return out;
 	}
 
-	SessionPtr Request::startSession(bool long_session, const char* email)
+	SessionPtr Request::startSession(bool long_session, const char* login)
 	{
-		SessionPtr session = app().startSession(*this, email);
+		SessionPtr session = app().startSession(*this, login);
 		if (session.get())
 		{
 			if (long_session)
