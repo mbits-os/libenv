@@ -126,18 +126,18 @@ namespace db
 				deleteBind();
 			}
 			bool prepare();
-			bool next();
-			size_t columnCount();
-			int getInt(int column) { return getLong(column); }
-			long getLong(int column);
-			long long getLongLong(int column);
-			tyme::time_t getTimestamp(int column);
-			const char* getText(int column);
-			size_t getBlobSize(int column);
-			const void* getBlob(int column);
-			bool isNull(int column);
-			ConnectionPtr getConnection() const { return m_parent->getConnection(); }
-			StatementPtr getStatement() const { return m_parent; }
+			bool next() override;
+			size_t columnCount() override;
+			int getInt(int column) override { return getLong(column); }
+			long getLong(int column) override;
+			long long getLongLong(int column) override;
+			tyme::time_t getTimestamp(int column) override;
+			const char* getText(int column) override;
+			size_t getBlobSize(int column) override;
+			const void* getBlob(int column) override;
+			bool isNull(int column) override;
+			ConnectionPtr getConnection() const override { return m_parent->getConnection(); }
+			StatementPtr getStatement() const override { return m_parent; }
 		};
 
 		class MySQLStatement: public Statement, MySQLBinding, public std::enable_shared_from_this<Statement>
@@ -156,14 +156,14 @@ namespace db
 
 			}
 			bool prepare(const char* stmt);
-			bool bind(int arg, int value) { return bind(arg, (long)value); }
-			bool bind(int arg, short value);
-			bool bind(int arg, long value);
-			bool bind(int arg, long long value);
-			bool bind(int arg, const char* value);
-			bool bind(int arg, const void* value, size_t size);
-			bool bindTime(int arg, tyme::time_t value);
-			bool bindNull(int arg);
+			bool bind(int arg, int value) override { return bind(arg, (long)value); }
+			bool bind(int arg, short value) override;
+			bool bind(int arg, long value) override;
+			bool bind(int arg, long long value) override;
+			bool bind(int arg, const char* value) override;
+			bool bind(int arg, const void* value, size_t size) override;
+			bool bindTime(int arg, tyme::time_t value) override;
+			bool bindNull(int arg) override;
 			template <class T>
 			bool bindImpl(int arg, const T& value)
 			{
@@ -173,11 +173,11 @@ namespace db
 				return true;
 			}
 			bool bindImpl(int arg, const void* value, size_t len);
-			bool execute();
-			CursorPtr query();
-			const char* errorMessage();
-			long errorCode();
-			ConnectionPtr getConnection() const { return m_parent; }
+			bool execute() override;
+			CursorPtr query() override;
+			const char* errorMessage() override;
+			long errorCode() override;
+			ConnectionPtr getConnection() const override { return m_parent; }
 		};
 
 		class MySQLConnection : public Connection, public std::enable_shared_from_this<Connection>
@@ -185,20 +185,22 @@ namespace db
 			MYSQL m_mysql;
 			bool m_connected;
 			filesystem::path m_path;
+			std::string m_fake_uri;
 		public:
 			MySQLConnection(const filesystem::path& path);
 			~MySQLConnection();
 			bool connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database);
-			bool isStillAlive();
-			bool reconnect();
-			bool beginTransaction();
-			bool rollbackTransaction();
-			bool commitTransaction();
-			StatementPtr prepare(const char* sql);
-			StatementPtr prepare(const char* sql, long lowLimit, long hiLimit);
-			bool exec(const char* sql);
-			const char* errorMessage();
-			long errorCode();
+			bool isStillAlive() override;
+			bool reconnect() override;
+			bool beginTransaction() override;
+			bool rollbackTransaction() override;
+			bool commitTransaction() override;
+			StatementPtr prepare(const char* sql) override;
+			StatementPtr prepare(const char* sql, long lowLimit, long hiLimit) override;
+			bool exec(const char* sql) override;
+			const char* errorMessage() override;
+			long errorCode() override;
+			std::string getURI() const override { return m_fake_uri; }
 		};
 
 		class MySQLDriver: public Driver

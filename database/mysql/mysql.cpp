@@ -99,6 +99,7 @@ namespace db { namespace mysql {
 
 	bool MySQLConnection::connect(const std::string& user, const std::string& password, const std::string& server, const std::string& database)
 	{
+		m_fake_uri = "mysql://";
 		std::string srvr = server;
 		unsigned int port = 0;
 		std::string::size_type colon = srvr.rfind(':');
@@ -116,6 +117,9 @@ namespace db { namespace mysql {
 		mysql_options(&m_mysql, MYSQL_OPT_RECONNECT, &reconnect);
 
 		m_connected = mysql_real_connect(&m_mysql, srvr.c_str(), user.c_str(), password.c_str(), database.c_str(), port, nullptr, 0) != nullptr;
+
+		if (m_connected)
+			m_fake_uri = "mysql://" + user + "@" + server + "/" + database;
 
 		return m_connected;
 	}
