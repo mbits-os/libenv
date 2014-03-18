@@ -68,7 +68,7 @@ namespace FastCGI
 #endif
 		if (session)
 		{
-			auto preferred = session->preferredLanguage();
+			auto preferred = session->profile()->preferredLanguage();
 
 			m_translation = session->getTranslation();
 			if (m_translation)
@@ -582,7 +582,7 @@ namespace FastCGI
 		{
 			auto ptr = app().frozen(m_icicle);
 			if (ptr && out)
-				ptr->session_user(out->getLogin());
+				ptr->session_user(out->profile()->login());
 		}
 #endif
 		return out;
@@ -603,7 +603,7 @@ namespace FastCGI
 			{
 				auto ptr = app().frozen(m_icicle);
 				if (ptr)
-					ptr->session_user(session->getLogin());
+					ptr->session_user(session->profile()->login());
 			}
 #endif
 		}
