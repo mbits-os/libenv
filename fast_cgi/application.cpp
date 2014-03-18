@@ -233,13 +233,6 @@ namespace FastCGI
 		m_sessions = copy;
 	}
 
-	void Application::addStlSession()
-	{
-		SessionPtr out = Session::stlSession();
-		if (out.get())
-			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));
-	}
-
 	SessionPtr Application::getSession(Request& request, const std::string& sessionId)
 	{
 		Synchronize on (*this);

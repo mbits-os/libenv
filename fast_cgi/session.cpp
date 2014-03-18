@@ -35,21 +35,6 @@
 
 namespace FastCGI
 {
-	SessionPtr Session::stlSession()
-	{
-		return std::make_shared<Session>(
-			2,
-			"stl.test",
-			"STL Test",
-			"noone@example.com",
-			"...",
-			true,
-			std::string(),
-			0,
-			tyme::now()
-			);
-	}
-
 	SessionPtr Session::fromDB(const db::ConnectionPtr& db, const char* sessionId)
 	{
 		/*

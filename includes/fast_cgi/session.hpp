@@ -114,7 +114,6 @@ namespace FastCGI
 		{
 		}
 
-		static SessionPtr stlSession();
 		static SessionPtr fromDB(const db::ConnectionPtr& db, const char* sessionId);
 		static SessionPtr startSession(const db::ConnectionPtr& db, const char* login);
 		static void endSession(const db::ConnectionPtr& db, const char* sessionId);

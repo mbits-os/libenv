@@ -188,7 +188,6 @@ namespace FastCGI
 		}
 
 		void shutdown();
-		void addStlSession();
 		int init(const filesystem::path& localeRoot);
 		void reload(const filesystem::path& localeRoot); // informs everyone there are new configs...
 		void run();
