@@ -45,8 +45,10 @@ namespace FastCGI
 	class Thread;
 	class Request;
 	class Session;
+	struct UserInfoFactory;
 	typedef std::shared_ptr<Thread> ThreadPtr;
 	typedef std::shared_ptr<Session> SessionPtr;
+	using UserInfoFactoryPtr = std::shared_ptr<UserInfoFactory>;
 
 	struct FLOGBlock
 	{
@@ -168,6 +170,7 @@ namespace FastCGI
 		Threads m_threads;
 		lng::Locale m_locale;
 		std::map<int, ErrorHandlerPtr> m_errorHandlers;
+		UserInfoFactoryPtr m_userInfoFactory;
 
 		void cleanSessionCache();
 	public:
@@ -188,7 +191,7 @@ namespace FastCGI
 		}
 
 		void shutdown();
-		int init(const filesystem::path& localeRoot);
+		int init(const filesystem::path& localeRoot, const UserInfoFactoryPtr& userInfoFactory);
 		void reload(const filesystem::path& localeRoot); // informs everyone there are new configs...
 		void run();
 		int pid() const { return m_pid; }

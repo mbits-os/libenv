@@ -35,69 +35,6 @@
 
 namespace FastCGI
 {
-	SessionPtr Session::fromDB(const db::ConnectionPtr& db, const char* sessionId)
-	{
-		/*
-		I want:
-
-		query = schema
-			.select("user._id AS _id", "user.name AS name", "user.email AS email", "session.set_on AS set_on")
-			.leftJoin("session", "user")
-			.where("session.has=?");
-
-		query.bind(0, sessionId).run(db);
-		if (c.next())
-		{
-			c[0].as<long long>();
-			c["_id"].as<long long>();
-		}
-		*/
-		db::StatementPtr query = db->prepare(
-			"SELECT user._id AS _id, user.login AS login, user.is_admin AS is_admin, user.prefs AS prefs, session.set_on AS set_on "
-			"FROM session "
-			"LEFT JOIN user ON (user._id = session.user_id) "
-			"WHERE session.hash=?"
-			);
-
-		db::StatementPtr profile = db->prepare(
-			"SELECT display_name, email, lang "
-			"FROM profile "
-			"WHERE login=?"
-			);
-
-		if (query && query->bind(0, sessionId) && profile)
-		{
-			db::CursorPtr c = query->query();
-			if (c && c->next())
-			{
-				auto _id = c->getLongLong(0);
-				std::string login = c->getText(1);
-				bool is_admin = c->getInt(2) != 0;
-				int flags = c->getInt(3);
-				auto set_on = c->getTimestamp(4);
-
-				if (profile->bind(0, login))
-				{
-					c = profile->query();
-					if (c && c->next())
-					{
-						return std::make_shared<Session>(
-							_id,
-							login,
-							c->getText(0),
-							c->getText(1),
-							sessionId,
-							is_admin,
-							c->isNull(2) ? std::string() : c->getText(2),
-							flags,
-							set_on);
-					}
-				}
-			}
-		}
-		return nullptr;
-	}
-
 	void reportError(const char* file, int line, db::ErrorReporter* rep, const char* sql)
 	{
 		const char* error = rep->errorMessage();
@@ -108,7 +45,111 @@ namespace FastCGI
 
 #define REPORT_ERROR(rep, sql) reportError(__FILE__, __LINE__, rep, sql)
 
-	SessionPtr Session::startSession(const db::ConnectionPtr& db, const char* login)
+	ProfilePtr make_profile(const db::ConnectionPtr& db, const std::string& login)
+	{
+		static const char* SQL_READ_PROFILE =
+			"SELECT _id, email, name, family_name, display_name, lang, avatar_type "
+			"FROM profile "
+			"WHERE login=?";
+
+		auto profile = db->prepare(SQL_READ_PROFILE);
+		if (profile)
+		{
+			if (profile->bind(0, login))
+			{
+				auto c = profile->query();
+				if (c && c->next())
+				{
+					long long _id = c->getLongLong(0);
+					//std::string login = c->getText();
+					std::string email = c->getText(1);
+					std::string name = c->getText(2);
+					std::string familyName = c->getText(3);
+					std::string displayName = c->getText(4);
+					std::string preferredLanguage = c->isNull(5) ? std::string() : c->getText(5);
+					uint32_t avatarType = c->getInt(6);
+
+					return std::make_shared<Profile>(
+						_id, login, email, name, familyName, displayName, preferredLanguage, avatarType
+						);
+				}
+				else
+				{
+					REPORT_ERROR(profile.get(), SQL_READ_PROFILE);
+				}
+			}
+			else
+			{
+				REPORT_ERROR(profile.get(), SQL_READ_PROFILE);
+			}
+		}
+		else
+		{
+			REPORT_ERROR(db.get(), SQL_READ_PROFILE);
+		}
+		return nullptr;
+	}
+
+	SessionPtr Session::fromDB(const db::ConnectionPtr& db, const UserInfoFactoryPtr& userInfoFactory, const char* sessionId)
+	{
+		/*
+		I want:
+
+		query = schema
+		.select("user._id AS _id", "user.name AS name", "user.email AS email", "session.set_on AS set_on")
+		.leftJoin("session", "user")
+		.where("session.has=?");
+
+		query.bind(0, sessionId).run(db);
+		if (c.next())
+		{
+		c[0].as<long long>();
+		c["_id"].as<long long>();
+		}
+		*/
+
+		const char* SQL_READ_SESSION = "SELECT user_id, set_on FROM session WHERE hash=?";
+		auto select = db->prepare(SQL_READ_SESSION);
+
+		if (select)
+		{
+			if (select->bind(0, sessionId))
+			{
+				auto c = select->query();
+				if (c && c->next())
+				{
+					auto userId = c->getLongLong(0);
+					auto setOn = c->getTimestamp(1);
+					c.reset();
+
+					auto userInfo = userInfoFactory->fromId(db, userId);
+					if (userInfo)
+					{
+						auto profile = make_profile(db, userInfo->login());
+						if (profile)
+						{
+							return std::make_shared<Session>(profile, userInfo, sessionId, setOn);
+						}
+					}
+				}
+				else
+				{
+					REPORT_ERROR(select.get(), SQL_READ_SESSION);
+				}
+			}
+			else
+			{
+				REPORT_ERROR(select.get(), SQL_READ_SESSION);
+			}
+		}
+		else
+		{
+			REPORT_ERROR(db.get(), SQL_READ_SESSION);
+		}
+		return nullptr;
+	}
+
+	SessionPtr Session::startSession(const db::ConnectionPtr& db, const UserInfoFactoryPtr& userInfoFactory, const char* login)
 	{
 		tyme::time_t now = tyme::now();
 		char seed[20];
@@ -116,100 +157,37 @@ namespace FastCGI
 		Crypt::newSalt(seed);
 		Crypt::session(seed, sessionId);
 
-		const char* SQL_USER_BY_LOGIN =
-			"SELECT _id, is_admin, prefs "
-			"FROM user "
-			"WHERE login=?"
-			;
-		const char* SQL_PROFILE_BY_LOGIN =
-			"SELECT display_name, email, lang "
-			"FROM profile "
-			"WHERE login=?"
-			;
 		const char* SQL_NEW_SESSION = "INSERT INTO session (hash, seed, user_id, set_on) VALUES (?, ?, ?, ?)";
 
-		db::StatementPtr user = db->prepare(SQL_USER_BY_LOGIN);
-		db::StatementPtr profile = db->prepare(SQL_PROFILE_BY_LOGIN);
-
-		if (user && user->bind(0, login))
+		auto profile = make_profile(db, login);
+		if (profile)
 		{
-			if (profile && profile->bind(0, login))
+			auto userInfo = userInfoFactory->fromLogin(db, profile->login());
+			if (userInfo)
 			{
-				long long _id = -1;
-				std::string name;
-				std::string email;
-				bool isAdmin = false;
-				std::string lang;
-				uint32_t prefs = 0;
-
-				int queries = 0;
-
-				auto c = user->query();
-				if (c && c->next())
+				auto insert = db->prepare(SQL_NEW_SESSION);
+				if (insert)
 				{
-					queries++;
-
-					_id = c->getInt(0);
-					isAdmin = c->getInt(1) != 0;
-					prefs = (uint32_t)c->getInt(2);
-				}
-
-				c = profile->query();
-				if (c && c->next())
-				{
-					queries++;
-
-					name  = c->getText(0);
-					email = c->getText(1);
-					lang  = c->isNull(2) ? std::string() : c->getText(2);
-				}
-				c.reset();
-
-				if (queries == 2)
-				{
-					auto query = db->prepare(SQL_NEW_SESSION);
-					if (query &&
-						query->bind(0, sessionId) &&
-						query->bind(1, seed) &&
-						query->bind(2, _id) &&
-						query->bindTime(3, now)
+					if (
+						insert->bind(0, sessionId) &&
+						insert->bind(1, seed) &&
+						insert->bind(2, userInfo->userId()) &&
+						insert->bindTime(3, now) &&
+						insert->execute()
 						)
 					{
-						if (query->execute())
-						{
-							return std::make_shared<Session>(
-								_id,
-								login,
-								name,
-								email,
-								sessionId,
-								isAdmin,
-								lang,
-								prefs,
-								now
-								);
-						}
-						else
-						{
-							REPORT_ERROR(query.get(), SQL_NEW_SESSION);
-						}
+						return std::make_shared<Session>(profile, userInfo, sessionId, now);
 					}
 					else
 					{
-						REPORT_ERROR(query.get(), SQL_NEW_SESSION);
+						REPORT_ERROR(insert.get(), SQL_NEW_SESSION);
 					}
 				}
+				else
+				{
+					REPORT_ERROR(db.get(), SQL_NEW_SESSION);
+				}
 			}
-			else
-			{
-				auto rep = profile ? (db::ErrorReporter*)profile.get() : db.get();
-				REPORT_ERROR(rep, SQL_PROFILE_BY_LOGIN);
-			}
-		}
-		else
-		{
-			auto rep = user ? (db::ErrorReporter*)user.get() : db.get();
-			REPORT_ERROR(rep, SQL_USER_BY_LOGIN);
 		}
 		return nullptr;
 	}
@@ -225,7 +203,7 @@ namespace FastCGI
 	{
 		return text.empty() ? query->bindNull(arg) : query->bind(arg, text);
 	}
-	void Session::storeLanguage(const db::ConnectionPtr& db)
+	void Profile::storeLanguage(const db::ConnectionPtr& db)
 	{
 		db::StatementPtr query = db->prepare("UPDATE profile SET lang=? WHERE login=?");
 		if (query && bindTextOrNull(query, 0, m_preferredLanguage) && query->bind(1, m_login))
@@ -235,7 +213,7 @@ namespace FastCGI
 	void Session::storeFlags(const db::ConnectionPtr& db)
 	{
 		db::StatementPtr query = db->prepare("UPDATE user SET prefs=? WHERE _id=?");
-		if (query && query->bind(0, (int)m_flags) && query->bind(1, m_id))
+		if (query && query->bind(0, (int)m_userInfo->m_flags) && query->bind(1, m_userInfo->userId()))
 			query->execute();
 	}
 
@@ -480,6 +458,8 @@ namespace FastCGI
 		if (!c)
 			return SERR_INTERNAL_ERROR;
 
+		auto id = m_userInfo->userId();
+
 		if (!c->next())
 		{
 			feed::Feed feed;
@@ -502,7 +482,7 @@ namespace FastCGI
 		{
 			feed_id = c->getLongLong(0);
 			//could it be double subcription?
-			int result = alreadySubscribes(db, m_id, feed_id);
+			int result = alreadySubscribes(db, id, feed_id);
 			if (result < 0)
 				return result; //an error
 			if (result > 0) //already subscribes
@@ -511,13 +491,13 @@ namespace FastCGI
 
 		if (folder == 0)
 		{
-			folder = getRootFolder(db, m_id);
+			folder = getRootFolder(db, id);
 			if (folder < 0)
 				return folder;
 		}
 
 		if (!doSubscribe(db, feed_id, folder)) return SERR_INTERNAL_ERROR;
-		if (!unreadLatest(db, feed_id, m_id, unread_count)) return SERR_INTERNAL_ERROR;
+		if (!unreadLatest(db, feed_id, id, unread_count)) return SERR_INTERNAL_ERROR;
 
 		if (!transaction.commit()) { FLOG << db->errorMessage(); return SERR_INTERNAL_ERROR; }
 

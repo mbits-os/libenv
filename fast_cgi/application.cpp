@@ -83,8 +83,12 @@ namespace FastCGI
 	{
 	}
 
-	int Application::init(const filesystem::path& localeRoot)
+	int Application::init(const filesystem::path& localeRoot, const UserInfoFactoryPtr& userInfoFactory)
 	{
+		if (!userInfoFactory)
+			return 1;
+		m_userInfoFactory = userInfoFactory;
+
 		int ret = FCGX_Init();
 		if (ret != 0)
 			return ret;
@@ -245,7 +249,7 @@ namespace FastCGI
 		{
 			db::ConnectionPtr db = request.dbConn();
 			if (db.get())
-				out = Session::fromDB(db, sessionId.c_str());
+				out = Session::fromDB(db, m_userInfoFactory, sessionId.c_str());
 
 			// TODO: limits needed, or DoS eminent
 			if (out.get())
@@ -269,7 +273,7 @@ namespace FastCGI
 		SessionPtr out;
 		db::ConnectionPtr db = request.dbConn();
 		if (db.get())
-			out = Session::startSession(db, login);
+			out = Session::startSession(db, m_userInfoFactory, login);
 		// TODO: limits needed, or DoS eminent
 		if (out.get())
 			m_sessions.insert(std::make_pair(out->getSessionId(), std::make_pair(out->getStartTime(), out)));

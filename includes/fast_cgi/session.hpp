@@ -28,6 +28,14 @@
 #include <mt.hpp>
 #include <utils.hpp>
 
+#if defined(_MSC_VER)
+#	define DEPRECATED(fun) __declspec(deprecated) fun
+#elif defined(__GNUC__)
+#	define DEPRECATED(fun) fun __attribute__((deprecated))
+#else
+#	define DEPRECATED(fun) fun [[deprecated]]
+#endif
+
 namespace db
 {
 	struct Connection;
@@ -68,18 +76,50 @@ namespace FastCGI
 		UI_VIEW_OLDEST_FIRST = 4
 	};
 
-	class Session
+	class Profile
 	{
-		long long m_id;
+		long long m_profileId = -1;
 		std::string m_login;
-		std::string m_name;
 		std::string m_email;
-		std::string m_hash;
-		bool m_isAdmin;
+		std::string m_name;
+		std::string m_familyName;
+		std::string m_displayName;
 		std::string m_preferredLanguage;
-		tyme::time_t m_setOn;
-		uint32_t m_flags;
-		lng::TranslationPtr m_tr;
+		uint32_t m_avatarType = 0;
+
+	public:
+		Profile() {}
+		Profile(long long id, const std::string& login, const std::string& email,
+			const std::string& name, const std::string& familyName, const std::string& displayName,
+			const std::string& preferredLanguage, uint32_t avatarType)
+			: m_profileId(id)
+			, m_login(login)
+			, m_email(email)
+			, m_name(name)
+			, m_familyName(familyName)
+			, m_displayName(displayName)
+			, m_preferredLanguage(preferredLanguage)
+			, m_avatarType(avatarType)
+		{
+		}
+
+		long long profileId() const { return m_profileId; }
+		const std::string& login() const { return m_login; }
+		const std::string& email() const { return m_email; }
+		const std::string& name() const { return m_name; }
+		const std::string& familyName() const { return m_familyName; }
+		const std::string& displayName() const { return m_displayName; }
+		const std::string& preferredLanguage() const { return m_preferredLanguage; }
+		void preferredLanguage(const std::string& lang) { m_preferredLanguage = lang; }
+		uint32_t avatarType() const { return m_avatarType; }
+
+		void storeLanguage(const db::ConnectionPtr& db);
+	};
+	using ProfilePtr = std::shared_ptr<Profile>;
+
+	struct FlagsHelper
+	{
+		uint32_t m_flags = 0;
 
 		void flags(int mask, int value)
 		{
@@ -96,50 +136,78 @@ namespace FastCGI
 		{
 			flags(bit, set ? bit : 0);
 		}
+
+		FlagsHelper() {}
+		FlagsHelper(uint32_t flags) : m_flags(flags) {}
+	};
+
+	struct UserInfo: FlagsHelper
+	{
+		virtual ~UserInfo() {}
+		virtual long long userId() const = 0;
+		virtual const std::string& login() const = 0;
+	};
+	using UserInfoPtr = std::shared_ptr<UserInfo>;
+
+	struct UserInfoFactory
+	{
+		virtual ~UserInfoFactory() {}
+		virtual UserInfoPtr fromId(const db::ConnectionPtr& db, long long id) = 0;
+		virtual UserInfoPtr fromLogin(const db::ConnectionPtr& db, const std::string& login) = 0;
+	};
+	using UserInfoFactoryPtr = std::shared_ptr<UserInfoFactory>;
+
+	class Session
+	{
+		ProfilePtr m_profile;
+		UserInfoPtr m_userInfo;
+		std::string m_hash;
+		tyme::time_t m_setOn;
+		lng::TranslationPtr m_tr;
 	public:
 		Session()
 		{
 		}
-		Session(long long id, const std::string& login, const std::string& name, const std::string& email,
-			const std::string& hash, bool isAdmin, const std::string& preferredLanguage, uint32_t flags, tyme::time_t setOn)
-			: m_id(id)
-			, m_login(login)
-			, m_name(name)
-			, m_email(email)
+		Session(const ProfilePtr& profile, const UserInfoPtr& userInfo, const std::string& hash, tyme::time_t setOn)
+			: m_profile(profile)
+			, m_userInfo(userInfo)
 			, m_hash(hash)
-			, m_isAdmin(isAdmin)
-			, m_preferredLanguage(preferredLanguage)
-			, m_flags(flags)
 			, m_setOn(setOn)
 		{
 		}
 
-		static SessionPtr fromDB(const db::ConnectionPtr& db, const char* sessionId);
-		static SessionPtr startSession(const db::ConnectionPtr& db, const char* login);
+		static SessionPtr fromDB(const db::ConnectionPtr& db, const UserInfoFactoryPtr& userInfoFactory, const char* sessionId);
+		static SessionPtr startSession(const db::ConnectionPtr& db, const UserInfoFactoryPtr& userInfoFactory, const char* login);
 		static void endSession(const db::ConnectionPtr& db, const char* sessionId);
-		long long getId() const { return m_id; }
-		const std::string& getLogin() const { return m_login; }
-		const std::string& getName() const { return m_name; }
-		const std::string& getEmail() const { return m_email; }
-		const std::string& getSessionId() const { return m_hash; }
-		bool isAdmin() const { return m_isAdmin; }
-		const std::string& preferredLanguage() const { return m_preferredLanguage; }
-		void preferredLanguage(const std::string& lang) { m_preferredLanguage = lang; }
-		void storeLanguage(const db::ConnectionPtr& db);
 
-		bool viewOnlyUnread() const  { return flags(UI_VIEW_ONLY_UNREAD); }
-		bool viewOnlyTitles() const  { return flags(UI_VIEW_ONLY_TITLES); }
-		bool viewOldestFirst() const { return flags(UI_VIEW_OLDEST_FIRST); }
-		void setViewOnlyUnread(bool value = true)  { flags_set(UI_VIEW_ONLY_UNREAD, value); }
-		void setViewOnlyTitles(bool value = true)  { flags_set(UI_VIEW_ONLY_TITLES, value); }
-		void setViewOldestFirst(bool value = true) { flags_set(UI_VIEW_OLDEST_FIRST, value); }
-		void storeFlags(const db::ConnectionPtr& db);
+		DEPRECATED(long long getId() const) { return m_userInfo->userId(); }
+		DEPRECATED(const std::string& getLogin() const) { return m_profile->login(); }
+		DEPRECATED(const std::string& getName() const) { return m_profile->displayName(); }
+		DEPRECATED(const std::string& getEmail() const) { return m_profile->email(); }
+		const std::string& getSessionId() const { return m_hash; }
+		DEPRECATED(bool isAdmin() const) { return false; }
+		DEPRECATED(const std::string& preferredLanguage() const) { return m_profile->preferredLanguage(); }
+		DEPRECATED(void preferredLanguage(const std::string& lang)) { m_profile->preferredLanguage(lang); }
+		DEPRECATED(void storeLanguage(const db::ConnectionPtr& db)) { m_profile->storeLanguage(db); };
+
+		DEPRECATED(bool viewOnlyUnread() const)  { return m_userInfo->flags(UI_VIEW_ONLY_UNREAD); }
+		DEPRECATED(bool viewOnlyTitles() const)  { return m_userInfo->flags(UI_VIEW_ONLY_TITLES); }
+		DEPRECATED(bool viewOldestFirst() const) { return m_userInfo->flags(UI_VIEW_OLDEST_FIRST); }
+		DEPRECATED(void setViewOnlyUnread(bool value = true))  { m_userInfo->flags_set(UI_VIEW_ONLY_UNREAD, value); }
+		DEPRECATED(void setViewOnlyTitles(bool value = true))  { m_userInfo->flags_set(UI_VIEW_ONLY_TITLES, value); }
+		DEPRECATED(void setViewOldestFirst(bool value = true)) { m_userInfo->flags_set(UI_VIEW_OLDEST_FIRST, value); }
+		DEPRECATED(void storeFlags(const db::ConnectionPtr& db));
 
 		tyme::time_t getStartTime() const { return m_setOn; }
 		lng::TranslationPtr getTranslation() { return m_tr; }
 		void setTranslation(const lng::TranslationPtr& tr) { m_tr = tr; }
-		long long createFolder(const db::ConnectionPtr& db, const char* name, long long parent = 0);
-		long long subscribe(const db::ConnectionPtr& db, const char* url, long long folder = 0);
+		DEPRECATED(long long createFolder(const db::ConnectionPtr& db, const char* name, long long parent = 0));
+		DEPRECATED(long long subscribe(const db::ConnectionPtr& db, const char* url, long long folder = 0));
+
+		ProfilePtr profile() const { return m_profile; }
+		UserInfoPtr userInfoRaw() const { return m_userInfo; }
+		template <typename Impl>
+		std::shared_ptr<Impl> userInfo() const { return std::static_pointer_cast<Impl>(m_userInfo); }
 	};
 }
 
