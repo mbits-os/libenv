@@ -22,9 +22,6 @@ includes/model.hpp
 includes/utils.hpp
 includes/crypt.hpp
 includes/locale.hpp
-includes/feed_parser.hpp
-includes/opml.hpp
-includes/site_strings.h
 includes/http.hpp
 includes/expat.hpp
 includes/dom.hpp
@@ -55,13 +52,6 @@ fast_cgi/thread.cpp
 fast_cgi/handlers.cpp
 locale/lang_file.cpp
 locale/locale.cpp
-feeds/feed_parser.cpp
-feeds/feed_parser_internal.hpp
-feeds/atom_03.cpp
-feeds/atom_10.cpp
-feeds/rdf_10.cpp
-feeds/rss_20.cpp
-feeds/opml.cpp
 forms/basic_renderer.cpp
 forms/controls.cpp
 forms/control_base.cpp

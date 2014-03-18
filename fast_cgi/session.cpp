@@ -29,9 +29,6 @@
 #include <crypt.hpp>
 #include <dom.hpp>
 #include <http.hpp>
-#include <feed_parser.hpp>
-
-#define UNREAD_COUNT 10
 
 namespace FastCGI
 {
