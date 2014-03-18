@@ -53,29 +53,6 @@ namespace FastCGI
 	class Session;
 	typedef std::shared_ptr<Session> SessionPtr;
 
-	enum SUBSCRIBE_ERROR
-	{
-		SERR_INTERNAL_ERROR = -500,
-		SERR_4xx_ANSWER = -4,
-		SERR_5xx_ANSWER = -5,
-		SERR_OTHER_ANSWER = -6,
-		SERR_NOT_A_FEED = -7
-	};
-
-	enum ENTRY_STATE
-	{
-		ENTRY_UNREAD,
-		ENTRY_STARRED,
-		ENTRY_IMPORTANT
-	};
-
-	enum
-	{
-		UI_VIEW_ONLY_UNREAD  = 1,
-		UI_VIEW_ONLY_TITLES = 2,
-		UI_VIEW_OLDEST_FIRST = 4
-	};
-
 	class Profile
 	{
 		long long m_profileId = -1;
@@ -141,7 +118,7 @@ namespace FastCGI
 		FlagsHelper(uint32_t flags) : m_flags(flags) {}
 	};
 
-	struct UserInfo: FlagsHelper
+	struct UserInfo
 	{
 		virtual ~UserInfo() {}
 		virtual long long userId() const = 0;
@@ -180,29 +157,11 @@ namespace FastCGI
 		static SessionPtr startSession(const db::ConnectionPtr& db, const UserInfoFactoryPtr& userInfoFactory, const char* login);
 		static void endSession(const db::ConnectionPtr& db, const char* sessionId);
 
-		DEPRECATED(long long getId() const) { return m_userInfo->userId(); }
-		DEPRECATED(const std::string& getLogin() const) { return m_profile->login(); }
-		DEPRECATED(const std::string& getName() const) { return m_profile->displayName(); }
-		DEPRECATED(const std::string& getEmail() const) { return m_profile->email(); }
 		const std::string& getSessionId() const { return m_hash; }
-		DEPRECATED(bool isAdmin() const) { return false; }
-		DEPRECATED(const std::string& preferredLanguage() const) { return m_profile->preferredLanguage(); }
-		DEPRECATED(void preferredLanguage(const std::string& lang)) { m_profile->preferredLanguage(lang); }
-		DEPRECATED(void storeLanguage(const db::ConnectionPtr& db)) { m_profile->storeLanguage(db); };
-
-		DEPRECATED(bool viewOnlyUnread() const)  { return m_userInfo->flags(UI_VIEW_ONLY_UNREAD); }
-		DEPRECATED(bool viewOnlyTitles() const)  { return m_userInfo->flags(UI_VIEW_ONLY_TITLES); }
-		DEPRECATED(bool viewOldestFirst() const) { return m_userInfo->flags(UI_VIEW_OLDEST_FIRST); }
-		DEPRECATED(void setViewOnlyUnread(bool value = true))  { m_userInfo->flags_set(UI_VIEW_ONLY_UNREAD, value); }
-		DEPRECATED(void setViewOnlyTitles(bool value = true))  { m_userInfo->flags_set(UI_VIEW_ONLY_TITLES, value); }
-		DEPRECATED(void setViewOldestFirst(bool value = true)) { m_userInfo->flags_set(UI_VIEW_OLDEST_FIRST, value); }
-		DEPRECATED(void storeFlags(const db::ConnectionPtr& db));
 
 		tyme::time_t getStartTime() const { return m_setOn; }
 		lng::TranslationPtr getTranslation() { return m_tr; }
 		void setTranslation(const lng::TranslationPtr& tr) { m_tr = tr; }
-		DEPRECATED(long long createFolder(const db::ConnectionPtr& db, const char* name, long long parent = 0));
-		DEPRECATED(long long subscribe(const db::ConnectionPtr& db, const char* url, long long folder = 0));
 
 		ProfilePtr profile() const { return m_profile; }
 		UserInfoPtr userInfoRaw() const { return m_userInfo; }
