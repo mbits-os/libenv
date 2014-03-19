@@ -45,7 +45,7 @@ namespace FastCGI
 	ProfilePtr make_profile(const db::ConnectionPtr& db, const std::string& login)
 	{
 		static const char* SQL_READ_PROFILE =
-			"SELECT _id, email, name, family_name, display_name, lang, avatar_type "
+			"SELECT _id, email, name, family_name, display_name, lang, avatar_engine "
 			"FROM profile "
 			"WHERE login=?";
 
@@ -64,10 +64,10 @@ namespace FastCGI
 					std::string familyName = c->getText(3);
 					std::string displayName = c->getText(4);
 					std::string preferredLanguage = c->isNull(5) ? std::string() : c->getText(5);
-					uint32_t avatarType = c->getInt(6);
+					std::string avatarEngine = c->isNull(6) ? std::string() : c->getText(6);
 
 					return std::make_shared<Profile>(
-						_id, login, email, name, familyName, displayName, preferredLanguage, avatarType
+						_id, login, email, name, familyName, displayName, preferredLanguage, avatarEngine
 						);
 				}
 				else
@@ -205,5 +205,60 @@ namespace FastCGI
 		db::StatementPtr query = db->prepare("UPDATE profile SET lang=? WHERE login=?");
 		if (query && bindTextOrNull(query, 0, m_preferredLanguage) && query->bind(1, m_login))
 			query->execute();
+	}
+
+	void Profile::updateData(const db::ConnectionPtr& db, const std::map<std::string, std::string>& changed)
+	{
+		struct
+		{
+			const char* dataName;
+			const char* sqlName;
+			std::string Profile::* prop;
+		} props[] = {
+			{ "email",        "email",         &Profile::m_email },
+			{ "name",         "name",          &Profile::m_name },
+			{ "family_name",  "family_name",   &Profile::m_familyName },
+			{ "display_name", "display_name",  &Profile::m_displayName },
+			{ "avatar",       "avatar_engine", &Profile::m_avatarEngine }
+		};
+
+		std::vector<std::string> bindVals;
+
+		std::ostringstream o;
+		o << "UPDATE profile SET ";
+		for (auto&& pair : changed)
+		{
+			for (auto&& prop : props)
+			{
+				if (pair.first == prop.dataName)
+				{
+					if (!bindVals.empty())
+						o << ", ";
+					o << prop.sqlName << "=?";
+					this->*prop.prop = pair.second;
+					bindVals.push_back(pair.second);
+					break;
+				}
+			}
+		}
+
+		o << " WHERE _id=?";
+
+		auto sql = o.str();
+
+		auto update = db->prepare(sql.c_str());
+		if (!update)
+			return;
+
+		int ndx = -1;
+		for (auto&& val : bindVals)
+		{
+			if (!update->bind(++ndx, val))
+				return;
+		}
+		if (!update->bind(++ndx, m_profileId))
+			return;
+
+		update->execute();
 	}
 }

@@ -62,13 +62,13 @@ namespace FastCGI
 		std::string m_familyName;
 		std::string m_displayName;
 		std::string m_preferredLanguage;
-		uint32_t m_avatarType = 0;
+		std::string m_avatarEngine;
 
 	public:
 		Profile() {}
 		Profile(long long id, const std::string& login, const std::string& email,
 			const std::string& name, const std::string& familyName, const std::string& displayName,
-			const std::string& preferredLanguage, uint32_t avatarType)
+			const std::string& preferredLanguage, const std::string& avatarEngine)
 			: m_profileId(id)
 			, m_login(login)
 			, m_email(email)
@@ -76,7 +76,7 @@ namespace FastCGI
 			, m_familyName(familyName)
 			, m_displayName(displayName)
 			, m_preferredLanguage(preferredLanguage)
-			, m_avatarType(avatarType)
+			, m_avatarEngine(avatarEngine)
 		{
 		}
 
@@ -88,9 +88,10 @@ namespace FastCGI
 		const std::string& displayName() const { return m_displayName; }
 		const std::string& preferredLanguage() const { return m_preferredLanguage; }
 		void preferredLanguage(const std::string& lang) { m_preferredLanguage = lang; }
-		uint32_t avatarType() const { return m_avatarType; }
+		const std::string& avatarEngine() const { return m_avatarEngine; }
 
 		void storeLanguage(const db::ConnectionPtr& db);
+		void updateData(const db::ConnectionPtr& db, const std::map<std::string, std::string>& changed);
 	};
 	using ProfilePtr = std::shared_ptr<Profile>;
 
