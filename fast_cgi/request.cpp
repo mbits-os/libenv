@@ -560,6 +560,17 @@ namespace FastCGI
 
 	const std::string& Request::getStaticResources()
 	{
+		if (secure())
+		{
+			if (m_https_staticResources.empty())
+			{
+				m_https_staticResources = app().getStaticResources();
+				if (!m_https_staticResources.compare(0, 5, "http:"))
+					m_https_staticResources = "https:" + m_https_staticResources.substr(5);
+			}
+
+			return m_https_staticResources;
+		}
 		return app().getStaticResources();
 	}
 

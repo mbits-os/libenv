@@ -162,6 +162,7 @@ namespace FastCGI
 		RequestStatePtr m_requestState;
 		ContentPtr m_content;
 		std::shared_ptr<impl::RequestBackend> m_backend;
+		std::string m_https_staticResources;
 #ifdef DEBUG_CGI
 		std::string m_icicle;
 #endif
@@ -176,6 +177,8 @@ namespace FastCGI
 
 	public:
 		std::ostream& cerr() { return m_backend->cerr(); }
+
+		bool secure() { return !!getParam("HTTPS"); }
 
 		explicit Request(Thread& thread);
 		~Request();
