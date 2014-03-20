@@ -102,6 +102,7 @@ namespace http
 		virtual size_t getResponseTextLength() const = 0;
 		virtual const char* getResponseText() const = 0;
 		virtual dom::XmlDocumentPtr getResponseXml() = 0;
+		virtual dom::XmlDocumentPtr getResponseHtml() = 0;
 
 		virtual void setDebug(bool debug = true) = 0;
 		virtual void setShouldFollowLocation(bool follow) = 0;

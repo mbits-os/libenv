@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <mt.hpp>
+#include <htmlcxx/html/ParserDom.h>
 
 namespace http
 {
@@ -354,6 +355,7 @@ namespace http
 			bool rebuildDOM(const std::string& mimeType, const std::string& encoding);
 			bool rebuildDOM(const char* forcedType = nullptr);
 			bool parseXML(const std::string& encoding);
+			bool parseHTML(const std::string& encoding);
 
 			void clear_response()
 			{
@@ -385,44 +387,45 @@ namespace http
 			{
 			}
 
-			void onreadystatechange(ONREADYSTATECHANGE handler, void* userdata);
-			READY_STATE getReadyState() const;
+			void onreadystatechange(ONREADYSTATECHANGE handler, void* userdata) override;
+			READY_STATE getReadyState() const override;
 
-			void open(HTTP_METHOD method, const std::string& url, bool async = true);
-			void setRequestHeader(const std::string& header, const std::string& value);
+			void open(HTTP_METHOD method, const std::string& url, bool async = true) override;
+			void setRequestHeader(const std::string& header, const std::string& value) override;
 
-			void setBody(const void* body, size_t length);
-			void send();
-			void abort();
+			void setBody(const void* body, size_t length) override;
+			void send() override;
+			void abort() override;
 
-			int getStatus() const;
-			std::string getStatusText() const;
-			std::string getResponseHeader(const std::string& name) const;
-			std::map<std::string, std::string> getResponseHeaders() const;
-			size_t getResponseTextLength() const;
-			const char* getResponseText() const;
-			dom::XmlDocumentPtr getResponseXml();
+			int getStatus() const override;
+			std::string getStatusText() const override;
+			std::string getResponseHeader(const std::string& name) const override;
+			std::map<std::string, std::string> getResponseHeaders() const override;
+			size_t getResponseTextLength() const override;
+			const char* getResponseText() const override;
+			dom::XmlDocumentPtr getResponseXml() override;
+			dom::XmlDocumentPtr getResponseHtml() override;
 
-			bool wasRedirected() const;
-			const std::string getFinalLocation() const;
+			bool wasRedirected() const override;
+			const std::string getFinalLocation() const override;
 
-			void setDebug(bool debug);
-			void setMaxRedirects(size_t redirects);
-			void setShouldFollowLocation(bool follow);
+			void setDebug(bool debug) override;
+			void setMaxRedirects(size_t redirects) override;
+			void setShouldFollowLocation(bool follow) override;
 
-			void onStart(ConnectionCallback* cb);
-			void onError();
-			void onFinish();
-			size_t onData(const void* data, size_t count);
-			void onFinalLocation(const std::string& location);
-			void onHeaders(const std::string& reason, int http_status, const Headers& headers);
+			void onStart(ConnectionCallback* cb) override;
+			void onError() override;
+			void onFinish() override;
+			size_t onData(const void* data, size_t count) override;
+			void onFinalLocation(const std::string& location) override;
+			void onHeaders(const std::string& reason, int http_status, const Headers& headers) override;
 
-			void appendHeaders();
-			std::string getUrl();
-			void* getContent(size_t& length);
-			bool getDebug();
-			bool shouldFollowLocation();
-			long getMaxRedirs();
+			void appendHeaders() override;
+			std::string getUrl() override;
+			void* getContent(size_t& length) override;
+			bool getDebug() override;
+			bool shouldFollowLocation() override;
+			long getMaxRedirs() override;
 		};
 
 		void XmlHttpRequest::onreadystatechange(ONREADYSTATECHANGE handler, void* userdata)
@@ -573,6 +576,19 @@ namespace http
 			return doc; 
 		}
 
+		dom::XmlDocumentPtr XmlHttpRequest::getResponseHtml()
+		{
+			// Synchronize on (*this);
+
+			if (ready_state != DONE || done_flag) return false;
+
+			if (!doc && response.content && response.content_length)
+				if (!rebuildDOM("text/html"))
+					return dom::XmlDocumentPtr();
+
+			return doc; 
+		}
+
 		bool XmlHttpRequest::wasRedirected() const { return m_wasRedirected; }
 		const std::string XmlHttpRequest::getFinalLocation() const { return m_finalLocation; }
 
@@ -704,6 +720,11 @@ namespace http
 				return parseXML(encoding);
 			}
 
+			if (mime == "text/html")
+			{
+				return parseHTML(encoding);
+			}
+
 			return true;
 		}
 
@@ -800,7 +821,389 @@ namespace http
 				return false;
 			doc = parser.doc;
 			return true;
-		} 
+		}
+
+		namespace utf8
+		{
+			constexpr uint32_t unicodeReplacement{ 0x0000FFFD };
+			inline size_t length(uint32_t utf32)
+			{
+				if (utf32 < 0x00000080) return 1;
+				if (utf32 < 0x00000800) return 2;
+				if (utf32 < 0x00010000) return 3;
+				if (utf32 < 0x00200000) return 4;
+				if (utf32 < 0x04000000) return 5;
+				return 6;
+			}
+
+			inline void move(char*& dst, uint32_t& utf32)
+			{
+				*--dst = (utf32 & 0x3f) | 0x80;
+				utf32 >>= 6;
+			}
+
+			inline void conv(std::string& utf8, uint32_t utf32)
+			{
+				static const char firstByteMark[7] = { 0x00, 0x00, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc };
+
+				char seq[6];
+				if (utf32 & 0x80000000)
+					utf32 = unicodeReplacement;
+
+				auto bytes = length(utf32);
+				char* dst = seq + bytes;
+				switch (bytes)
+				{
+				case 6: move(dst, utf32);
+				case 5: move(dst, utf32);
+				case 4: move(dst, utf32);
+				case 3: move(dst, utf32);
+				case 2: move(dst, utf32);
+				case 1: *--dst = utf32 | firstByteMark[bytes];
+				}
+
+				utf8.append(seq, bytes);
+			}
+
+			std::string fromUtf32(const uint32_t* string, size_t length)
+			{
+				size_t len = 0;
+				auto c = string;
+				for (size_t i = 0; i < length; ++i, ++c)
+				{
+					auto utf32 = *c;
+					if (utf32 & 0x80000000)
+						utf32 = unicodeReplacement;
+					len += utf8::length(utf32);
+				}
+
+				std::string utf8;
+				utf8.reserve(len + 1);
+
+				c = string;
+				for (size_t i = 0; i < length; ++i, ++c)
+					conv(utf8, *c);
+
+				return utf8;
+			}
+
+			std::string fromUtf32(uint32_t c)
+			{
+				return fromUtf32(&c, 1);
+			}
+
+			template <template <typename T, typename A> class C, typename A>
+			std::string fromUtf32(const C<uint32_t, A>& c)
+			{
+				return fromUtf32(c.data(), c.size());
+			}
+		}
+
+		struct TextConverter
+		{
+			virtual ~TextConverter() {}
+			virtual std::string conv(const std::string&) = 0;
+		};
+		using TextConverterPtr = std::shared_ptr<TextConverter>;
+
+		struct Identity: TextConverter
+		{
+			std::string conv(const std::string& s) override { return s; }
+		};
+
+		struct eXpatConverter : TextConverter
+		{
+			int map[256];
+
+			std::string conv(const std::string& s) override
+			{
+				std::vector<uint32_t> data;
+
+				data.reserve(s.length());
+				for (auto&& c : s)
+				{
+					uint32_t utf32 = map[(unsigned char)c];
+					if (utf32 < 0)
+						utf32 = utf8::unicodeReplacement;
+					data.push_back(utf32);
+				}
+				return utf8::fromUtf32(data);
+			}
+
+			static TextConverterPtr create(const std::string& cp)
+			{
+				auto conv = std::make_shared<eXpatConverter>();
+				if (!conv)
+					return nullptr;
+
+				if (!loadCharset(cp, conv->map))
+					return nullptr;
+
+				return conv;
+			}
+		};
+
+		class HTMLParser : htmlcxx::HTML::ParserSax
+		{
+			dom::XmlElementPtr elem;
+			std::string text;
+			TextConverterPtr converter;
+			std::string conv(const std::string& s) { return converter->conv(s); }
+			bool switchConv(std::string cp)
+			{
+				std::tolower(cp);
+				if (cp.empty() || cp == "utf-8" || cp == "utf8")
+					converter = std::make_shared<Identity>();
+				else
+					converter = eXpatConverter::create(cp);
+
+				return !!converter;
+			}
+
+			inline void expand(const char* entity, const char* val)
+			{
+				std::string::size_type len = strlen(entity);
+				std::string::size_type ntity = text.find(entity);
+				while (ntity != std::string::npos)
+				{
+					text = text.substr(0, ntity) + val + text.substr(ntity + len);
+					ntity = text.find(entity, ntity);
+				}
+			}
+
+			inline void expandNumericals()
+			{
+				std::string::size_type ntity = text.find("&#");
+				while (ntity != std::string::npos)
+				{
+					std::string::size_type ptr = ntity + 2;
+					char hex = text[ptr];
+
+					uint32_t utf32 = 0;
+					if (hex == 'x' || hex == 'X')
+					{
+						++ptr;
+
+						while (isxdigit((unsigned char)text[ptr]))
+						{
+							switch (text[ptr])
+							{
+							case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+								utf32 *= 16;
+								utf32 += text[ptr] - 'A' + 10;
+								break;
+							case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
+								utf32 *= 16;
+								utf32 += text[ptr] - 'a' + 10;
+								break;
+							default:
+								utf32 *= 10;
+								utf32 += text[ptr] - '0';
+							};
+
+							++ptr;
+						}
+					}
+					else
+					while (isdigit((unsigned char)text[ptr]))
+					{
+						utf32 *= 10;
+						utf32 += text[ptr] - '0';
+						++ptr;
+					}
+
+					if (text[ptr] == ';')
+					{
+						++ptr;
+						if (utf32 == 0xA0) utf32 = ' ';
+						text = text.substr(0, ntity) + utf8::fromUtf32(utf32) + text.substr(ptr);
+					}
+					else
+						ntity += 2; //to skip this &# in the next find
+
+					ntity = text.find("&#", ntity);
+				}
+			};
+
+			inline void addText()
+			{
+				if (text.empty()) return;
+
+				text = conv(text);
+
+				expand("&nbsp;", " ");
+				expand("&quot;", "\"");
+				expand("&lt;", "<");
+				expand("&gt;", ">");
+				expandNumericals();
+				expand("&amp;", "&");
+
+				if (elem)
+				{
+					dom::XmlTextPtr node = doc->createTextNode(text);
+					if (node)
+						elem->appendChild(node);
+				}
+				text.clear();
+			}
+
+		public:
+
+			HTMLParser()
+				: converter(std::make_shared<Identity>())
+			{
+			}
+
+			dom::XmlDocumentPtr doc;
+
+			bool create(const std::string& cp)
+			{
+				doc = dom::XmlDocument::create();
+				if (!doc)
+					return false;
+				return switchConv(cp);
+			}
+
+			void foundTag(htmlcxx::HTML::Node node, bool isEnd) override
+			{
+				std::string nodeName = node.tagName().c_str();
+				nodeName = std::tolower((const std::string&)nodeName);
+
+				if (!isEnd)
+				{
+					addText();
+
+					dom::XmlElementPtr current = doc->createElement(nodeName);
+					if (!current) return;
+
+					node.parseAttributes();
+					for (auto&& attr : node.attributes())
+					{
+						auto node = doc->createAttribute(std::tolower(attr.first), attr.second);
+						if (!node) continue;
+						current->setAttribute(node);
+					}
+
+					auto _cur = node.attributes().begin(),
+						_end = node.attributes().end();
+
+					for (; _cur != _end; ++_cur)
+					{
+					}
+
+					if (elem)
+						elem->appendChild(current);
+					else
+						doc->setDocumentElement(current);
+
+					if (nodeName == "meta")
+					{
+						std::string
+							equiv = std::tolower(current->getAttribute("http-equiv")),
+							content = current->getAttribute("content");
+						if (equiv == "content-type")
+						{
+							std::string charset;
+							std::string::size_type semi = content.find(';');
+							std::string::size_type len = content.length();
+							while (semi != std::string::npos)
+							{
+								++semi;
+								while (semi < len && isspace((unsigned char)content[semi])) ++semi;
+								if (std::tolower(content.substr(semi, 7)) == "charset")
+								{
+									semi += 7;
+									while (semi < len && isspace((unsigned char)content[semi])) ++semi;
+									if (semi < len && content[semi] == '=')
+									{
+										++semi;
+										std::string::size_type last = content.find(';', semi);
+										if (last == std::string::npos)
+											charset = content.substr(semi);
+										else
+											charset = content.substr(semi, last - semi);
+										std::trim(charset);
+										std::tolower(charset);
+									}
+									break;
+								}
+								semi = content.find(';', semi);
+							}
+
+							if (switchConv(charset))
+							{
+								// printf("\rUnexpected character set: %s\n", charset.c_str());
+							}
+						}
+						return;
+					}
+
+					if (nodeName != "area" &&
+						nodeName != "base" &&
+						nodeName != "basefont" &&
+						nodeName != "br" &&
+						nodeName != "col" &&
+						nodeName != "frame" &&
+						nodeName != "hr" &&
+						nodeName != "img" &&
+						nodeName != "input" &&
+						nodeName != "isindex" &&
+						nodeName != "link" &&
+						//nodeName != "meta" && //always true
+						nodeName != "param" &&
+						nodeName != "nextid" &&
+						nodeName != "bgsound" &&
+						nodeName != "embed" &&
+						nodeName != "keygen" &&
+						nodeName != "spacer" &&
+						nodeName != "wbr")
+					{
+						elem = current;
+					}
+
+					return;
+				}
+
+				dom::XmlNodePtr xmlnode = elem;
+				while (xmlnode)
+				{
+					if (xmlnode->nodeName() == nodeName)
+						break;
+
+					xmlnode = xmlnode->parentNode();
+				}
+
+				if (!xmlnode) return;
+				elem = std::static_pointer_cast<dom::XmlElement>(xmlnode);
+
+				addText();
+
+				if (!elem) return;
+
+				elem = std::static_pointer_cast<dom::XmlElement>(elem->parentNode());
+			}
+
+			void foundText(htmlcxx::HTML::Node node) override
+			{
+				text += node.text().c_str();
+			}
+
+			void endParsing() override {}
+
+			void parse(const char* begin, long long size)
+			{
+				return htmlcxx::HTML::ParserSax::parse(begin, begin + size);
+			}
+		};
+
+		bool XmlHttpRequest::parseHTML(const std::string& encoding)
+		{
+			HTMLParser parser;
+			if (!parser.create(encoding)) return false;
+			parser.parse((const char*)response.content, response.content_length);
+			doc = parser.doc;
+			return true;
+		}
 	} // http::impl
 
 	XmlHttpRequestPtr XmlHttpRequest::Create()
