@@ -29,7 +29,7 @@
 #include <locale.hpp>
 #include <mt.hpp>
 #include <sstream>
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 #include <chrono>
 #endif
 
@@ -89,7 +89,7 @@ namespace FastCGI
 		: tag(tag), file(file), line(line) { ApplicationLog(file, line) << "[in] " << tag; }
 	inline FLOGBlock::~FLOGBlock() { ApplicationLog(file, line) << "[out] " << tag; }
 
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 	class FrozenState
 	{
 	public:

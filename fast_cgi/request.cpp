@@ -63,7 +63,7 @@ namespace FastCGI
 
 	bool PageTranslation::init(SessionPtr session, Request& request)
 	{
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 		auto frozen = request.app().frozen(request.getIcicle());
 #endif
 		if (session)
@@ -86,7 +86,7 @@ namespace FastCGI
 				// still survived? use it...
 				if (m_translation)
 				{
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 					if (frozen)
 						frozen->culture(culture, !preferred.empty());
 #endif
@@ -101,7 +101,7 @@ namespace FastCGI
 
 				if (m_translation)
 				{
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 					if (frozen)
 						frozen->culture(preferred, true);
 #endif
@@ -114,7 +114,7 @@ namespace FastCGI
 		if (session)
 			session->setTranslation(m_translation);
 
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 		if (frozen && m_translation)
 			frozen->culture(m_translation->tr(lng::Culture()), false);
 #endif
@@ -358,14 +358,14 @@ namespace FastCGI
 
 		buildCookieHeader();
 
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 		bool hasIcicle = !m_icicle.empty();
 #endif
 
 		for (auto&& header: m_headers)
 		{
 			*this << header.second << "\r\n";
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 			if (hasIcicle)
 				app().reportHeader(header.second, m_icicle);
 #endif
@@ -531,7 +531,7 @@ namespace FastCGI
 			FastCGI::ApplicationLog(file, line) << "[500] URI: " << getParam("REQUEST_URI");
 		if (!log.empty())
 			FastCGI::ApplicationLog(file, line) << "[500] msg: " << log;
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 		if (!m_icicle.empty())
 			FastCGI::ApplicationLog(file, line) << "[500] icicle: " << m_icicle;
 #endif

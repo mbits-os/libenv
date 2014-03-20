@@ -163,7 +163,7 @@ namespace FastCGI
 		ContentPtr m_content;
 		std::shared_ptr<impl::RequestBackend> m_backend;
 		std::string m_https_staticResources;
-#ifdef DEBUG_CGI
+#if DEBUG_CGI
 		std::string m_icicle;
 #endif
 
