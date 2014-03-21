@@ -844,7 +844,7 @@ namespace http
 
 			inline void conv(std::string& utf8, uint32_t utf32)
 			{
-				static const char firstByteMark[7] = { 0x00, 0x00, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc };
+				static const uint32_t firstByteMark[7] = { 0x00, 0x00, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc };
 
 				char seq[6];
 				if (utf32 & 0x80000000)
