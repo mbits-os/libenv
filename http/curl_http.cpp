@@ -95,14 +95,14 @@ namespace http
 		return ret.str();
 	}
 
-	struct CurlAsyncJob: http::ConnectionCallback
+	struct CurlAsyncJob : http::ConnectionCallback, std::enable_shared_from_this<CurlAsyncJob>
 	{
 		typedef HttpCallbackPtr Init;
-		Init ref;
+		Init http_callback;
 		bool aborting;
 		curl_slist* headers;
 
-		CurlAsyncJob(const Init& init): ref(init), aborting(false), headers(nullptr) {}
+		CurlAsyncJob(const Init& init): http_callback(init), aborting(false), headers(nullptr) {}
 		~CurlAsyncJob() {}
 		void Run();
 		void Start(bool async) { Run(); } // sync until job are ported
@@ -113,18 +113,19 @@ namespace http
 		{
 			headers = curl_slist_append(headers, header.c_str());
 		}
-
 	};
+
+	using CurlAsyncJobPtr = std::shared_ptr<CurlAsyncJob>;
 
 	void Init()
 	{
 		curl_global_init(CURL_GLOBAL_ALL);
 	}
 
-	void Send(HttpCallbackPtr ref, bool async)
+	void Send(HttpCallbackPtr http_callback, bool async)
 	{
 		try {
-			auto job = std::make_shared<CurlAsyncJob>(ref);
+			auto job = std::make_shared<CurlAsyncJob>(http_callback);
 			job->Start(async);
 		} catch(std::bad_alloc) {}
 	}
@@ -196,9 +197,10 @@ namespace http
 
 		void setWrite()
 		{
-			curl_easy_setopt(m_curl, CURLOPT_WRITEHEADER, static_cast<Final*>(this));
+			auto _this = static_cast<Final*>(this);
+			curl_easy_setopt(m_curl, CURLOPT_WRITEHEADER, _this);
 			curl_easy_setopt(m_curl, CURLOPT_HEADERFUNCTION, curl_onHeader);
-			curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, static_cast<Final*>(this));
+			curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, _this);
 			curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, curl_onData);
 		}
 
@@ -247,14 +249,14 @@ namespace http
 		std::string m_lastKey;
 		Headers m_headers;
 		bool m_headersLocked;
-		CurlAsyncJob* m_owner;
+		CurlAsyncJobPtr m_owner;
 		bool m_wasRedirected;
 		std::string m_finalLocation;
 
 		void wasRedirected();
 
 	public:
-		explicit Curl(CurlAsyncJob* owner)
+		explicit Curl(const CurlAsyncJobPtr& owner)
 			: m_status(0)
 			, m_headersLocked(true)
 			, m_owner(owner)
@@ -280,37 +282,37 @@ namespace http
 
 	void CurlAsyncJob::Run()
 	{
-		ref->onStart(this);
+		http_callback->onStart(this);
 
-		Curl curl(this);
+		Curl curl(shared_from_this());
 		if (!curl)
 		{
-			ref->onError();
+			http_callback->onError();
 			return;
 		}
 
-		if (ref->shouldFollowLocation())
+		if (http_callback->shouldFollowLocation())
 		{
 			curl.followLocation();
-			long redirs = ref->getMaxRedirs();
+			long redirs = http_callback->getMaxRedirs();
 			if (redirs != 0)
 				curl.setMaxRedirs(redirs);
 		}
 
-		ref->appendHeaders();
+		http_callback->appendHeaders();
 
 		curl.setConnectTimeout(5);
-		curl.setUrl(ref->getUrl());
+		curl.setUrl(http_callback->getUrl());
 		curl.setUA(getUserAgent());
 		curl.setHeaders(headers);
 
 		curl.setProgress();
-		if (ref->getDebug()) curl.setDebug();
+		if (http_callback->getDebug()) curl.setDebug();
 		curl.setSSLVerify(false);
 		curl.setWrite();
 
 		size_t length;
-		void* content = ref->getContent(length);
+		void* content = http_callback->getContent(length);
 
 		if (content && length)
 		{
@@ -323,27 +325,27 @@ namespace http
 			curl.sendHeaders(); // we must have hit max or a circular
 
 		if (ret == CURLE_OK)
-			ref->onFinish();
+			http_callback->onFinish();
 		else
-			ref->onError();
+			http_callback->onError();
 	}
 
 	namespace Transfer
 	{
 		template <bool equal>
-		struct Data { static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length); };
+		struct Data { static Curl::size_type onData(const HttpCallbackPtr& http_callback, const char* data, Curl::size_type length); };
 
 		template <>
 		struct Data<true> { 
-			static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
+			static Curl::size_type onData(const HttpCallbackPtr& http_callback, const char* data, Curl::size_type length)
 			{
-				return ref->onData(data, (size_t)length);
+				return http_callback->onData(data, (size_t)length);
 			}
 		};
 
 		template <>
 		struct Data<false> { 
-			static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
+			static Curl::size_type onData(const HttpCallbackPtr& http_callback, const char* data, Curl::size_type length)
 			{
 				Curl::size_type written = 0;
 				while (length)
@@ -352,7 +354,7 @@ namespace http
 					if (chunk > length) chunk = length;
 					length -= chunk;
 					size_t st_chunk = (size_t)chunk;
-					size_t ret = ref->onData(data, st_chunk);
+					size_t ret = http_callback->onData(data, st_chunk);
 					data += st_chunk;
 					written += ret;
 					if (ret != st_chunk)
@@ -363,9 +365,9 @@ namespace http
 			}
 		};
 
-		static Curl::size_type onData(const HttpCallbackPtr& ref, const char* data, Curl::size_type length)
+		static Curl::size_type onData(const HttpCallbackPtr& http_callback, const char* data, Curl::size_type length)
 		{
-			return Data<sizeof(Curl::size_type) <= sizeof(size_t)>::onData(ref, data, length);
+			return Data<sizeof(Curl::size_type) <= sizeof(size_t)>::onData(http_callback, data, length);
 		}
 
 		template <bool equal>
@@ -426,7 +428,7 @@ namespace http
 		// And if we redirect, there will be a new header soon...
 		if (isRedirect()) return length;
 
-		return Transfer::onData(m_owner->ref, data, length);
+		return Transfer::onData(m_owner->http_callback, data, length);
 	}
 
 #define C_WS while (read < length && isspace((unsigned char)*data)) ++data, ++read;
@@ -578,8 +580,8 @@ namespace http
 	void Curl::sendHeaders() const
 	{
 		if (m_wasRedirected)
-			m_owner->ref->onFinalLocation(m_finalLocation);
-		m_owner->ref->onHeaders(m_statusText, m_status, m_headers);
+			m_owner->http_callback->onFinalLocation(m_finalLocation);
+		m_owner->http_callback->onHeaders(m_statusText, m_status, m_headers);
 	}
 
 	int Curl::onTrace(curl_infotype type, char *data, size_t size)

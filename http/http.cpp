@@ -314,6 +314,7 @@ namespace http
 				delete [] content;
 				content = nullptr;
 				content_length = 0;
+				capacity = 0;
 			}
 		};
 
@@ -363,6 +364,9 @@ namespace http
 				reason.clear();
 				response_headers.clear();
 				response.clear();
+				doc.reset();
+				m_wasRedirected = false;
+				m_finalLocation.clear();
 			}
 		public:
 
@@ -450,7 +454,7 @@ namespace http
 
 			send_flag = false;
 			clear_response();
-			request_headers.empty();
+			request_headers.clear();
 
 			http_method = method;
 			this->url = url;
@@ -621,12 +625,14 @@ namespace http
 		{
 			ready_state = DONE;
 			done_flag = true;
+			m_connection = nullptr;
 			onReadyStateChange();
 		}
 
 		void XmlHttpRequest::onFinish()
 		{
 			ready_state = DONE;
+			m_connection = nullptr;
 			onReadyStateChange();
 		}
 
