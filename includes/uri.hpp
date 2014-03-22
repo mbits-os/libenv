@@ -248,6 +248,10 @@ public:
 
 	std::string string() const { return m_uri; }
 
+	static Uri make_base(const std::string& document)
+	{
+		return make_base(Uri{ document });
+	}
 	static Uri make_base(const Uri& document)
 	{
 		auto tmp = document;
