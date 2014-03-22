@@ -35,6 +35,7 @@ includes/filesystem.hpp
 includes/wiki.hpp
 includes/wiki_mailer.hpp
 includes/format.hpp
+includes/uri.hpp
 
 database/dbconn.cpp
 database/mysql/mysql.cpp
