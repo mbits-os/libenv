@@ -46,6 +46,7 @@
 #include <string>
 #include <http.hpp>
 #include <utils.hpp>
+#include <mt.hpp>
 
 namespace std
 {
@@ -95,39 +96,9 @@ namespace http
 		return ret.str();
 	}
 
-	struct CurlAsyncJob : http::ConnectionCallback, std::enable_shared_from_this<CurlAsyncJob>
-	{
-		typedef HttpCallbackPtr Init;
-		Init http_callback;
-		bool aborting;
-		curl_slist* headers;
-
-		CurlAsyncJob(const Init& init): http_callback(init), aborting(false), headers(nullptr) {}
-		~CurlAsyncJob() {}
-		void Run();
-		void Start(bool async) { Run(); } // sync until job are ported
-
-		void abort() { aborting = true; }
-		bool isAborting() const { return aborting; }
-		void appendHeader(const std::string& header)
-		{
-			headers = curl_slist_append(headers, header.c_str());
-		}
-	};
-
-	using CurlAsyncJobPtr = std::shared_ptr<CurlAsyncJob>;
-
 	void Init()
 	{
 		curl_global_init(CURL_GLOBAL_ALL);
-	}
-
-	void Send(HttpCallbackPtr http_callback, bool async)
-	{
-		try {
-			auto job = std::make_shared<CurlAsyncJob>(http_callback);
-			job->Start(async);
-		} catch(std::bad_alloc) {}
 	}
 
 	template <typename Final>
@@ -147,12 +118,19 @@ namespace http
 				curl_easy_cleanup(m_curl);
 			m_curl = nullptr;
 		}
-		operator bool () const { return m_curl != nullptr; }
+		explicit operator bool () const { return m_curl != nullptr; }
 
 		void followLocation()
 		{
 			curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(m_curl, CURLOPT_AUTOREFERER, 1L);
+		}
+
+		void dontFollowLocation()
+		{
+			curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 0L);
+			curl_easy_setopt(m_curl, CURLOPT_AUTOREFERER, 0L);
+			curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, -1L);
 		}
 
 		void setMaxRedirs(long redirs)
@@ -219,6 +197,11 @@ namespace http
 				curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, curl_onTrace);
 				curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, static_cast<Final*>(this));
 			}
+			else
+			{
+				curl_easy_setopt(m_curl, CURLOPT_DEBUGFUNCTION, nullptr);
+				curl_easy_setopt(m_curl, CURLOPT_DEBUGDATA, nullptr);
+			}
 		}
 
 		CURLcode fetch()
@@ -242,6 +225,7 @@ namespace http
 		static int curl_onTrace(CURL *handle, curl_infotype type, char *data, size_t size, Final *_this) { return _this->onTrace(type, data, size); }
 	};
 
+	class CurlEndpoint;
 	class Curl: public CurlBase<Curl>
 	{
 		int m_status;
@@ -249,20 +233,25 @@ namespace http
 		std::string m_lastKey;
 		Headers m_headers;
 		bool m_headersLocked;
-		CurlAsyncJobPtr m_owner;
+		std::weak_ptr<CurlEndpoint> m_owner;
+		std::weak_ptr<HttpCallback> m_callback;
 		bool m_wasRedirected;
 		std::string m_finalLocation;
 
 		void wasRedirected();
 
 	public:
-		explicit Curl(const CurlAsyncJobPtr& owner)
+		explicit Curl()
 			: m_status(0)
 			, m_headersLocked(true)
-			, m_owner(owner)
 			, m_wasRedirected(false)
 		{
 		}
+
+		std::shared_ptr<CurlEndpoint> getOwner() const { return m_owner.lock(); }
+		void setOwner(const std::shared_ptr<CurlEndpoint>& owner) { m_owner = owner; }
+		std::shared_ptr<HttpCallback> getCallback() const { return m_callback.lock(); }
+		void setCallback(const std::shared_ptr<HttpCallback>& callback) { m_callback = callback; }
 
 		void setUrl(const std::string& url)
 		{
@@ -276,40 +265,149 @@ namespace http
 		size_type onData(const char* data, size_type length);
 		size_type onHeader(const char* data, size_type length);
 		size_type onUnderflow(void* data, size_type length) { return 0; } // still not implemented
-		bool onProgress(double, double, double, double) { return m_owner->isAborting(); }
+		inline bool onProgress(double, double, double, double);
 		int onTrace(curl_infotype type, char *data, size_t size);
 	};
 
-	void CurlAsyncJob::Run()
+	class CurlEndpoint : public http::HttpEndpoint, public std::enable_shared_from_this<CurlEndpoint>
 	{
-		http_callback->onStart(this);
+		std::weak_ptr<HttpCallback> m_callback;
+		bool aborting = false;
+		curl_slist* headers = nullptr;
+		Curl m_curl;
 
-		Curl curl(shared_from_this());
-		if (!curl)
+	public:
+		CurlEndpoint(const HttpCallbackPtr& obj) : m_callback(obj) {}
+		~CurlEndpoint()
+		{
+			if (headers)
+			{
+				curl_slist_free_all(headers);
+				headers = nullptr;
+			}
+		}
+		void attachTo(const HttpCallbackPtr& obj) { m_callback = obj; }
+		void send(bool async) override
+		{
+			aborting = false;
+			if (headers)
+			{
+				curl_slist_free_all(headers);
+				headers = nullptr;
+			}
+
+			run(); // sync until job are ported
+		}
+		void releaseEndpoint() override;
+		void abort() override { aborting = true; }
+		void appendHeader(const std::string& header) override
+		{
+			headers = curl_slist_append(headers, header.c_str());
+		}
+
+		bool isAborting() const { return aborting; }
+
+		void run();
+		std::weak_ptr<HttpCallback> callback() const { return m_callback; }
+	};
+
+	inline bool Curl::onProgress(double, double, double, double)
+	{
+		auto owner = getOwner();
+		if (!owner)
+			return true;
+		return owner->isAborting();
+	}
+
+	using CurlEndpointPtr = std::shared_ptr<CurlEndpoint>;
+
+	struct CurlModule : mt::AsyncData
+	{
+		std::list<CurlEndpointPtr> m_available;
+	public:
+		static CurlModule& instance()
+		{
+			static CurlModule _this;
+			return _this;
+		}
+
+		HttpEndpointPtr getEndpoint(const HttpCallbackPtr& obj)
+		{
+			Synchronize on(*this);
+			if (m_available.empty())
+				return std::make_shared<CurlEndpoint>(obj);
+
+			auto endpoint = m_available.front();
+			m_available.pop_front();
+
+			endpoint->attachTo(obj);
+			return endpoint;
+		}
+
+		void makeAvailable(const CurlEndpointPtr& abandoned)
+		{
+			Synchronize on(*this);
+			m_available.push_back(abandoned);
+		}
+	};
+
+	HttpEndpointPtr GetEndpoint(const HttpCallbackPtr& obj)
+	{
+		return CurlModule::instance().getEndpoint(obj);
+	}
+
+	void CurlEndpoint::releaseEndpoint()
+	{
+		m_callback.reset();
+		m_curl.setCallback(nullptr);
+		CurlModule::instance().makeAvailable(shared_from_this());
+	}
+
+	void CurlEndpoint::run()
+	{
+		auto http_callback = m_callback.lock();
+		if (!http_callback)
+			return;
+
+		http_callback->onStart();
+
+		if (!m_curl)
 		{
 			http_callback->onError();
 			return;
 		}
 
-		if (http_callback->shouldFollowLocation())
+		m_curl.setCallback(http_callback);
+		auto owner = m_curl.getOwner();
+		if (!owner) // ont-time init
 		{
-			curl.followLocation();
-			long redirs = http_callback->getMaxRedirs();
-			if (redirs != 0)
-				curl.setMaxRedirs(redirs);
+			m_curl.setOwner(shared_from_this());
+			m_curl.setConnectTimeout(5);
+			m_curl.setUA(getUserAgent());
+			m_curl.setProgress();
+			m_curl.setSSLVerify(false);
+			m_curl.setWrite();
 		}
+		owner.reset();
 
 		http_callback->appendHeaders();
 
-		curl.setConnectTimeout(5);
-		curl.setUrl(http_callback->getUrl());
-		curl.setUA(getUserAgent());
-		curl.setHeaders(headers);
+		m_curl.setUrl(http_callback->getUrl());
+		m_curl.setHeaders(headers);
 
-		curl.setProgress();
-		if (http_callback->getDebug()) curl.setDebug();
-		curl.setSSLVerify(false);
-		curl.setWrite();
+		if (http_callback->shouldFollowLocation())
+		{
+			m_curl.followLocation();
+			long redirs = http_callback->getMaxRedirs();
+			if (redirs != 0)
+				m_curl.setMaxRedirs(redirs);
+		}
+		else
+		{
+			m_curl.dontFollowLocation();
+		}
+
+		m_curl.setDebug(http_callback->getDebug());
 
 		size_t length;
 		void* content = http_callback->getContent(length);
@@ -317,12 +415,12 @@ namespace http
 		if (content && length)
 		{
 			//curl_httppost; HTTPPOST_CALLBACK;
-			curl.setPostData(content, length);
+			m_curl.setPostData(content, length);
 		}
 
-		CURLcode ret = curl.fetch();
-		if (curl.isRedirect())
-			curl.sendHeaders(); // we must have hit max or a circular
+		CURLcode ret = m_curl.fetch();
+		if (m_curl.isRedirect())
+			m_curl.sendHeaders(); // we must have hit max or a circular
 
 		if (ret == CURLE_OK)
 			http_callback->onFinish();
@@ -428,7 +526,10 @@ namespace http
 		// And if we redirect, there will be a new header soon...
 		if (isRedirect()) return length;
 
-		return Transfer::onData(m_owner->http_callback, data, length);
+		auto callback = getCallback();
+		if (!callback)
+			return 0;
+		return Transfer::onData(callback, data, length);
 	}
 
 #define C_WS while (read < length && isspace((unsigned char)*data)) ++data, ++read;
@@ -579,9 +680,13 @@ namespace http
 
 	void Curl::sendHeaders() const
 	{
+		auto callback = getCallback();
+		if (!callback)
+			return;
+
 		if (m_wasRedirected)
-			m_owner->http_callback->onFinalLocation(m_finalLocation);
-		m_owner->http_callback->onHeaders(m_statusText, m_status, m_headers);
+			callback->onFinalLocation(m_finalLocation);
+		callback->onHeaders(m_statusText, m_status, m_headers);
 	}
 
 	int Curl::onTrace(curl_infotype type, char *data, size_t size)

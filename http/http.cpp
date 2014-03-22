@@ -340,7 +340,7 @@ namespace http
 			dom::XmlDocumentPtr doc;
 
 			bool send_flag, done_flag, debug;
-			ConnectionCallback* m_connection;
+			HttpEndpointPtr m_endpoint;
 
 			bool m_followRedirects;
 			size_t m_redirects;
@@ -380,7 +380,6 @@ namespace http
 				, send_flag(false)
 				, done_flag(false)
 				, debug(false)
-				, m_connection(nullptr)
 				, m_followRedirects(true)
 				, m_redirects(10)
 				, m_wasRedirected(false)
@@ -389,6 +388,8 @@ namespace http
 
 			~XmlHttpRequest()
 			{
+				if (m_endpoint)
+					m_endpoint->releaseEndpoint();
 			}
 
 			void onreadystatechange(ONREADYSTATECHANGE handler, void* userdata) override;
@@ -417,7 +418,7 @@ namespace http
 			void setMaxRedirects(size_t redirects) override;
 			void setShouldFollowLocation(bool follow) override;
 
-			void onStart(ConnectionCallback* cb) override;
+			void onStart() override;
 			void onError() override;
 			void onFinish() override;
 			size_t onData(const void* data, size_t count) override;
@@ -525,14 +526,16 @@ namespace http
 
 			send_flag = true;
 			done_flag = false;
-			http::Send(shared_from_this(), async);
+			if (!m_endpoint)
+				m_endpoint = http::GetEndpoint(shared_from_this());
+			if (m_endpoint)
+				m_endpoint->send(async);
 		}
 
 		void XmlHttpRequest::abort()
 		{
-			if (m_connection)
-				m_connection->abort();
-			m_connection = nullptr;
+			if (m_endpoint)
+				m_endpoint->abort();
 		}
 
 		int XmlHttpRequest::getStatus() const
@@ -611,10 +614,8 @@ namespace http
 			m_followRedirects = follow;
 		}
 
-		void XmlHttpRequest::onStart(ConnectionCallback* connection)
+		void XmlHttpRequest::onStart()
 		{
-			m_connection = connection;
-
 			if (!body.content || !body.content_length)
 				http_method = HTTP_GET;
 
@@ -625,14 +626,12 @@ namespace http
 		{
 			ready_state = DONE;
 			done_flag = true;
-			m_connection = nullptr;
 			onReadyStateChange();
 		}
 
 		void XmlHttpRequest::onFinish()
 		{
 			ready_state = DONE;
-			m_connection = nullptr;
 			onReadyStateChange();
 		}
 
@@ -668,11 +667,11 @@ namespace http
 
 		void XmlHttpRequest::appendHeaders()
 		{
-			if (!m_connection)
-				return;
-			//Synchronize on(*this);
-			for (Headers::const_iterator _cur = request_headers.begin(); _cur != request_headers.end(); ++_cur)
-				m_connection->appendHeader(_cur->second);
+			if (m_endpoint)
+			{
+				for (auto&& pair : request_headers)
+					m_endpoint->appendHeader(pair.second);
+			}
 		}
 
 		std::string XmlHttpRequest::getUrl() { return url; }
