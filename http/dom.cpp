@@ -205,7 +205,7 @@ namespace dom
 
 				auto this_doc = document.lock();
 
-				for (auto&& node : list_nodes(children))
+				for (auto node : list_nodes(children))
 				{
 					if (!node)
 						return false;
@@ -339,7 +339,7 @@ namespace dom
 				auto parent = static_cast<T*>(this)->parentNode();
 				if (!parent)
 					return false;
-				return parent->insertBefore(node, shared_from_this());
+				return parent->insertBefore(node, Super::shared_from_this());
 			}
 			bool before(const std::string& data) override
 			{
@@ -352,7 +352,7 @@ namespace dom
 				auto parent = static_cast<T*>(this)->parentNode();
 				if (!parent)
 					return false;
-				return parent->insertBefore(nodes, shared_from_this());
+				return parent->insertBefore(nodes, Super::shared_from_this());
 			}
 			bool after(const XmlNodePtr& node) override
 			{
