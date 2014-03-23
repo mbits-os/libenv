@@ -27,8 +27,6 @@
 #include <fast_cgi/session.hpp>
 #include <dbconn.hpp>
 #include <crypt.hpp>
-#include <dom.hpp>
-#include <http.hpp>
 
 namespace FastCGI
 {

@@ -30,9 +30,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <wiki.hpp>
-#include <mail.hpp>
-#include <wiki_mailer.hpp>
+#include <wiki/wiki.hpp>
+#include <mail/mail.hpp>
+#include <mail/wiki_mailer.hpp>
 
 #define MAX_FORM_BUFFER 10240
 

@@ -20,14 +20,6 @@ includes/dbconn.hpp
 includes/dbconn_driver.hpp
 includes/model.hpp
 includes/locale.hpp
-includes/http.hpp
-includes/expat.hpp
-includes/dom.hpp
-includes/dom_xpath.hpp
-includes/filter.hpp
-includes/mail.hpp
-includes/wiki.hpp
-includes/wiki_mailer.hpp
 includes/format.hpp
 
 database/dbconn.cpp
@@ -48,21 +40,6 @@ forms/control_base.cpp
 forms/forms.cpp
 forms/table_renderer.cpp
 forms/vertical_renderer.cpp
-http/http.cpp
-http/curl_http.cpp
-http/curl_http.hpp
-http/dom.cpp
-http/dom_xpath.cpp
-mail/mail.cpp
-mail/filter.cpp
-mail/wiki_mailer.cpp
-wiki/wiki.cpp
-wiki/wiki_binary.cpp
-wiki/wiki_base.hpp
-wiki/wiki_nodes.cpp
-wiki/wiki_nodes.hpp
-wiki/wiki_parser.cpp
-wiki/wiki_parser.hpp
 
 #ifdef WIN32
 locale/dirent_win32.hpp
