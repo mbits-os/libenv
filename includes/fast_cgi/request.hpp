@@ -25,7 +25,7 @@
 #ifndef __REQUEST_HPP__
 #define __REQUEST_HPP__
 
-#include <dbconn.hpp>
+#include <db/conn.hpp>
 #include <locale.hpp>
 #include <mt.hpp>
 #include <fstream>

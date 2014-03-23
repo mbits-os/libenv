@@ -30,7 +30,7 @@
 #include <fast_cgi/thread.hpp>
 #include <fast_cgi/request.hpp>
 
-#include <dbconn.hpp>
+#include <db/conn.hpp>
 #include <locale.hpp>
 #include <mt.hpp>
 #include <fstream>

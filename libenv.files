@@ -16,16 +16,9 @@ includes/forms/vertical_renderer.hpp
 includes/handlers.hpp
 includes/top_menu.hpp
 includes/forms.hpp
-includes/dbconn.hpp
-includes/dbconn_driver.hpp
-includes/model.hpp
 includes/locale.hpp
 includes/format.hpp
 
-database/dbconn.cpp
-database/mysql/mysql.cpp
-database/mysql/mysql.hpp
-model/model.cpp
 fast_cgi/application.cpp
 fast_cgi/backends.cpp
 fast_cgi/request.cpp

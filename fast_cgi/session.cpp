@@ -25,7 +25,7 @@
 #include "pch.h"
 #include <fast_cgi/application.hpp>
 #include <fast_cgi/session.hpp>
-#include <dbconn.hpp>
+#include <db/conn.hpp>
 #include <crypt.hpp>
 
 namespace FastCGI

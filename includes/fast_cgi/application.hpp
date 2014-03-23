@@ -25,7 +25,7 @@
 #ifndef __APPLICATION_HPP__
 #define __APPLICATION_HPP__
 
-#include <dbconn.hpp>
+#include <db/conn.hpp>
 #include <locale.hpp>
 #include <mt.hpp>
 #include <sstream>
