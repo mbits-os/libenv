@@ -19,32 +19,21 @@ includes/forms.hpp
 includes/dbconn.hpp
 includes/dbconn_driver.hpp
 includes/model.hpp
-includes/utils.hpp
-includes/crypt.hpp
 includes/locale.hpp
 includes/http.hpp
 includes/expat.hpp
 includes/dom.hpp
 includes/dom_xpath.hpp
-includes/mt.hpp
 includes/filter.hpp
 includes/mail.hpp
-includes/getopt.hpp
-includes/config.hpp
-includes/filesystem.hpp
 includes/wiki.hpp
 includes/wiki_mailer.hpp
 includes/format.hpp
-includes/uri.hpp
 
 database/dbconn.cpp
 database/mysql/mysql.cpp
 database/mysql/mysql.hpp
 model/model.cpp
-crypt/crypt.cpp
-utils/url_utils.cpp
-utils/time_utils.cpp
-utils/config.cpp
 fast_cgi/application.cpp
 fast_cgi/backends.cpp
 fast_cgi/request.cpp
@@ -75,16 +64,6 @@ wiki/wiki_nodes.hpp
 wiki/wiki_parser.cpp
 wiki/wiki_parser.hpp
 
-#ifdef POSIX
-utils/mt_posix.cpp
-utils/filesystem_posix.cpp
-#endif
 #ifdef WIN32
-utils/mt_posix.cpp=exclude:*|*
-utils/mt_win32.cpp
-utils/filesystem_posix.cpp=exclude:*|*
-utils/filesystem_win32.cpp
 locale/dirent_win32.hpp
 #endif
-utils/mt.cpp
-utils/filesystem.cpp
