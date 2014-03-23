@@ -951,6 +951,7 @@ namespace http
 		class HTMLParser : htmlcxx::HTML::ParserSax
 		{
 			dom::XmlElementPtr elem;
+			dom::XmlDocumentFragmentPtr container;
 			std::string text;
 			TextConverterPtr converter;
 			std::string conv(const std::string& s) { return converter->conv(s); }
@@ -1043,11 +1044,13 @@ namespace http
 				expandNumericals();
 				expand("&amp;", "&");
 
-				if (elem)
+				dom::XmlTextPtr node = doc->createTextNode(text);
+				if (node)
 				{
-					dom::XmlTextPtr node = doc->createTextNode(text);
-					if (node)
+					if (elem)
 						elem->appendChild(node);
+					else
+						container->appendChild(node);
 				}
 				text.clear();
 			}
@@ -1066,13 +1069,15 @@ namespace http
 				doc = dom::XmlDocument::create();
 				if (!doc)
 					return false;
+				container = doc->createDocumentFragment();
+				if (!container)
+					return false;
 				return switchConv(cp);
 			}
 
 			void foundTag(htmlcxx::HTML::Node node, bool isEnd) override
 			{
-				std::string nodeName = node.tagName().c_str();
-				nodeName = std::tolower((const std::string&)nodeName);
+				std::string nodeName = std::tolower(node.tagName());
 
 				if (!isEnd)
 				{
@@ -1084,22 +1089,19 @@ namespace http
 					node.parseAttributes();
 					for (auto&& attr : node.attributes())
 					{
+						// fixing issues with htmlcxx
+						if (attr.first.empty() || std::isdigit((unsigned char)attr.first[0]))
+							continue;
+
 						auto node = doc->createAttribute(std::tolower(attr.first), attr.second);
 						if (!node) continue;
 						current->setAttribute(node);
 					}
 
-					auto _cur = node.attributes().begin(),
-						_end = node.attributes().end();
-
-					for (; _cur != _end; ++_cur)
-					{
-					}
-
 					if (elem)
 						elem->appendChild(current);
 					else
-						doc->setDocumentElement(current);
+						container->appendChild(current);
 
 					if (nodeName == "meta")
 					{
@@ -1193,7 +1195,26 @@ namespace http
 				text += node.text().c_str();
 			}
 
-			void endParsing() override {}
+			void endParsing() override
+			{
+				addText();
+
+				auto list = container->childNodes();
+				if (list)
+				{
+					if (list->length() == 1)
+					{
+						auto e = list->element(0);
+						if (e)
+						{
+							doc->setDocumentElement(e);
+							return;
+						}
+					}
+
+					doc->setFragment(container);
+				}
+			}
 
 			void parse(const char* begin, long long size)
 			{
