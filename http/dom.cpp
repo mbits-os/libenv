@@ -36,6 +36,24 @@ namespace dom
 	{
 		typedef std::vector< dom::XmlNodePtr > NodesInit;
 
+		static inline XmlNodePtr createTextSibling(XmlNode* node, const std::string& data)
+		{
+			if (!node) return nullptr;
+			auto doc = node->ownerDocument();
+			if (!doc) return nullptr;
+			return doc->createTextNode(data);
+		}
+
+		bool removeFromParent(const XmlNodePtr& node)
+		{
+			if (!node)
+				return false;
+			auto parent = node->parentNode();
+			if (!parent)
+				return true;
+			return parent->removeChild(node);
+		}
+
 		struct XmlNodeImplInit
 		{
 			NODE_TYPE type;
@@ -43,7 +61,7 @@ namespace dom
 			std::vector<dom::XmlNodePtr> children;
 			std::weak_ptr<dom::XmlDocument> document;
 			std::weak_ptr<dom::XmlNode> parent;
-			size_t index;
+			size_t index = (size_t) -1;
 			QName qname;
 
 			virtual void fixQName(bool forElem = true)
@@ -131,20 +149,162 @@ namespace dom
 			}
 
 			dom::XmlDocumentPtr ownerDocument() override { return document.lock(); }
-			bool appendChild(const dom::XmlNodePtr& newChild) override
+
+			size_t indexOf(const XmlNodePtr& node)
+			{
+				if (!node)
+					return children.size();
+
+				XmlNodeImplInit* p = (XmlNodeImplInit*)node->internalData();
+				size_t index = p->index;
+				if (index < children.size() && children[index] == node)
+					return index;
+
+				return children.size(); // same as if node was nullptr
+			}
+
+			bool insertBefore(const XmlNodePtr& newChild, const XmlNodePtr& before = nullptr) override
 			{
 				if (!newChild) return false;
 				dom::XmlDocumentPtr doc = newChild->ownerDocument();
 				if (!doc || doc != document.lock()) return false;
+
+				size_t index = indexOf(before); // in case newChild == before
+				if (!removeFromParent(newChild))
+					return false;
 
 				if (newChild->nodeType() == ATTRIBUTE_NODE)
 					return ((T*)this)->appendAttr(newChild);
 
 				XmlNodeImplInit* p = (XmlNodeImplInit*)newChild->internalData();
 				p->parent = ((T*)this)->shared_from_this();
-				p->index = children.size();
-				children.push_back(newChild);
+
+				auto it = children.begin();
+				std::advance(it, index);
+				children.insert(it, newChild);
+
 				p->fixQName();
+
+				size_t length = children.size();
+				for (size_t i = index; i < length; ++i)
+				{
+					auto child = children[i];
+					XmlNodeImplInit* p = (XmlNodeImplInit*)child->internalData();
+					p->index = i;
+				}
+
+				return true;
+			}
+			bool insertBefore(const XmlNodeListPtr& children, const XmlNodePtr& before = nullptr) override
+			{
+				if (!children)
+					return false;
+
+				std::vector<XmlNodePtr> copy;
+				copy.reserve(children->length());
+
+				auto this_doc = document.lock();
+
+				for (auto&& node : list_nodes(children))
+				{
+					if (!node)
+						return false;
+					dom::XmlDocumentPtr doc = node->ownerDocument();
+					if (!doc || doc != this_doc)
+						return false;
+
+					copy.push_back(node);
+				}
+
+				size_t index = indexOf(before); // in case any new child == before
+
+				for (auto&& node : copy)
+				{
+					if (!removeFromParent(node))
+						return false;
+				}
+
+				auto it = this->children.begin();
+				std::advance(it, index);
+
+				for (auto&& node : copy)
+				{
+					if (node->nodeType() == ATTRIBUTE_NODE)
+					{
+						if (!((T*)this)->appendAttr(node))
+							return false;
+						continue;
+					}
+
+					XmlNodeImplInit* p = (XmlNodeImplInit*)node->internalData();
+					p->parent = ((T*)this)->shared_from_this();
+					it = this->children.insert(it, node);
+					++it;
+					p->fixQName();
+				}
+
+				size_t length = this->children.size();
+				for (size_t i = index; i < length; ++i)
+				{
+					auto child = this->children[i];
+					XmlNodeImplInit* p = (XmlNodeImplInit*)child->internalData();
+					p->index = i;
+				}
+
+				return true;
+			}
+
+			bool appendChild(const dom::XmlNodePtr& newChild) override
+			{
+				return insertBefore(newChild);
+			}
+			bool replaceChild(const XmlNodePtr& newChild, const XmlNodePtr& oldChild) override
+			{
+				if (!oldChild)
+					return false;
+
+				if (!insertBefore(newChild, oldChild))
+					return false;
+
+				return removeChild(oldChild);
+			}
+			bool replaceChild(const XmlNodeListPtr& newChildren, const XmlNodePtr& oldChild) override
+			{
+				if (!oldChild)
+					return false;
+
+				if (!insertBefore(newChildren, oldChild))
+					return false;
+
+				return removeChild(oldChild);
+			}
+
+			bool removeChild(const XmlNodePtr& child) override
+			{
+				if (!child)
+					return false;
+
+				if (child->nodeType() == dom::ATTRIBUTE_NODE)
+					return ((T*)this)->removeAttr(child);
+
+				index = indexOf(child);
+				if (index >= children.size())
+					return false;
+
+				XmlNodeImplInit* p = (XmlNodeImplInit*)child->internalData();
+				p->parent.reset();
+				p->index = (size_t)-1;
+
+				auto it = children.begin();
+				std::advance(it, index);
+				children.erase(it);
+				size_t length = children.size();
+				for (size_t i = index; i < length; ++i)
+				{
+					auto child = children[i];
+					XmlNodeImplInit* p = (XmlNodeImplInit*)child->internalData();
+					p->index = i;
+				}
 
 				return true;
 			}
@@ -152,6 +312,7 @@ namespace dom
 			void* internalData() override { return (XmlNodeImplInit*)this; }
 
 			bool appendAttr(const dom::XmlNodePtr& newChild) { return false; }
+			bool removeAttr(const dom::XmlNodePtr& child) { return false; }
 
 			XmlNodePtr find(const std::string& path, const Namespaces& ns) override
 			{
@@ -160,6 +321,131 @@ namespace dom
 			XmlNodeListPtr findall(const std::string& path, const Namespaces& ns) override
 			{
 				return xpath::XPath(path, ns).findall(((T*)this)->shared_from_this());
+			}
+		};
+
+		template <typename T, typename _Interface>
+		class XmlChildNodeImpl : public XmlNodeImpl<T, _Interface>
+		{
+		public:
+
+			typedef XmlNodeImpl<T, _Interface> Super;
+			XmlChildNodeImpl(const XmlNodeImplInit& init) : Super(init)
+			{
+			}
+
+			bool before(const XmlNodePtr& node) override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return false;
+				return parent->insertBefore(node, shared_from_this());
+			}
+			bool before(const std::string& data) override
+			{
+				auto node = createTextSibling(this, data);
+				if (!node) return false;
+				return before(node);
+			}
+			bool before(const XmlNodeListPtr& nodes) override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return false;
+				return parent->insertBefore(nodes, shared_from_this());
+			}
+			bool after(const XmlNodePtr& node) override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return false;
+				return parent->insertBefore(node, parent->nextSibling());
+			}
+			virtual bool after(const std::string& data)
+			{
+				auto node = createTextSibling(this, data);
+				if (!node) return false;
+				return after(node);
+			}
+			bool after(const XmlNodeListPtr& nodes) override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return false;
+				return parent->insertBefore(nodes, parent->nextSibling());
+			}
+			bool replace(const XmlNodePtr& node) override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return false;
+				return parent->replaceChild(node, Super::shared_from_this());
+			}
+			bool replace(const std::string& data) override
+			{
+				auto node = createTextSibling(this, data);
+				if (!node) return false;
+				return replace(node);
+			}
+			bool replace(const XmlNodeListPtr& nodes) override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return false;
+				return parent->replaceChild(nodes, Super::shared_from_this());
+			}
+			bool remove() override
+			{
+				auto parent = static_cast<T*>(this)->parentNode();
+				if (!parent)
+					return true; // orphaned nodeas are always removed
+				return parent->removeChild(Super::shared_from_this());
+			}
+		};
+
+		template <typename T, typename _Interface>
+		class XmlParentNodeImpl : public XmlChildNodeImpl<T, _Interface>
+		{
+		public:
+			typedef XmlChildNodeImpl<T, _Interface> Super;
+			XmlParentNodeImpl(const XmlNodeImplInit& init) : Super(init)
+			{
+			}
+
+			bool prepend(const XmlNodePtr& node) override
+			{
+				auto _final = static_cast<T*>(this);
+				return _final->insertBefore(node, _final->firstChild());
+			}
+
+			bool prepend(const XmlNodeListPtr& nodes) override
+			{
+				auto _final = static_cast<T*>(this);
+				return _final->insertBefore(nodes, _final->firstChild());
+			}
+
+			bool prepend(const std::string& data) override
+			{
+				auto node = createTextSibling(this, data);
+				if (!node) return false;
+				return prepend(node);
+			}
+
+			bool append(const XmlNodePtr& node) override
+			{
+				return static_cast<T*>(this)->insertBefore(node);
+			}
+
+			bool append(const XmlNodeListPtr& nodes) override
+			{
+				return static_cast<T*>(this)->insertBefore(nodes);
+			}
+
+			bool append(const std::string& data) override
+			{
+				auto node = createTextSibling(this, data);
+				if (!node) return false;
+				return append(node);
 			}
 		};
 
@@ -181,6 +467,18 @@ namespace dom
 			size_t length() const override
 			{
 				return children.size();
+			}
+
+			bool remove() override
+			{
+				auto copy = children;
+				for (auto&& node : copy)
+				{
+					if (!removeFromParent(node))
+						return false;
+				}
+
+				return true;
 			}
 		};
 
@@ -208,13 +506,13 @@ namespace dom
 			}
 		};
 
-		class XmlText: public XmlNodeImpl<XmlText, dom::XmlText>
+		class XmlText: public XmlChildNodeImpl<XmlText, dom::XmlText>
 		{
 		public:
-			XmlText(const Init& init): XmlNodeImpl(init) {}
+			XmlText(const Init& init): XmlChildNodeImpl(init) {}
 		};
 
-		class XmlElement: public XmlNodeImpl<XmlElement, dom::XmlElement>
+		class XmlElement: public XmlParentNodeImpl<XmlElement, dom::XmlElement>
 		{
 		public:
 			bool nsRebuilt;
@@ -223,7 +521,7 @@ namespace dom
 
 			std::map< std::string, dom::XmlAttributePtr > lookup;
 
-			XmlElement(const Init& init): XmlNodeImpl(init), nsRebuilt(false) {}
+			XmlElement(const Init& init): XmlParentNodeImpl(init), nsRebuilt(false) {}
 
 			std::string getAttribute(const std::string& name) override
 			{
@@ -258,6 +556,34 @@ namespace dom
 				return true;
 			}
 
+			bool removeAttribute(const XmlAttributePtr& attr)
+			{
+				if (!attr)
+					return false;
+				return removeAttribute(attr->name());
+			}
+
+			bool setAttribute(const std::string& attr, const std::string& value)
+			{
+				auto doc = ownerDocument();
+				if (!doc)
+					return false;
+				auto attribute = doc->createAttribute(attr, value);
+				if (!attribute)
+					return false;
+
+				return setAttribute(attribute);
+			}
+
+			bool removeAttribute(const std::string& attr)
+			{
+				auto it = lookup.find(attr);
+				if (it == lookup.end())
+					return false;
+				lookup.erase(it);
+				return true;
+			}
+
 			struct get_1 {
 				template<typename K, typename V>
 				const V& operator()(const std::pair<K, V>& _item) { return _item.second; }
@@ -266,6 +592,7 @@ namespace dom
 			dom::XmlNodeListPtr getAttributes() override
 			{
 				std::vector< dom::XmlNodePtr > out;
+				out.reserve(lookup.size());
 				std::transform(lookup.begin(), lookup.end(), std::back_inserter(out), get_1());
 				return std::make_shared<XmlNodeList>(out);
 			}
@@ -300,6 +627,12 @@ namespace dom
 				if (!newChild || newChild->nodeType() != dom::ATTRIBUTE_NODE)
 					return false;
 				return setAttribute(std::static_pointer_cast<dom::XmlAttribute>(newChild));
+			}
+			bool removeAttr(const dom::XmlNodePtr& child)
+			{
+				if (!child || child->nodeType() != dom::ATTRIBUTE_NODE)
+					return false;
+				return removeAttribute(std::static_pointer_cast<dom::XmlAttribute>(child));
 			}
 
 			std::string innerText() override
@@ -367,10 +700,33 @@ namespace dom
 			}
 		};
 
+		class XmlDocumentFragment : public XmlParentNodeImpl<XmlDocumentFragment, dom::XmlDocumentFragment>
+		{
+			void enumTagNames(const std::string& tagName, std::vector< dom::XmlNodePtr >& out)
+			{
+				for (auto&& node : children)
+				{
+					if (node->nodeType() == ELEMENT_NODE)
+						((XmlElement*)node.get())->enumTagNames(tagName, out);
+				}
+			}
+
+		public:
+			XmlDocumentFragment(const Init& init) : XmlParentNodeImpl(init) {}
+
+			dom::XmlNodeListPtr getElementsByTagName(const std::string& tagName) override
+			{
+				std::vector< dom::XmlNodePtr > out;
+				enumTagNames(tagName, out);
+				return std::make_shared<XmlNodeList>(out);
+			}
+		};
+
 		class XmlDocument: public dom::XmlDocument, public std::enable_shared_from_this<XmlDocument>
 		{
 			QName m_qname;
 			dom::XmlElementPtr root;
+			dom::XmlDocumentFragmentPtr fragment;
 
 			friend XmlDocumentPtr dom::XmlDocument::create();
 		public:
@@ -394,25 +750,43 @@ namespace dom
 			XmlNodePtr nextSibling() override { return nullptr; }
 			XmlNodeListPtr childNodes() override
 			{
+				if (fragment)
+					return fragment->childNodes();
+
 				if (!root)
 					return nullptr;
+
 				try {
-				NodesInit children;
-				children.push_back(root);
-				return std::make_shared<XmlNodeList>(children);
+					NodesInit children;
+					children.push_back(root);
+					return std::make_shared<XmlNodeList>(children);
 				} catch(std::bad_alloc) { return nullptr; }
 			}
 
 			XmlDocumentPtr ownerDocument() override { return shared_from_this(); }
+			bool insertBefore(const XmlNodePtr& child, const XmlNodePtr& before = nullptr) override { return false; }
+			bool insertBefore(const XmlNodeListPtr& children, const XmlNodePtr& before = nullptr) override { return false; }
 			bool appendChild(const XmlNodePtr& newChild) override { return false; }
+			bool replaceChild(const XmlNodePtr& newChild, const XmlNodePtr& oldChild) override { return false; }
+			bool replaceChild(const XmlNodeListPtr& newChildren, const XmlNodePtr& oldChild) override { return false; }
+			bool removeChild(const XmlNodePtr& child) override { return false; }
 			void* internalData() override { return nullptr; }
 
 			dom::XmlElementPtr documentElement() override { return root; }
 			void setDocumentElement(const dom::XmlElementPtr& elem) override
 			{
 				root = elem;
+				fragment = nullptr;
 				if (elem)
 					((XmlNodeImplInit*)elem->internalData())->fixQName();
+			}
+			dom::XmlDocumentFragmentPtr associatedFragment() override { return fragment; }
+			void setFragment(const XmlDocumentFragmentPtr& f) override
+			{
+				root = nullptr;
+				fragment = f;
+				if (f)
+					((XmlNodeImplInit*)f->internalData())->fixQName();
 			}
 			dom::XmlElementPtr createElement(const std::string& tagName) override
 			{
@@ -447,10 +821,23 @@ namespace dom
 				return std::make_shared<XmlAttribute>(init);
 			}
 
+			dom::XmlDocumentFragmentPtr createDocumentFragment() override
+			{
+				XmlNodeImplInit init;
+				init.type = DOCUMENT_FRAGMENT_NODE;
+				init._name = "#document-fragment";
+				init.document = shared_from_this();
+				init.index = 0;
+				return std::make_shared<XmlDocumentFragment>(init);
+			}
+
 			dom::XmlNodeListPtr getElementsByTagName(const std::string& tagName) override
 			{
-				if (!root) return dom::XmlNodeListPtr();
-				return root->getElementsByTagName(tagName);
+				if (root)
+					return root->getElementsByTagName(tagName);
+				if (fragment)
+					return fragment->getElementsByTagName(tagName);
+				return nullptr;
 			}
 
 			dom::XmlElementPtr getElementById(const std::string& elementId) override
@@ -502,12 +889,10 @@ namespace dom
 			addText();
 			auto current = doc->createElement(name);
 			if (!current) return;
+
 			for (; *attrs; attrs += 2)
-			{
-				auto attr = doc->createAttribute(attrs[0], attrs[1]);
-				if (!attr) continue;
-				current->setAttribute(attr);
-			}
+				current->setAttribute(attrs[0], attrs[1]);
+
 			if (elem)
 				elem->appendChild(current);
 			else
