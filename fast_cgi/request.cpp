@@ -236,7 +236,8 @@ namespace FastCGI
 	void Request::unpackVariables()
 	{
 		param_t CONTENT_TYPE = getParam("CONTENT_TYPE");
-		if (CONTENT_TYPE && !strcmp(CONTENT_TYPE, "application/x-www-form-urlencoded"))
+		param_t semi = CONTENT_TYPE ? strchr(CONTENT_TYPE, ';') : nullptr;
+		if (CONTENT_TYPE && !strncmp(CONTENT_TYPE, "application/x-www-form-urlencoded", semi - CONTENT_TYPE))
 		{
 			long long length = calcStreamSize();
 			if (length != -1)
@@ -253,7 +254,7 @@ namespace FastCGI
 				}
 			}
 		}
-		else if (CONTENT_TYPE && !strcmp(CONTENT_TYPE, "multipart/form-data"))
+		else if (CONTENT_TYPE && !strncmp(CONTENT_TYPE, "multipart/form-data", semi - CONTENT_TYPE))
 		{
 			// TODO: add support?
 			readAll();
